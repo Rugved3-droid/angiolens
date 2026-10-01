@@ -127,7 +127,11 @@ def main():
               np.full(len(m.vertices), EXT_ID_OFFSET, np.float32), name="non_expert_extension",
               extras={"non_expert": True})
     print("extension mesh watertight", m.is_watertight, "faces", len(m.faces))
-    meta["non_expert_extension"] = {"file": "extension.json", "status": "PENDING REVIEW", "default_visible": False,
+    prev = meta.get("non_expert_extension", {})
+    if prev.get("status", "").startswith("NOT APPROVED"):
+        print("NOTE: previous verdict kept:", prev["status"])
+    meta["non_expert_extension"] = {"file": "extension.json", "default_visible": False,
+                                    "status": prev["status"] if prev.get("status", "").startswith("NOT APPROVED") else "PENDING REVIEW",
                                     "edges": [e["id"] for e in edges], "threshold_hu": args.threshold,
                                     "total_length_mm": round(sum(e["length_mm"] for e in edges), 1)}
     for f in ("extension.json", "extension.glb"):

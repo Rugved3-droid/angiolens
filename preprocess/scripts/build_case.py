@@ -62,7 +62,9 @@ def dominance_block(graph, info) -> dict:
                        "distal RCA/PDA not in the expert annotation. LCx (path 5) ends high in the posterior AV "
                        "groove at (44.4, 38.5, -121.3), ~30 mm left of and ~30 mm above the crux; its CT "
                        "continuation runs superiorly (likely great cardiac vein), not to the crux."),
-        "status": "pending Rugved's confirmation (out/review/dominance_check.png)",
+        "status": "indeterminate",
+        "status_note": ("2026-09-30 Rugved: indeterminate until the non-expert RCA extension is shown to be artery "
+                        "(see DECISIONS D12/D20, out/review/Normal_12/extension_checks.png)"),
         "teaching_note": "PDA/PLB are absent from this case's annotation; they cannot be labeled or injected.",
     }
 

@@ -151,3 +151,19 @@ Storage:
 In the app: separate toggle, violet tinted tube plus dashed centerline in 3D, dashed overlay in the angiogram, and a "[NON-EXPERT trace]" tag on selection.
 It is included in rays and overlap only while visible. The layer stays **default OFF** until
 `trace_extension.py --approve` after review of `out/review/Normal_12/extension_overlay.png`.
+
+**D20 update: extension NOT approved (Rugved's rule: approve only if the evidence clearly favours artery).** `scripts/extension_checks.py`,
+`out/review/Normal_12/extension_checks.png` / `.json`:
+1. Taper: FWHM diameter is flat, 1.42 / 1.50 / 1.48 mm by thirds (slope +0.004 mm per 10 mm). Uninformative: this is at the CT
+   resolution floor (calibration: expert distal RCA FWHM 1.96 mm vs official MIS diameter 1.82 mm). Peak HU falls 11.8 HU per 10 mm toward the crux.
+2. Coronary sinus (rough; seed snapped near (18, 31, −144), ≥ 250 HU; at 230 HU it merges into the LV): 0.53 mL tube, max radius 3.2 mm, (9, 25, −148)..(25, 41, −132).
+   The trace never touches it: minimum distance 9.6 mm, at the crux end. (Favours artery, weakly.)
+3. HU: trace centerline median 301, against CS core 306 and expert arteries of radius 0.45–0.8 mm at 412 (n = 284). **Matches the vein, not same-size arteries.**
+4. Junction: single lumen in all 13 cross-sections from −1 to +2 mm, and no fat plane (centerline minimum 177 HU at +1.5 mm). But there is an abrupt
+   480 → ~300 HU step exactly at the annotation end, plus a dip. Consistent with contact of two vessels or an abrupt caliber change; not decisive.
+   (The bright vertical line at 0 mm in reformat plane 2 is a reformat artifact where the path direction changes.)
+5. Side branches at 215 HU: one 5 mm candidate at the crux end heading superiorly (0, 0.19, 0.98), compatible with an AV nodal artery
+   *or* a venous tributary. At 185 HU, 8 candidates (noise or myocardium).
+
+Verdict: mixed, leaning venous. The layer stays default OFF with status "NOT APPROVED". Dominance in `case.json` = **indeterminate**.
+For future cases, pick one whose expert annotation reaches the crux and the PDA.
