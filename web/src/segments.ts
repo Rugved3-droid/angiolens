@@ -6,15 +6,15 @@
 //   LM                  whole labeled LM
 //   LAD prox / mid / dist   LAD start -> D1 origin -> D2 origin -> end
 //   LCx prox / dist         LCx start -> OM1 origin -> end
-//   RCA prox / mid / dist   "thirds": equal arc-length thirds of the labeled RCA (default, as specified by Rugved)
-//                           "acute-margin": SCCT wording, prox = ostium to half-way to the RV-marginal (acute
-//                           marginal) origin, mid = to that origin, dist = beyond (needs RV marginal labeled)
+//   RCA prox / mid / dist   SCCT acute-margin rule whenever an RV marginal (acute marginal) is labeled on the RCA:
+//                           prox = ostium to half-way to its origin, mid = to its origin, dist = beyond.
+//                           Otherwise equal arc-length thirds, marked "approximate (thirds)" and NOT mission-eligible.
 //   D1, D2, septal, ramus, OM1, OM2, conus, RV marginal, PDA, PLB: each labeled branch whole
 import type { Edge, GraphNode, Tree } from "./caseData";
 import { norm, sub, type Vec3 } from "./geometry";
 import type { BranchName } from "./labels";
 
-export type RcaRule = "thirds" | "acute-margin";
+export type RcaRule = "acute-margin" | "approximate-thirds" | "none";
 
 export interface SegmentMember {
   edgeId: number;
@@ -43,6 +43,8 @@ export interface Boundary {
 
 export interface Derivation {
   segments: DerivedSegment[];
+  /** which RCA rule the derivation actually used (recorded with an approval) */
+  rcaRule: RcaRule;
   boundaries: Boundary[];
   /** label INCONSISTENCIES (block approval) */
   issues: string[];
@@ -141,7 +143,7 @@ function slice(name: string, branch: BranchName, tree: Tree, ch: ChainSample[], 
 }
 
 export function deriveSegments(edges: Edge[], nodes: GraphNode[], labels: Map<number, BranchName>,
-                               opts: { rcaRule: RcaRule; rcaDistalTruncated: boolean }): Derivation {
+                               opts: { rcaDistalTruncated: boolean }): Derivation {
   const expert = edges.filter((e) => !e.nonExpert); // the non-expert layer never takes part in segmentation
   const depth = nodeDepths(expert, nodes);
   const nodesById = new Map(nodes.map((n) => [n.id, n]));
@@ -210,30 +212,34 @@ export function deriveSegments(edges: Edge[], nodes: GraphNode[], labels: Map<nu
   splitBranch("LAD", [["LAD prox", "D1"], ["LAD mid", "D2"], ["LAD dist", null]]);
   splitBranch("LCx", [["LCx prox", "OM1"], ["LCx dist", null]]);
 
+  let rcaRule: RcaRule = "none";
   const rca = chains.get("RCA");
   if (rca) {
     const ch = rca.chain;
     const L = ch.at(-1)!.arc;
     const at = (arc: number) => ch.findIndex((c) => c.arc >= arc - 1e-9);
-    let cuts: number[] | null = null;
-    let rule = "";
-    if (opts.rcaRule === "thirds") {
-      cuts = [0, at(L / 3), at((2 * L) / 3), ch.length - 1];
-      rule = "equal arc-length thirds of the labeled RCA";
+    // SCCT acute-margin rule when the RV marginal is labeled ON the RCA; otherwise approximate thirds
+    const i = chains.has("RV marginal") ? originOn("RV marginal", "RCA") : null;
+    let cuts: number[];
+    let rule: string;
+    let approx = false;
+    if (i !== null && i > 0) {
+      cuts = [0, at(ch[i].arc / 2), i, ch.length - 1];
+      rule = "SCCT acute margin (RV marginal origin); prox = half-way to it";
+      rcaRule = "acute-margin";
     } else {
-      const i = originOn("RV marginal", "RCA");
-      if (i === null) (chains.has("RV marginal") ? issues : notes).push("RCA acute-margin rule needs RV marginal labeled on the RCA; RCA left unsplit");
-      else {
-        cuts = [0, at(ch[i].arc / 2), i, ch.length - 1];
-        rule = "SCCT: half-way to acute margin, acute margin (RV marginal origin)";
-      }
+      cuts = [0, at(L / 3), at((2 * L) / 3), ch.length - 1];
+      rule = "approximate: equal arc-length thirds (RV marginal not labeled on the RCA)";
+      rcaRule = "approximate-thirds";
+      approx = true;
+      if (!chains.has("RV marginal")) notes.push("RCA split by approximate thirds: label the RV marginal (acute marginal) for the SCCT acute-margin rule");
     }
-    const flags = opts.rcaDistalTruncated ? ["distal RCA truncated: expert annotation ends before the crux"] : [];
-    if (cuts) {
-      ["RCA prox", "RCA mid", "RCA dist"].forEach((n, k) =>
-        segments.push(slice(n, "RCA", "right", ch, cuts![k], cuts![k + 1], bifNodes, nodesById, true, n === "RCA dist" ? flags : [])));
-      boundaries.push({ name: "RCA prox | mid", pos: ch[cuts[1]].p, rule }, { name: "RCA mid | dist", pos: ch[cuts[2]].p, rule });
-    } else segments.push(slice("RCA (unsplit)", "RCA", "right", ch, 0, ch.length - 1, bifNodes, nodesById, false, flags));
+    const trunc = opts.rcaDistalTruncated ? ["distal RCA truncated: expert annotation ends before the crux"] : [];
+    ["RCA prox", "RCA mid", "RCA dist"].forEach((n, k) => {
+      const flags = [...(approx ? ["approximate (thirds)"] : []), ...(n === "RCA dist" ? trunc : [])];
+      segments.push(slice(n, "RCA", "right", ch, cuts[k], cuts[k + 1], bifNodes, nodesById, !approx, flags));
+    });
+    boundaries.push({ name: "RCA prox | mid", pos: ch[cuts[1]].p, rule }, { name: "RCA mid | dist", pos: ch[cuts[2]].p, rule });
   }
 
   for (const b of ["D1", "D2", "septal", "ramus", "OM1", "OM2", "conus", "RV marginal", "PDA", "PLB"] as BranchName[]) {
@@ -242,5 +248,5 @@ export function deriveSegments(edges: Edge[], nodes: GraphNode[], labels: Map<nu
     const tree = expert.find((e) => e.id === c.chain[0].edgeId)!.tree;
     segments.push(slice(b, b, tree, c.chain, 0, c.chain.length - 1, bifNodes, nodesById, true, []));
   }
-  return { segments, boundaries, issues: [...new Set(issues)], notes: [...new Set(notes)] };
+  return { segments, rcaRule, boundaries, issues: [...new Set(issues)], notes: [...new Set(notes)] };
 }

@@ -197,6 +197,17 @@ export class AngioRenderer {
     r.setClearColor(prevClear, prevAlpha);
   }
 
+  /** Displayed angiogram (RGBA8) of the last render, row 0 = TOP of the screen (+v). Converting from GL's bottom-up
+   *  rows is the standard raster mapping (CONVENTIONS 4), not a mirror. */
+  readImage(): Uint8ClampedArray<ArrayBuffer> {
+    const px = this.px;
+    const raw = new Uint8Array(px * px * 4);
+    this.renderer.readRenderTargetPixels(this.angioRT, 0, 0, px, px, raw);
+    const out = new Uint8ClampedArray(px * px * 4);
+    for (let glRow = 0; glRow < px; glRow++) out.set(raw.subarray(glRow * px * 4, (glRow + 1) * px * 4), (px - 1 - glRow) * px * 4);
+    return out;
+  }
+
   /** Vessel path length (mm), row 0 = TOP (+v), same repair rule as the shader. For tests/debugging. */
   readThickness(): { thickness: Float32Array; repaired: number; oddCrossings: number; signMismatch: number } {
     const px = this.px;

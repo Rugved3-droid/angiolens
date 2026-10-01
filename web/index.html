@@ -8,6 +8,7 @@
   <body>
     <header>
       <h1>Coronary Projection Trainer</h1>
+      <div id="modes"><button data-mode="explore" class="on">Explore</button><button data-mode="predict">Predict</button></div>
       <span id="status">loading…</span>
     </header>
     <main id="stage">
@@ -37,6 +38,17 @@
         <button id="goto-opt">Go to optimum</button>
         <label><input type="checkbox" id="fixed-scale" /> fixed 0-100% scales</label>
         <div class="hint">cost = w<sub>F</sub>·F + w<sub>O</sub>·O<br>O = inter or self overlap<br>cross = current view, ring = optimum</div>
+      </div>
+    </section>
+    <section id="predict-row">
+      <div id="pr-prompt"></div>
+      <div id="pr-tiles"></div>
+      <div class="pr-side">
+        <div id="pr-result"></div>
+        <div><button id="pr-next">Next view</button> <span class="hint">keys: A-D pick, Enter next</span></div>
+        <label><input type="checkbox" id="pr-mirror" /> L-R mirror instead of "both flipped"</label>
+        <div id="pr-summary"></div>
+        <button id="pr-reset">Reset stats</button>
       </div>
     </section>
     <footer id="controls">
@@ -69,7 +81,6 @@
         <label><input type="checkbox" id="label-mode" /> Label mode (branches)</label>
         <div id="seg-block">
           <label><input type="checkbox" id="seg-show" /> show derived segments</label>
-          <label>RCA split <select id="rca-rule"><option value="thirds">equal thirds (default)</option><option value="acute-margin">SCCT acute margin</option></select></label>
           <div id="seg-list"></div>
           <div><button id="seg-approve">Approve segmentation</button> <span id="seg-status" class="hint"></span></div>
         </div>

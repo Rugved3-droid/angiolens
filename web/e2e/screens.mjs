@@ -16,7 +16,7 @@ for (const s of shots) {
   for (const id of s.check ?? []) await page.check(id);
   if (s.labels) await page.evaluate((l) => { window.__cpt.labelEdges(l); }, s.labels);
   if (s.approve) await page.evaluate(() => window.__cpt.approve());
-  if (s.rcaRule) await page.selectOption("#rca-rule", s.rcaRule);
+  if (s.predict) { await page.evaluate((p) => { const q = window.__cpt.predict; q.setSeed(p.seed); q.setAnimMs(0); q.setMode("predict"); if (p.choose !== undefined) q.choose(q.kinds().findIndex((k) => k === p.choose)); }, s.predict); await page.waitForTimeout(500); await page.screenshot({ path: outDir + s.name + ".png" }); console.log("wrote", s.name); continue; }
   await page.evaluate((s) => {
     window.__cpt.setPose(s.a, s.b, s.tree);
     if (s.sample) window.__cpt.selectSample(...s.sample); else window.__cpt.select(s.sel ?? null);

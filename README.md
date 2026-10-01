@@ -3,7 +3,7 @@
 Personal learning tool: how a 3D coronary tree becomes a 2D angiogram at a given C-arm angle.
 Geometry rules: [CONVENTIONS.md](CONVENTIONS.md). Choices and open questions: [DECISIONS.md](DECISIONS.md).
 
-**Status: Phase 2** (foreshortening, inter/self capsule overlap, angle-space heatmaps), on top of Phase 1 (dual viewer, thickness angiogram, C-arm, detector ghost, projection rays, linked selection, Label mode). Next: Phase 3 (Mission, Guess); the DRR comes after Phase 3.
+**Status: Phase 2** (foreshortening, inter/self capsule overlap, angle-space heatmaps), on top of Phase 1 (dual viewer, thickness angiogram, C-arm, detector ghost, projection rays, linked selection, Label mode). Phase 3 in progress: **Predict** mode is done (header button). Next: Mission + Guess, then phone-as-detector, then the DRR.
 
 ## Data
 
@@ -72,6 +72,7 @@ node e2e/phantom.e2e.mjs                                   # GPU angiogram vs Py
 node e2e/interaction.e2e.mjs                               # click selection in both panels, Label mode, export
 node e2e/metrics.e2e.mjs                                   # in-browser metrics + worker map optimum equal Python
 node e2e/segments.e2e.mjs                                  # derived segments + approval, ray colours = capsule metric, scale floors
+node e2e/predict.e2e.mjs                                   # Predict: candidates, correct tile orientation, mirror distractor, scoring
 node e2e/screens.mjs Normal_12 '[{"name":"x","a":-30,"b":-25,"tree":"left","sel":5}]'   # review screenshots
 ```
 
@@ -98,3 +99,14 @@ preprocess/cpt/extension.py    non-expert extension tracer (separate layer; D20)
 reviews/                       human review records (mask approvals); no patient data
 web/e2e/                       headless-browser checks
 ```
+
+## Predict mode
+
+Press **Predict** in the header. You are told a target view (e.g. "RAO 30 / CAUD 25") and shown four angiograms:
+- the correct one;
+- LAO/RAO sign flipped;
+- CRAN/CAUD sign flipped;
+- both flipped, or, with the toggle, a left-right mirror image.
+
+Pick one (A-D). The answer is revealed and the C-arm swings from where you were to the target. Your errors are tallied by type, so you can see
+which axis you tend to get wrong. The C-arm controls are locked while a question is open.

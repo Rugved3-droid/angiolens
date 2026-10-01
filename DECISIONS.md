@@ -240,3 +240,40 @@ it stays as an internal diagnostic. Rays are now cast from the metric target (th
 - The rule is a pure function, `scaleTop()`, with unit tests.
 - Note: a straight segment seen end-on reaches 100% foreshortening and 100% self-overlap somewhere on the grid, so on many maps the per-map top is
   legitimately 100%.
+
+## 2026-10-01 (RCA rule correction; Phase 3 Predict)
+
+**D29 RCA split rule: correction of D26.** DECIDED (Rugved). SCCT splits the RCA at the acute margin, not in thirds. The rule is now automatic:
+- **RV marginal labeled and originating on the RCA:** the SCCT acute-margin rule. Prox = ostium to half-way to the RV marginal origin, mid = to that
+  origin, dist = beyond.
+- **Otherwise:** equal arc-length thirds. All three RCA segments carry the flag "approximate (thirds)" and are **not mission-eligible**, and a note
+  asks for the RV marginal to be labeled.
+
+The manual RCA-rule switch from D26 is removed. The approval records the rule actually used (`acute-margin` / `approximate-thirds`), so an
+approval given under thirds is voided once an RV marginal is labeled.
+
+**D30 Phase order revised again.** DECIDED (Rugved): Predict (new core of Phase 3) → Mission + Guess (missions only on fully derived
+segments) → phone as detector (/remote) → DRR.
+
+**D31 PREDICT mode.** DECIDED (Rugved), details DEFAULT.
+- **Candidates:** correct, −alpha, −beta and both flipped. A toggle swaps "both flipped" for an L-R mirror of the correct view.
+- **Degenerate flips:** a flip that would reproduce the same image (|alpha| or |beta| < 5 degrees, e.g. AP cranial or LAO 45) is replaced by an L-R or U-D
+  mirror, so the four candidates are always distinct.
+- **No target near (0, 0).** Only three distinct images exist there; `makeCandidates` refuses it, and `drawPose` cannot produce it.
+- **Mirrored images:** they exist only as deliberate wrong answers. They are built by an explicit pixel flip in `predictUI.ts`, marked as
+  distractor-only. No correct or displayed view is ever mirrored.
+- **Pose draws:**
+  - 50% one of the 9 standard presets (with its injection tree), 50% random.
+  - Random poses: alpha in ±[10, 70], beta in ±[10, 40], random tree.
+  - Every target is at least 15 degrees (between detector directions) from the previous pose; the previous target is the next start.
+- **Tiles:** all four use the same noise seed, so noise is never a cue. Bone stays visible as a legitimate cue. No overlays.
+- **During a question** the C-arm controls are locked (sliders, presets, arrow keys), so the answer cannot be found by moving there.
+  Keys: A-D to pick, Enter for the next view.
+- **After the pick** the correct and the chosen tile are marked, each tile is named, and the C-arm animates from the previous pose to the
+  target (1.4 s, angles interpolated). The 3D panel and the angiogram follow the animation.
+- **Tracking:** answers are stored per viewer in localStorage, which is enough for a personal tool. The summary shows accuracy and the last 20,
+  errors per distractor type with the number of times each was offered (so the rates are fair), and accuracy by target side (LAO/RAO/CRAN/CAUD).
+- **Whole-vessel level:** no labels or segments are used.
+- **Tests:** `web/tests/predict.test.ts` (candidates, degenerate cases, draws, summary) and `web/e2e/predict.e2e.mjs`. In the e2e, the correct tile's
+  darkness correlates with the target's independently computed path-length image at r 0.45-0.61, versus about 0 for its mirror. The mirror
+  distractor is an exact pixel flip, and the C-arm ends at the target.

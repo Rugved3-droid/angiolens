@@ -7,9 +7,10 @@ import { CULPRIT_COLOR, LABEL_NAMES, type LabelName, LabelStore, SELECT_COLOR } 
 import { nearestSample, pickSampleInAngio, projectionRays, type Ray, samplesRays } from "./rays";
 import { EXTENSION_COLOR, SELF_COLOR, Scene3D } from "./scene3d";
 import { buildTarget, MetricsPanel, type Target } from "./metricsPanel";
-import { type DerivedSegment, type Derivation, deriveSegments, type RcaRule } from "./segments";
+import { type DerivedSegment, type Derivation, deriveSegments } from "./segments";
 import { LABEL_COLORS } from "./labels";
 import { packSamples } from "./metrics";
+import { PredictMode } from "./predictUI";
 
 const SEGMENT_COLORS: Record<string, string> = {
   LM: "#f0f0f0", "LAD prox": "#1f6fd1", "LAD mid": "#4a9ae0", "LAD dist": "#8cc4f5",
@@ -40,8 +41,8 @@ interface State {
   selected: number | null;
   selectedIdx: number;
   labelMode: boolean;
-  rcaRule: RcaRule;
   showSegments: boolean;
+  mode: "explore" | "predict";
 }
 
 async function main() {
@@ -62,8 +63,8 @@ async function main() {
     selected: null,
     selectedIdx: 0,
     labelMode: false,
-    rcaRule: "thirds",
     showSegments: true,
+    mode: "explore",
   };
 
   const canvas = $("gl") as HTMLCanvasElement;
@@ -90,14 +91,14 @@ async function main() {
   let carm = new CArm(state.alpha, state.beta, data.isocenter);
   let rays: Ray[] = [];
   let culprits = new Set<number>();
-  let derivation: Derivation = { segments: [], boundaries: [], issues: [], notes: [] };
+  let derivation: Derivation = { segments: [], rcaRule: "none", boundaries: [], issues: [], notes: [] };
   let target: Target | null = null;
   let targetSeg: DerivedSegment | null = null;
   let dirty = true;
   const rcaTruncated = !!data.meta.annotation?.rca_distal_truncated;
   const segAt = (edgeId: number, idx: number) =>
     derivation.segments.find((s) => s.members.some((mm) => mm.edgeId === edgeId && idx >= mm.i0 && idx <= mm.i1)) ?? null;
-  const segmentsApproved = () => labels.approvalValid(state.rcaRule) && derivation.issues.length === 0;
+  const segmentsApproved = () => labels.approvalValid(derivation.rcaRule) && derivation.issues.length === 0;
   const segTarget = (s: DerivedSegment): Target => ({
     key: `seg:${s.name}`, name: s.name, edges: s.members.map((mm) => edgeById.get(mm.edgeId)!),
     samples: packSamples(s.pts, s.radius), pts: s.pts, bif: s.bif, note: s.flags.join("; "),
@@ -110,12 +111,30 @@ async function main() {
   const injectedEdges = () => allEdges().filter((e) => e.tree === state.injected);
   const panel = new MetricsPanel(data.isocenter, (a, b) => { state.alpha = a; state.beta = b; update(); },
     () => { syncControls(); dirty = true; });
+  const predict = new PredictMode({
+    angio, iso: data.isocenter, detectorMm: data.detectorMm, caseId,
+    presets: PRESETS.map(([name, alpha, beta, tree]) => ({ name, alpha, beta, tree })),
+    getPose: () => ({ alpha: state.alpha, beta: state.beta, tree: state.injected }),
+    setPose: (a, b, tree) => { state.alpha = a; state.beta = b; state.injected = tree; update(); },
+    requestRender: () => { dirty = true; },
+  });
+  const cArmLocked = () => state.mode === "predict";
+  function setMode(mode: State["mode"]) {
+    state.mode = mode;
+    document.body.classList.toggle("mode-predict", mode === "predict");
+    document.querySelectorAll<HTMLButtonElement>("#modes button").forEach((b) => b.classList.toggle("on", b.dataset.mode === mode));
+    for (const el of document.querySelectorAll<HTMLInputElement | HTMLButtonElement>("#alpha, #beta, #presets button, #goto-opt"))
+      el.disabled = mode === "predict";
+    if (mode === "predict") { state.selected = null; predict.enter(); } else predict.exit();
+    update();
+  }
+  document.querySelectorAll<HTMLButtonElement>("#modes button").forEach((b) => (b.onclick = () => setMode(b.dataset.mode as State["mode"])));
 
   function update() {
     carm = new CArm(state.alpha, state.beta, data.isocenter);
     if (state.selected !== null && edgeById.get(state.selected)?.nonExpert && !extOn()) state.selected = null;
     const sel = state.selected !== null ? edgeById.get(state.selected)! : null;
-    derivation = deriveSegments(data.edges, data.nodes, labels.labels, { rcaRule: state.rcaRule, rcaDistalTruncated: rcaTruncated });
+    derivation = deriveSegments(data.edges, data.nodes, labels.labels, { rcaDistalTruncated: rcaTruncated });
     // metric target: the approved derived segment under the click; before approval, the labeled branch / edge
     targetSeg = sel && sel.tree === state.injected && segmentsApproved() ? segAt(sel.id, state.selectedIdx) : null;
     target = sel && sel.tree === state.injected ? (targetSeg ? segTarget(targetSeg) : buildTarget(sel, allEdges(), allNodes, labels)) : null;
@@ -214,6 +233,12 @@ async function main() {
   };
   window.addEventListener("keydown", (e) => {
     if ((e.target as HTMLElement).tagName === "INPUT" || (e.target as HTMLElement).tagName === "SELECT") return;
+    if (cArmLocked()) {
+      const k = ["a", "b", "c", "d"].indexOf(e.key.toLowerCase());
+      if (k >= 0) predict.choose(k);
+      else if (e.key === "Enter" || e.key === "n") predict.next();
+      return;
+    }
     const step = e.shiftKey ? 5 : 1;
     const clamp = (v: number, [lo, hi]: [number, number]) => Math.min(hi, Math.max(lo, v));
     if (e.key === "ArrowLeft") state.alpha = clamp(state.alpha - step, ALPHA_RANGE);
@@ -273,10 +298,9 @@ async function main() {
   // ---------- derived segments (approval) ----------
   $<HTMLInputElement>("seg-show").checked = state.showSegments;
   $<HTMLInputElement>("seg-show").onchange = (ev) => { state.showSegments = (ev.target as HTMLInputElement).checked; update(); };
-  $<HTMLSelectElement>("rca-rule").onchange = (ev) => { state.rcaRule = (ev.target as HTMLSelectElement).value as RcaRule; update(); };
   $("seg-approve").onclick = () => {
     if (segmentsApproved()) labels.approve(null);
-    else if (derivation.issues.length === 0) labels.approve(state.rcaRule);
+    else if (derivation.issues.length === 0) labels.approve(derivation.rcaRule);
     update();
   };
   function syncSegments() {
@@ -518,12 +542,26 @@ async function main() {
       },
       labelEdges(map: Record<number, string>) { for (const [k, v] of Object.entries(map)) labels.set(Number(k), v as LabelName); update(); },
       derivation: () => ({ segments: derivation.segments.map((s) => ({ name: s.name, len: s.lengthMm, complete: s.complete, flags: s.flags })), issues: derivation.issues, notes: derivation.notes, approved: segmentsApproved() }),
-      approve: () => { labels.approve(state.rcaRule); update(); return segmentsApproved(); },
+      approve: () => { labels.approve(derivation.rcaRule); update(); return segmentsApproved(); },
       selectSample(id: number, idx: number) { select({ id, idx }); },
       rays: () => rays.map((r) => ({ i: r.sampleIndex, overlap: r.overlap ?? null })),
       masks: () => panel.live ? { inter: Array.from(panel.live.m.interMask), self: Array.from(panel.live.m.selfMask) } : null,
       target: () => target?.name ?? null,
       diagnosticRays3D: () => { const s = state.selected !== null ? edgeById.get(state.selected) : null; return s ? projectionRays(carm, s, injectedEdges(), allNodes).map((r) => r.culprits) : []; },
+      predict: {
+        setMode: (m: State["mode"]) => setMode(m),
+        setSeed: (s: number) => predict.setSeed(s),
+        setAnimMs: (ms: number) => { predict.animMs = ms; },
+        setMirror: (v: boolean) => { predict.useMirror = v; },
+        next: () => predict.next(),
+        kinds: () => predict.kinds(),
+        target: () => predict.target(),
+        choose: (i: number) => predict.choose(i),
+        summary: () => predict.summary(),
+        tile: (i: number) => Array.from(predict.tileImages[i].filter((_, k) => k % 4 === 0)),
+        pose: () => ({ alpha: state.alpha, beta: state.beta, tree: state.injected }),
+        locked: () => (document.getElementById("alpha") as HTMLInputElement).disabled,
+      },
       metrics: () => panel.live ? { F: panel.live.m.F, O_inter: panel.live.m.O_inter, O_self: panel.live.m.O_self, O_any: panel.live.m.O_any, target: panel.live.target.key } : null,
       optimum: () => panel.optimum(),
       scales: () => panel.scales(),

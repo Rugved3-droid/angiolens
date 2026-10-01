@@ -31,7 +31,7 @@ const full = new Map<number, BranchName>([
   [E.LM.id, "LM"], [E.LAD1.id, "LAD"], [E.LAD2.id, "LAD"], [E.LAD3.id, "LAD"], [E.D1.id, "D1"], [E.D2.id, "D2"],
   [E.LCx1.id, "LCx"], [E.LCx2.id, "LCx"], [E.OM1.id, "OM1"], [E.RCA1.id, "RCA"], [E.RCA2.id, "RCA"], [E.RVM.id, "RV marginal"],
 ]);
-const opts = { rcaRule: "thirds" as const, rcaDistalTruncated: true };
+const opts = { rcaDistalTruncated: true };
 const seg = (d: ReturnType<typeof deriveSegments>, n: string) => d.segments.find((s) => s.name === n);
 const close = (a: Vec3, b: Vec3) => expect(norm(sub(a, b))).toBeLessThan(1e-9);
 
@@ -51,17 +51,25 @@ describe("derived segments", () => {
     expect(d.segments.every((s) => s.complete)).toBe(true);
   });
 
-  it("RCA thirds have equal arc length; distal flagged as truncated", () => {
-    const d = deriveSegments(edges, nodes, full, opts);
-    const L = ["RCA prox", "RCA mid", "RCA dist"].map((n) => seg(d, n)!.lengthMm);
+  it("no RV marginal: approximate thirds, flagged, not mission-eligible; distal flagged as truncated", () => {
+    const l = new Map(full);
+    l.delete(E.RVM.id);
+    const d = deriveSegments(edges, nodes, l, opts);
+    expect(d.rcaRule).toBe("approximate-thirds");
+    expect(["RCA prox", "RCA mid", "RCA dist"].every((n) => seg(d, n)!.flags.includes("approximate (thirds)") && !seg(d, n)!.complete)).toBe(true);
+    expect(d.notes.join()).toMatch(/approximate thirds/);
+    const L = ["RCA prox", "RCA mid", "RCA dist"].map((n) => seg(d, n)!.lengthMm);  // equal thirds
     const total = E.RCA1.lengthMm + E.RCA2.lengthMm;
     L.forEach((l) => expect(Math.abs(l - total / 3)).toBeLessThan(0.6));
     expect(seg(d, "RCA dist")!.flags.join()).toMatch(/truncated/);
-    expect(seg(d, "RCA prox")!.flags).toEqual([]);
+    expect(seg(d, "RCA prox")!.flags).toEqual(["approximate (thirds)"]);
   });
 
-  it("RCA acute-margin rule: half-way to the RV marginal origin, then to it", () => {
-    const d = deriveSegments(edges, nodes, full, { rcaRule: "acute-margin", rcaDistalTruncated: false });
+  it("RV marginal labeled: SCCT acute-margin rule is used automatically and segments are complete", () => {
+    const d = deriveSegments(edges, nodes, full, { rcaDistalTruncated: false });
+    expect(d.rcaRule).toBe("acute-margin");
+    expect(seg(d, "RCA prox")!.complete && seg(d, "RCA mid")!.complete).toBe(true);
+    expect(seg(d, "RCA prox")!.flags).toEqual([]);
     close(seg(d, "RCA mid")!.pts.at(-1)!, P[11]);
     expect(Math.abs(seg(d, "RCA prox")!.lengthMm - E.RCA1.lengthMm / 2)).toBeLessThan(0.6);
   });

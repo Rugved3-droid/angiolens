@@ -23,7 +23,8 @@ check("derived names come only from labels (no invented D1/OM1)", JSON.stringify
 check("missing side branches are notes, not issues", d0.issues.length === 0 && d0.notes.some((n) => n.includes("D1")) && d0.notes.some((n) => n.includes("OM1")));
 check("unsplit LAD is not mission-eligible", d0.segments.find((s) => s.name.startsWith("LAD")).complete === false);
 const rca = d0.segments.filter((s) => s.name.startsWith("RCA ")).map((s) => s.len);
-check("RCA thirds equal", Math.max(...rca) - Math.min(...rca) < 0.6, JSON.stringify(rca));
+check("no RV marginal: RCA approximate thirds, equal and not mission-eligible", Math.max(...rca) - Math.min(...rca) < 0.6 &&
+  d0.segments.filter((s) => s.name.startsWith("RCA ")).every((s) => !s.complete && s.flags.includes("approximate (thirds)")), JSON.stringify(rca));
 check("not approved before approval", d0.approved === false);
 check("approve", await page.evaluate(() => window.__cpt.approve()) === true);
 await page.evaluate(() => { window.__cpt.setPose(45, 0, "right"); window.__cpt.selectSample(4, 50); });
