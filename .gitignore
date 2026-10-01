@@ -13,3 +13,5 @@ web/test-results/
 web/playwright-report/
 .venv-ts/
 .totalseg/
+assets/heart/*
+!assets/heart/README.md
