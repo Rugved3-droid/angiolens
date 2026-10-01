@@ -25,6 +25,19 @@
         <div id="scene-panel"></div>
       </section>
     </main>
+    <section id="maps-row">
+      <div id="metrics-live"></div>
+      <div id="hm-F"></div>
+      <div id="hm-inter"></div>
+      <div id="hm-self"></div>
+      <div id="hm-cost"></div>
+      <div class="group weights">
+        <label>w<sub>F</sub> <input id="w-f" type="range" min="0" max="2" step="0.1" value="1" /> <span id="w-f-val">1.0</span></label>
+        <label>w<sub>O</sub> <input id="w-o" type="range" min="0" max="2" step="0.1" value="1" /> <span id="w-o-val">1.0</span></label>
+        <button id="goto-opt">Go to optimum</button>
+        <div class="hint">cost = w<sub>F</sub>·F + w<sub>O</sub>·O<br>O = inter or self overlap<br>cross = current view, ring = optimum</div>
+      </div>
+    </section>
     <footer id="controls">
       <div class="group">
         <label>Primary <input id="alpha" type="range" step="1" /> <span id="alpha-val"></span></label>

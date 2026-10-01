@@ -18,6 +18,14 @@ from .vtp import read_vtp
 
 STEP_MM = 0.5
 MERGE_TOL_MM = 1.0
+# A centerline point counts as inside the expert lumen if it is within this distance of a lumen voxel
+# centre (half the in-plane voxel diagonal of ASOCA, 0.37 mm voxels -> 0.26 mm; 0.5 leaves margin for the
+# official tool's sub-voxel surface). 100% of points must pass.
+INSIDE_TOL_MM = 0.5
+
+
+class CenterlineFrameError(RuntimeError):
+    """Official centerlines do not sit inside the expert lumen: STOP and report. Never fit a transform."""
 
 
 @dataclass
@@ -133,6 +141,12 @@ def official_graph(vtp_path, ct: Volume, left: np.ndarray, right: np.ndarray) ->
     R = v["point_data"]["MaximumInscribedSphereRadius"]
     lumen = left | right
     check = validate_in_lumen(P, ct, lumen)
+    if check["frac_within_0p5mm"] < 1.0 or check["max_mm"] > INSIDE_TOL_MM:
+        raise CenterlineFrameError(
+            f"{vtp_path}: {100 * (1 - check['frac_within_0p5mm']):.2f}% of official centerline points are more than "
+            f"{INSIDE_TOL_MM} mm outside the expert lumen after the header-derived translation "
+            f"(mean {check['mean_mm']:.3f} mm, max {check['max_mm']:.2f} mm). Stopping: report this case; "
+            "do not fit a transform.")
     paths, trees, info = [], [], []
     for k, cell in enumerate(v["lines"]):
         ijk = np.rint(ct.lps_to_index(P[cell[0]])[0]).astype(int)

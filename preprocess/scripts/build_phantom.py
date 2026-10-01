@@ -75,7 +75,24 @@ def main():
             "centerlines": {"source": "synthetic"}, "meshes": meshes,
             "files": ["bone.glb", "centerlines.json", "lumen_left.glb", "lumen_right.glb", "case.json"]}
     (out / "case.json").write_text(json.dumps(meta, indent=1))
-    (out / "expected.json").write_text(json.dumps({"px": PX, "detector_mm": DETECTOR_MM, "images": expected}))
+    # Phase 2 metrics for the longest left edge (target), others = remaining left edges
+    from cpt.metrics import angle_maps, combined_cost, view_metrics
+    # use exactly what the app reads (centerlines.json, rounded to 0.001 mm)
+    cl = json.loads((out / "centerlines.json").read_text())
+    left_edges = [{**e, "samples": np.array(e["samples"])} for e in cl["edges"] if e["tree"] == "left"]
+    tgt = max(left_edges, key=lambda e: len(e["samples"]))
+    bif = np.array([cl["nodes"][i]["pos"] for i in (tgt["a"], tgt["b"]) if cl["nodes"][i]["kind"] == "bifurcation"]).reshape(-1, 3)
+    others = [e["samples"] for e in left_edges if e is not tgt]
+    mexp = {}
+    for a, b in [(0, 0), (-30, -25), (45, 0), (40, 30)]:
+        m = view_metrics(CArm(a, b, ISO), tgt["samples"], bif, others)
+        mexp[f"{a},{b}"] = {k: m[k] for k in ("F", "O_inter", "O_self", "O_any")}
+    maps = angle_maps(ISO, tgt["samples"], bif, others, step=2)
+    cost = combined_cost(maps["F"], maps["O_any"])
+    j, i = np.unravel_index(np.argmin(cost), cost.shape)
+    (out / "expected.json").write_text(json.dumps({"px": PX, "detector_mm": DETECTOR_MM, "images": expected,
+                                                   "metrics": {"target_edge": tgt["id"], "poses": mexp,
+                                                               "optimum": [float(maps["alpha"][i]), float(maps["beta"][j]), float(cost[j, i])]}}))
     print("phantom meshes", meshes)
 
 

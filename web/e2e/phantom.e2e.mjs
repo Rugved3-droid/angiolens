@@ -34,13 +34,13 @@ const mirrorUD = (img) => img.map((_, i) => img[(px - 1 - Math.floor(i / px)) * 
 let failed = 0;
 for (const [pose, exp] of Object.entries(expected.images)) {
   const [a, b] = pose.split(",").map(Number);
-  const { thickness: got, repaired } = await page.evaluate(([a, b]) => window.__cpt.setPose(a, b, "left"), [a, b]);
+  const { thickness: got, repaired, oddCrossings, signMismatch } = await page.evaluate(([a, b]) => window.__cpt.setPose(a, b, "left"), [a, b]);
   const s = stats(got, exp);
   const lr = stats(mirrorLR(got), exp);
   const ud = stats(mirrorUD(got), exp);
   const ok = s.r > 0.95 && s.mae < 0.25 && lr.r < 0.8 && ud.r < 0.8;
   if (!ok) failed++;
-  console.log(`${ok ? "PASS" : "FAIL"} pose ${pose}: r=${s.r.toFixed(4)} mae=${s.mae.toFixed(3)} mm, repaired px ${repaired} | mirrored L-R r=${lr.r.toFixed(3)}, U-D r=${ud.r.toFixed(3)}`);
+  console.log(`${ok ? "PASS" : "FAIL"} pose ${pose}: r=${s.r.toFixed(4)} mae=${s.mae.toFixed(3)} mm, repaired px ${repaired} (odd crossing count ${oddCrossings}, even-but-unequal ${signMismatch}) | mirrored L-R r=${lr.r.toFixed(3)}, U-D r=${ud.r.toFixed(3)}`);
 }
 const shot = new URL("../../out/review/e2e_phantom.png", import.meta.url).pathname.replace(/^\/(\w:)/, "$1");
 await page.evaluate(() => window.__cpt.setPose(-30, -25, "left"));

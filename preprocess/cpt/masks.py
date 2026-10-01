@@ -156,3 +156,40 @@ def bone_and_pool(ct: Volume, lumen: np.ndarray):
 
 def bone_mesh_mask(ct: Volume, bone: np.ndarray) -> np.ndarray:
     return bone & (ct.data > BONE_MESH_HU)
+
+
+# ---------------------------------------------------------------------------------------------
+# Review gate (DECISIONS D10/D21). The heuristics above were tuned on Normal_12 only. For any case,
+# the mask overlay must be reviewed by a human before anything consumes the masks (DRR, bone mesh
+# for teaching). An approval is bound to the exact parameter set: changing any parameter voids it.
+
+def params_fingerprint() -> str:
+    import hashlib
+    import json as _json
+    p = {k: v for k, v in globals().items() if k.isupper() and isinstance(v, (int, float, tuple))}
+    return hashlib.sha256(_json.dumps(p, sort_keys=True).encode()).hexdigest()[:16]
+
+
+class MaskReviewError(RuntimeError):
+    pass
+
+
+def review_status(case_id: str, reviews_dir) -> dict:
+    import json as _json
+    from pathlib import Path as _P
+    f = _P(reviews_dir) / f"{case_id}.json"
+    if not f.exists():
+        return {"status": "NOT REVIEWED", "params": params_fingerprint()}
+    r = _json.loads(f.read_text()).get("masks", {})
+    if r.get("params") != params_fingerprint():
+        return {"status": "STALE: mask parameters changed since review", "params": params_fingerprint(), "review": r}
+    return {"status": r.get("status", "NOT REVIEWED"), "params": r["params"], "review": r}
+
+
+def require_reviewed_masks(case_id: str, reviews_dir):
+    """Hard gate for consumers that depend on mask correctness (the DRR)."""
+    st = review_status(case_id, reviews_dir)
+    if st["status"] != "approved":
+        raise MaskReviewError(f"{case_id}: bone/blood-pool masks are '{st['status']}'. Review "
+                              f"out/review/{case_id}/masks_overlay.png first (TotalSegmentator is the preferred route "
+                              "for new cases; see DECISIONS D21).")

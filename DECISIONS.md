@@ -167,3 +167,53 @@ It is included in rays and overlap only while visible. The layer stays **default
 
 Verdict: mixed, leaning venous. The layer stays default OFF with status "NOT APPROVED". Dominance in `case.json` = **indeterminate**.
 For future cases, pick one whose expert annotation reaches the crux and the PDA.
+
+## 2026-09-30 (Phase 2)
+
+**D21 Masks are tuned to Normal_12; review gate.** DECIDED (Rugved). The D10 rule and all its thresholds were tuned on Normal_12 only
+and will not be tuned further. For every future case:
+- the mask overlay (`review_masks.py`) is a **mandatory review gate**;
+- **TotalSegmentator** is the preferred route over writing new heuristics.
+
+Enforced in code:
+- `review_masks.py --approve "<note>"` writes `reviews/<case>.json` (committed; no patient data).
+- The approval is bound to a fingerprint of every mask parameter, so changing any parameter voids it.
+- `build_case.py` records the gate status in `case.json`.
+- `masks.require_reviewed_masks()` is the hard gate the DRR builder must call. [`test_review_gate`]
+
+Normal_12 is approved (params `2db75c09eb796651`).
+
+**D22 Centerline frame check is a per-case assertion.** DECIDED (Rugved). `official_graph()` raises `CenterlineFrameError` unless 100% of
+official points lie within 0.5 mm of a lumen voxel after the header-derived translation.
+- The build stops and reports.
+- There is no silent skeleton fallback, and no transform is ever fitted.
+- The skeleton graph is used only when a case has no official centerline file, and its source is recorded.
+
+[`test_official_frame_assertion_stops_on_misaligned_points`]
+
+**D23 Angiogram pixel fill: suspected root cause.** Kept (Rugved).
+- **Measured** on the phantom (6 poses, 6 repaired pixels): every repaired pixel had an even total crossing count with unequal entry and exit
+  counts, and none had an odd count.
+- **Meaning:** the rasterizer never drops a crossing. Instead, some face's entry/exit classification is wrong.
+- **Suspected cause:** near-degenerate (sliver) marching-cubes triangles whose float32 face normals point the wrong way, so a grazing exit is
+  counted as an entry.
+- **Possible proper fix (not done):** compute flat normals in float64 in Python, or remove slivers before export.
+- The phantom e2e reports the repaired-pixel classification. Metrics never read pixels (see D24).
+
+**D24 Phase 2 metric choices.** DEFAULT.
+- **O in the cost** is O_any (inter or self), over the samples evaluated for inter.
+- **Target** is the selected edge. If the edge is labeled, it is the contiguous chain of edges sharing that label: a simple path, otherwise the
+  connected part, with a note.
+- **"Other vessels"** are the injected tree's expert edges. The non-expert extension is included only while its toggle is on, as for rays.
+- **Two overlap measures coexist.** Phase 1 ray culprits test in 3D (a ray within a vessel's radius); Phase 2 capsule overlap tests in 2D. They
+  answer different questions and can disagree at the margin. The capsule metric is the scored one.
+- **Heatmaps:**
+  - single-hue blue ramp, low values dark so they recede into the dark surface;
+  - the colour scale tops out at a "nice" value just above each map's maximum, shown on the legend;
+  - hover shows the view and value, and a click moves the C-arm;
+  - crosshair = current view, ring = map optimum (Explore mode; Mission mode will hide it).
+- **Performance:** a full 2-degree map (4,277 poses) for an 80 mm segment takes about 0.6 s in a Web Worker, using a uniform-grid capsule index.
+  The index gives the same masks as brute force (tested).
+
+**D25 Phase order changed.** DECIDED (Rugved). Phase 1.5 (DRR/volume rendering) is skipped for now. The order is Phase 2, then Phase 3
+(Mission + Guess); the DRR comes after Phase 3.

@@ -27,7 +27,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--case", default="Normal_12")
     ap.add_argument("--levels", default="-75,-100,-125,-150,-175")
+    ap.add_argument("--approve", metavar="NOTE", help="record a human approval of the current overlay (binds to mask params)")
     args = ap.parse_args()
+    if args.approve:
+        import datetime
+        from cpt.masks import params_fingerprint
+        f = ROOT / "reviews" / f"{args.case}.json"
+        rec = json.loads(f.read_text()) if f.exists() else {}
+        rec["masks"] = {"status": "approved", "params": params_fingerprint(), "date": str(datetime.date.today()),
+                        "note": args.approve}
+        f.parent.mkdir(exist_ok=True)
+        f.write_text(json.dumps(rec, indent=1))
+        print("recorded", f)
+        return
     out = ROOT / "out" / "review" / args.case
     out.mkdir(parents=True, exist_ok=True)
 

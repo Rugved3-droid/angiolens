@@ -1,6 +1,7 @@
 """D10 revision rules on a synthetic chest: vertebra with FOV-clipped cortex touching a contrast-filled
 descending aorta, an opacified heart, a coronary lumen and dense SVC contrast."""
 import numpy as np
+import pytest
 
 from cpt.masks import bone_and_pool
 from cpt.volume import Volume
@@ -49,3 +50,16 @@ def test_bone_and_pool_classification():
     assert frac(pool, r["svc"]) > 0.95, "dense SVC contrast must be suppressed with the pool"
     assert not (bone & lumen).any() and not (pool & lumen).any(), "coronary lumen is handled separately"
     assert not (bone & pool).any()
+
+
+def test_review_gate(tmp_path, monkeypatch):
+    import json
+
+    import cpt.masks as M
+    with pytest.raises(M.MaskReviewError):
+        M.require_reviewed_masks("X", tmp_path)                       # never reviewed
+    (tmp_path / "X.json").write_text(json.dumps({"masks": {"status": "approved", "params": M.params_fingerprint()}}))
+    M.require_reviewed_masks("X", tmp_path)                           # approved for these params
+    monkeypatch.setattr(M, "RIM_MM", M.RIM_MM + 0.1)
+    with pytest.raises(M.MaskReviewError):
+        M.require_reviewed_masks("X", tmp_path)                       # any parameter change voids the approval

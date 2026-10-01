@@ -6,6 +6,9 @@ import { ALPHA_RANGE, BETA_RANGE, CArm, screenToPixel, pixelToScreen, type Vec3,
 import { CULPRIT_COLOR, LABEL_NAMES, type LabelName, LabelStore, SELECT_COLOR } from "./labels";
 import { nearestEdge, pickInAngio, projectionRays, type Ray } from "./rays";
 import { EXTENSION_COLOR, Scene3D } from "./scene3d";
+import { buildTarget, MetricsPanel } from "./metricsPanel";
+
+const SELF_COLOR = "#ff6fb1";
 
 // Presets: [name, alpha (LAO+), beta (CRAN+), tree it is meant for]
 const PRESETS: [string, number, number, Tree][] = [
@@ -81,6 +84,8 @@ async function main() {
   const allNodes = data.extension ? [...data.nodes, ...data.extension.nodes] : data.nodes;
   const edgeById = new Map([...data.edges, ...(data.extension?.edges ?? [])].map((e) => [e.id, e]));
   const injectedEdges = () => allEdges().filter((e) => e.tree === state.injected);
+  const panel = new MetricsPanel(data.isocenter, (a, b) => { state.alpha = a; state.beta = b; update(); },
+    () => { syncControls(); dirty = true; });
 
   function update() {
     carm = new CArm(state.alpha, state.beta, data.isocenter);
@@ -92,6 +97,9 @@ async function main() {
     if (state.selected !== null && edgeById.get(state.selected)?.nonExpert && !extOn()) state.selected = null;
     angio.params.showExtension = extOn();
     scene3d.recolor(labels, data.edges, state.injected, state.selected, culprits);
+    const target = sel && sel.tree === state.injected ? buildTarget(sel, allEdges(), allNodes, labels) : null;
+    const inTarget = new Set(target?.edges.map((e) => e.id) ?? []);
+    panel.update(carm, target, injectedEdges().filter((e) => !inTarget.has(e.id)), `${state.injected}|ext:${extOn()}`);
     scene3d.applyVisibility();
     syncControls();
     dirty = true;
@@ -183,7 +191,43 @@ async function main() {
     update();
   }
 
+  const wf = $<HTMLInputElement>("w-f"), wo = $<HTMLInputElement>("w-o");
+  const onWeights = () => {
+    panel.weights = { wF: Number(wf.value), wO: Number(wo.value) };
+    $("w-f-val").textContent = Number(wf.value).toFixed(1);
+    $("w-o-val").textContent = Number(wo.value).toFixed(1);
+    panel.redrawMaps();
+    syncControls();
+  };
+  wf.oninput = wo.oninput = onWeights;
+  $("goto-opt").onclick = () => {
+    const o = panel.optimum();
+    if (o) { state.alpha = o.alpha; state.beta = o.beta; update(); }
+  };
+
+  function syncMetrics() {
+    const live = panel.live;
+    const box = $("metrics-live");
+    if (!live) {
+      box.innerHTML = "<span class='hint'>Select a vessel segment (injected tree) to see its metrics and angle-space maps.</span>";
+      return;
+    }
+    const pct = (v: number) => `${(100 * v).toFixed(0)}%`;
+    const { m, target } = live;
+    const o = panel.optimum();
+    box.innerHTML =
+      `<b>${target.name}</b> · ${target.edges.length} edge(s), ${(target.pts.length * 0.5).toFixed(0)} mm` +
+      (target.edges.some((e) => e.nonExpert) ? ` <span style="color:${EXTENSION_COLOR}">[includes NON-EXPERT]</span>` : "") +
+      `<table class="mt"><tr><td>foreshortening</td><td>${pct(m.F)}</td></tr>` +
+      `<tr><td><span class="sw" style="background:${CULPRIT_COLOR}"></span>inter-vessel overlap</td><td>${pct(m.O_inter)}</td></tr>` +
+      `<tr><td><span class="sw" style="background:${SELF_COLOR}"></span>self-overlap</td><td>${pct(m.O_self)}</td></tr>` +
+      `<tr><td>combined cost</td><td>${panel.cost(m).toFixed(2)}</td></tr></table>` +
+      (o ? `<div class="hint">map optimum: ${new CArm(o.alpha, o.beta, [0, 0, 0]).label} (cost ${o.cost.toFixed(2)})</div>` : "<div class='hint'>computing maps…</div>") +
+      (target.note ? `<div class="hint">${target.note}</div>` : "");
+  }
+
   function syncControls() {
+    syncMetrics();
     alphaIn.value = String(state.alpha);
     betaIn.value = String(state.beta);
     $("alpha-val").textContent = state.alpha === 0 ? "0" : `${state.alpha > 0 ? "LAO" : "RAO"} ${Math.abs(state.alpha)}`;
@@ -263,6 +307,17 @@ async function main() {
     for (const id of culprits) drawEdge(edgeById.get(id)!, CULPRIT_COLOR, 1.5);
     const sel = state.selected !== null ? edgeById.get(state.selected)! : null;
     if (sel && sel.tree === state.injected) drawEdge(sel, SELECT_COLOR, 2);
+    if (panel.live) {
+      const { target, m } = panel.live;
+      target.pts.forEach((p, i) => {
+        if (!m.interMask[i] && !m.selfMask[i]) return;
+        const [x, y] = toCanvas(p);
+        g.fillStyle = m.interMask[i] ? CULPRIT_COLOR : SELF_COLOR;
+        g.beginPath();
+        g.arc(x, y, 1.6 * dpr, 0, 2 * Math.PI);
+        g.fill();
+      });
+    }
     for (const ray of rays) {
       const [x, y] = toCanvas(ray.p);
       g.fillStyle = ray.culprits.length ? CULPRIT_COLOR : SELECT_COLOR;
@@ -355,8 +410,8 @@ async function main() {
         Object.assign(state, { alpha: a, beta: b, injected: tree });
         update();
         angio.render(carm, data.detectorMm, state.injected, 0);
-        const { thickness, repaired } = angio.readThickness();
-        return { thickness: Array.from(thickness), repaired };
+        const { thickness, repaired, oddCrossings, signMismatch } = angio.readThickness();
+        return { thickness: Array.from(thickness), repaired, oddCrossings, signMismatch };
       },
       select(id: number | null) { select(id); },
       frame(what: "patient" | "carm") { scene3d.frame(what, carm); dirty = true; },
@@ -375,6 +430,8 @@ async function main() {
         const r = scenePanel.getBoundingClientRect();
         return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
       },
+      metrics: () => panel.live ? { F: panel.live.m.F, O_inter: panel.live.m.O_inter, O_self: panel.live.m.O_self, O_any: panel.live.m.O_any, target: panel.live.target.key } : null,
+      optimum: () => panel.optimum(),
       state: () => ({ ...state, label: state.selected === null ? null : labels.labels.get(state.selected) ?? null }),
       orbit(dx: number, dy: number, dz: number) {
         scene3d.camera.position.set(data.isocenter[0] + dx, data.isocenter[1] + dy, data.isocenter[2] + dz);

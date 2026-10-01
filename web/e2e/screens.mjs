@@ -6,7 +6,7 @@ const outDir = new URL(`../../out/review/${caseId}/`, import.meta.url).pathname.
 const server = await createServer({ server: { port: 5179, strictPort: true } });
 await server.listen();
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
-const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
+const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 await page.goto(`http://localhost:5179/?case=${caseId}&e2e=1`);
@@ -19,6 +19,7 @@ for (const s of shots) {
     window.__cpt.select(s.sel ?? null);
     if (s.orbit) window.__cpt.orbit(...s.orbit); else window.__cpt.frame(s.frame ?? "carm");
   }, s);
+  if (s.waitMaps) await page.waitForFunction(() => window.__cpt.optimum && window.__cpt.optimum() !== null, null, { timeout: 120000 });
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${outDir}${s.name}.png` });
   console.log("wrote", s.name);

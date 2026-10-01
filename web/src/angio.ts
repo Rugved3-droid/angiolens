@@ -198,7 +198,7 @@ export class AngioRenderer {
   }
 
   /** Vessel path length (mm), row 0 = TOP (+v), same repair rule as the shader. For tests/debugging. */
-  readThickness(): { thickness: Float32Array; repaired: number } {
+  readThickness(): { thickness: Float32Array; repaired: number; oddCrossings: number; signMismatch: number } {
     const px = this.px;
     const raw = this.floatPrecision === "float" ? new Float32Array(px * px * 4) : new Uint16Array(px * px * 4);
     this.renderer.readRenderTargetPixels(this.vesselRT, 0, 0, px, px, raw);
@@ -206,15 +206,17 @@ export class AngioRenderer {
     const at = (row: number, col: number) => {
       const glRow = px - 1 - row; // GL rows start at the bottom (NDC y = -1 = -v)
       const i = (glRow * px + col) * 4;
-      return { t: f(raw[i]) - f(raw[i + 1]), ok: Math.abs(f(raw[i + 2]) - f(raw[i + 3])) < 0.5 };
+      const nExit = f(raw[i + 2]), nEntry = f(raw[i + 3]);
+      return { t: f(raw[i]) - f(raw[i + 1]), ok: Math.abs(nExit - nEntry) < 0.5, odd: Math.round(nExit + nEntry) % 2 === 1 };
     };
     const out = new Float32Array(px * px);
-    let repaired = 0;
+    let repaired = 0, oddCrossings = 0, signMismatch = 0;
     for (let row = 0; row < px; row++)
       for (let col = 0; col < px; col++) {
         const p = at(row, col);
         if (p.ok) { out[row * px + col] = p.t; continue; }
         repaired++;
+        if (p.odd) oddCrossings++; else signMismatch++;
         let sum = 0, n = 0;
         for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
           const r2 = row + dr, c2 = col + dc;
@@ -224,6 +226,6 @@ export class AngioRenderer {
         }
         out[row * px + col] = n ? sum / n : 0;
       }
-    return { thickness: out, repaired };
+    return { thickness: out, repaired, oddCrossings, signMismatch };
   }
 }

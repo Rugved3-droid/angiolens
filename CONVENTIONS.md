@@ -83,3 +83,24 @@ For consecutive samples, let Δp be the step and r the unit ray from S to the pa
   Python reference renderer (r > 0.95, mean |error| < 0.25 mm), and its left-right and up-down mirror images must both fail that comparison.
 - **Overlay drawing** (selection, rays, glyph) uses `CArm.project` plus `screenToPixel` (row 0 = top). Picking uses the inverse
   mapping. [`detector raster` test, `interaction.e2e.mjs`]
+
+## 7. View metrics (Phase 2)
+
+Implemented twice, `preprocess/cpt/metrics.py` (reference) and `web/src/metrics.ts`. They are equal on Python fixtures and in the browser
+(`tests/test_metrics.py`, `web/tests/metrics.test.ts`, `web/e2e/metrics.e2e.mjs`).
+
+- **Purely geometric.** Inputs are centerline samples (LPS mm + radius) and a C-arm pose. No metric, map or score may read a
+  rendered image. Guarded by source scans of metrics.py, and of metrics.ts plus everything it imports, for any rendering/pixel
+  module or call. The guard is mutation-tested. [`test_python_metrics_are_purely_geometric`, `guard: metrics are purely geometric`]
+- **Foreshortening** F follows section 5, evaluated over the target's ordered samples.
+- **Capsules.** Each piece between consecutive projected samples is a 2D capsule. Its radius is r x local magnification SID / ((p - S).d),
+  linearly interpolated along the piece. A target sample is overlapped if any capsule covers its projected centre.
+  [`test_capsule_radius_uses_local_magnification`]
+- **Inter-vessel overlap** O_inter: capsules from the other edges of the injected tree. Target samples within 3 mm (3D) of the
+  target's own bifurcation nodes are not evaluated. [`test_bifurcation_exclusion_3mm`, `test_inter_overlap_vessel_behind_target`]
+- **Self-overlap** O_self: the target's own capsules, but only pieces more than 10 mm away in arc length.
+  [`test_self_overlap_only_beyond_10mm_arc`]
+- **Combined cost** = w_F.F + w_O.O_any. O_any is the fraction of evaluated samples overlapped by either kind.
+- **Angle grid.** 2-degree steps anchored at 0 (so AP and zero tilt are always sampled), plus the exact range ends:
+  alpha -90..90 (91 values), beta -45, -44, ..., 44, 45 (47 values). Maps are stored [beta][alpha]. In the UI, alpha runs left (RAO)
+  to right (LAO) and beta bottom (CAU) to top (CRA). [`test_angle_maps_grid_and_symmetry`, `2 degree grid is anchored at 0`]

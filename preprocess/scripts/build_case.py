@@ -18,7 +18,7 @@ from cpt.case import RAW, load_case, sha256
 from cpt.centerline import official_graph, skeleton_graph
 from cpt.geometry import SID_MM, SOD_MM
 from cpt.glb import write_glb
-from cpt.masks import bone_and_pool, bone_mesh_mask
+from cpt.masks import bone_and_pool, bone_mesh_mask, review_status
 from cpt.mesh import mask_to_mesh, mesh_report
 
 DETECTOR_MM = 250.0
@@ -80,16 +80,14 @@ def main():
     print(f"loaded {time.time() - t0:.0f}s")
 
     bone, pool, mask_report = bone_and_pool(case.ct, case.lumen)
-    print(f"masks {time.time() - t0:.0f}s")
+    print(f"masks {time.time() - t0:.0f}s; review gate: {review_status(args.case, ROOT / 'reviews')['status']}")
 
     vtp = RAW / args.case / f"Centerlines_{args.case}.vtp"
     if vtp.exists():
+        # raises CenterlineFrameError (build stops) unless 100% of points are inside the expert lumen
         graph, cl_info = official_graph(vtp, case.ct, case.left, case.right)
-        fc = cl_info["frame_check"]
-        if fc["mean_mm"] > 0.5:
-            print("official centerlines fail frame check -> skeleton fallback", fc)
-            graph, cl_info = skeleton_graph(case.ct, case.left, case.right, pool), {"frame_check": fc, "paths": []}
     else:
+        print("no official centerlines: skeleton fallback (graph source recorded in case.json)")
         graph, cl_info = skeleton_graph(case.ct, case.left, case.right, pool), {"frame_check": None, "paths": []}
     cov = coverage_vs_skeleton(case, graph)
     (out / "centerlines.json").write_text(json.dumps(graph.to_json()))
@@ -119,7 +117,8 @@ def main():
         "dominance": dominance_block(graph, cl_info),
         "centerlines": {"source": graph.source, "frame_check": cl_info["frame_check"], "coverage": cov,
                         "n_nodes": len(graph.nodes), "n_edges": len(graph.edges)},
-        "masks": {k: mask_report[k] for k in ("params", "bone_ml", "bone_mesh_ml", "pool_ml")},
+        "masks": {**{k: mask_report[k] for k in ("params", "bone_ml", "bone_mesh_ml", "pool_ml")},
+                  "review": review_status(args.case, ROOT / "reviews")["status"]},
         "meshes": meshes,
         "files": sorted(p.name for p in out.iterdir() if p.name != "case.json") + ["case.json"],
     }
