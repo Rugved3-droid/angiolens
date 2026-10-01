@@ -1,6 +1,7 @@
 fast_simplification==0.2.0
 matplotlib==3.11.2
 networkx==3.7
+nibabel==5.4.2
 numpy==2.5.3
 pillow==12.3.0
 pynrrd==1.1.3

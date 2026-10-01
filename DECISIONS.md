@@ -277,3 +277,62 @@ segments) → phone as detector (/remote) → DRR.
 - **Tests:** `web/tests/predict.test.ts` (candidates, degenerate cases, draws, summary) and `web/e2e/predict.e2e.mjs`. In the e2e, the correct tile's
   darkness correlates with the target's independently computed path-length image at r 0.45-0.61, versus about 0 for its mirror. The mirror
   distractor is an exact pixel flip, and the C-arm ends at the target.
+
+## 2026-10-01 (presentation pivot, Step 1: hero scene)
+
+**D32 Simple, explanatory presentation by default.** DECIDED (Rugved). The geometry engine, X-ray rendering, metrics and Predict are unchanged.
+- **Simple view (default):** one full-window hero scene, a standard-view menu, two angle sliders and a one-line caption. No numbers, heatmaps
+  or labels.
+- **"Advanced" (header):** brings back every existing panel and mode.
+- e2e test builds (`?e2e`) default to Advanced so the existing tests are unaffected; `?simple=1` forces the hero.
+
+**D33 Heart from this patient's CT (TotalSegmentator).** DECIDED.
+- **Package:** TotalSegmentator 2.18.0 (code: Apache 2.0), CPU torch 2.14, in its own venv (`.venv-ts`, git-ignored).
+- **Licensing** (from the package source, `map_to_binary.commercial_models`): the tasks that REQUIRE a license (free for non-commercial use,
+  by application) include `heartchambers_highres` (myocardium + 4 chambers + aorta + pulmonary artery), `coronary_arteries` and
+  `aortic_sinuses`. **None of these was used.** Rugved decides whether to obtain a license for `heartchambers_highres`.
+- **Used:** the open `total` task with roi_subset heart, aorta, superior/inferior vena cava, pulmonary vein, left atrial appendage and
+  brachiocephalic trunk. The trunk is absent because the CT field of view ends below the arch. `total` gives the heart as ONE label (outer
+  envelope), not separate chambers/myocardium, and has no pulmonary trunk.
+- **Offline:** the weights were downloaded once into `.totalseg/` (git-ignored). Usage statistics are disabled in its config
+  (`send_usage_stats: false`). The CT never leaves the machine.
+- **Frame:** the CT was written to NIfTI with its RAS affine (diag(-1,-1,1) x the NRRD LPS affine). Every returned mask is asserted to lie on the
+  CT's exact voxel grid, then used by voxel index (no resampling).
+- **Meshes:** smoothed per axis in mm (heart sigma 1.6 mm, aorta/veins 1.3 mm; the model works at ~1.5 mm, so masks are blocky), Taubin x40,
+  decimated. All watertight, in LPS.
+- **Epicardial assertion** (`build_anatomy.py`, stored in `case.json -> anatomy`). Coronary centerline samples vs the heart(+aorta) mask surface:
+  median 2.20 mm (outside; epicardial fat), p90 4.37 mm, max 7.58 mm, 95.6% within 5 mm, 7.7% just inside. Against the rendered meshes:
+  median 2.55 mm, p90 4.83 mm. Thresholds: median <= 4 mm, p90 <= 8 mm. PASSED.
+- No stock heart model is used anywhere.
+
+**D34 Body model.** DECIDED.
+- **Source:** MakeHuman base mesh (`assets_src/makehuman/base.obj`, from github.com/makehumancommunity/makehuman). It is **CC0**: the file header says
+  "This asset was explicitly released as CC0 in september 2020", and the MakeHuman FAQ says "the base mesh [is] considered graphical assets,
+  covered by CC0". Only the `body` group is used.
+- **Axes:** verified from the mesh's own joint helpers (+X = character's left, +Y up, +Z anterior). Mapped to supine LPS by x = X, y = -Z, z = Y
+  (det +1, no mirroring).
+- **Fit (APPROXIMATE, labeled as such in `body_fit.json`):** uniform scale 1.05 (1.75 m) plus a translation.
+  - Midline goes to the CT bone midline; the anterior chest skin at heart level goes to the CT anterior skin (y -74.6 mm).
+  - Heart level = clavicle joints - 110 mm, aligned to the TotalSegmentator heart centroid.
+  - Caveat: the CT field of view cuts off the spinous processes, so the body's back (y +119 mm at heart level) may be somewhat too shallow.
+- **Rendering:** fresnel "glass" skin; breathing is a ~3 mm chest/upper-abdomen swell at 15 breaths/min, on the skin only. The heart and
+  coronaries do not move, because the X-ray geometry is static.
+
+**D35 Room, C-arm, beam.**
+- **All in the LPS frame.** The room's "up" is -y (anterior, for a supine patient), so the floor is toward +y. At AP the detector is above the
+  chest and the tube under the table, as in a real lab.
+- **C-arm:** generic and unbranded, built in code: arc, tube, collimator, detector and stand. It is posed every frame from the SAME CArm basis
+  (u, v, d) as the X-ray rendering, so it cannot drift from the projection. The arc lies in the (d, v) plane and bulges toward the head end.
+- **Detector:** the live angiogram is on its OUTER face, seen from outside with u right and v up (correct orientation). From the tube side it would be
+  mirrored.
+- **Beam:** a translucent additive pyramid from the focal spot to the detector corners.
+- **Pose changes** from the view menu animate (1.6 s, ease in/out).
+
+**D36 Views and readability.**
+- **Coronaries:** glossy saturated red (emissive). Where they are hidden behind the heart, a faint red ghost shows through (GreaterDepth pass).
+  The non-injected tree is dimmed, as in the Advanced 3D panel.
+- **Myocardium:** warm muscle tone. **Aorta:** ivory. **Great veins:** blue (illustration convention).
+- **Heart close-up:** anterior view with the head up; C-arm and table hidden.
+- **Beam view:** side-on to the beam, from the room-up side.
+- **Split view:** the heart seen from the DETECTOR side with screen-up = v, so it is laid out like the angiogram next to it.
+- Review renders use real-GPU headless Chromium (ANGLE/D3D11). SwiftShader was too slow for the physical materials.

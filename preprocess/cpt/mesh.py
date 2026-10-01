@@ -13,11 +13,12 @@ from skimage.measure import marching_cubes
 from .volume import Volume
 
 
-def mask_to_mesh(vol: Volume, mask: np.ndarray, smooth_sigma_vox: float = 0.6,
+def mask_to_mesh(vol: Volume, mask: np.ndarray, smooth_sigma_vox: float | tuple = 0.6,
                  target_faces: int | None = None, taubin_iters: int = 10,
                  step: int = 1) -> trimesh.Trimesh:
     """`step` > 1 meshes a block-averaged mask (coarser, still closed) instead of decimating,
-    for large structures where quadric decimation would break watertightness."""
+    for large structures where quadric decimation would break watertightness.
+    `smooth_sigma_vox` may be a per-axis tuple (anisotropic voxels: pass sigma_mm / spacing)."""
     idx = np.argwhere(mask)
     lo = np.maximum(idx.min(0) - 3, 0)
     hi = np.minimum(idx.max(0) + 4, mask.shape)

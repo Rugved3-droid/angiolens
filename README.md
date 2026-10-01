@@ -110,3 +110,23 @@ Press **Predict** in the header. You are told a target view (e.g. "RAO 30 / CAUD
 
 Pick one (A-D). The answer is revealed and the C-arm swings from where you were to the target. Your errors are tallied by type, so you can see
 which axis you tend to get wrong. The C-arm controls are locked while a question is open.
+
+## Simple view (default) and Advanced
+
+The app opens in a simple, explanatory view. It shows this patient's heart (segmented from the CT with TotalSegmentator's open
+`total` task) inside a translucent body on a cath table, with a C-arm whose beam and detector image follow the chosen angle. Only a
+standard-view menu, two angle sliders and a one-line caption are shown. **Advanced** (top right) brings back every panel and mode
+(Explore, Predict, labels, metrics, heatmaps).
+
+Building the hero assets (once per case):
+
+```powershell
+python -m venv .venv-ts; .\.venv-ts\Scripts\python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+.\.venv-ts\Scripts\python -m pip install TotalSegmentator nibabel pynrrd
+# offline config (no usage statistics), weights stored in .totalseg/
+$env:TOTALSEG_HOME_DIR = "$PWD\.totalseg"   # with config.json {"send_usage_stats": false}
+.\.venv-ts\Scripts\TotalSegmentator -i data\derived\Normal_12\ts\ct.nii.gz -o data\derived\Normal_12\ts\seg --task total -d cpu --roi_subset heart aorta superior_vena_cava inferior_vena_cava pulmonary_vein atrial_appendage_left brachiocephalic_trunk
+.\.venv\Scripts\python preprocess\scripts\build_anatomy.py --case Normal_12   # meshes + epicardial assertion
+.\.venv\Scripts\python preprocess\scripts\build_body.py --case Normal_12      # CC0 body, approximate fit
+cd web; node e2e/hero_shots.mjs                                              # review screenshots + swing recording
+```

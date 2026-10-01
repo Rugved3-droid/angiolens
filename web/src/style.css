@@ -81,3 +81,20 @@ body.mode-predict #predict-row { display: grid; grid-template-columns: 220px aut
 .pr-side { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
 .ok { color: #3ec46d; } .bad { color: #ff7a7a; }
 table.pr-conf td { padding-right: 10px; }
+
+/* ---------- simple (hero) presentation ---------- */
+#advanced-toggle { margin-left: auto; }
+#hero-wrap, #hero-bar { display: none; }
+body.simple #modes, body.simple #status { display: none; }
+body.simple #angio-wrap, body.simple #scene-wrap, body.simple #maps-row, body.simple #predict-row, body.simple #controls { display: none !important; }
+body.simple #stage { grid-template-columns: 1fr; padding: 0; }
+body.simple #hero-wrap { display: grid; grid-template-columns: 1fr; min-height: 0; position: relative; }
+body.simple.split #hero-wrap { grid-template-columns: 1fr 1fr; }
+#hero-panel { min-height: 0; pointer-events: auto; }
+#hero-angio { display: none; position: relative; }
+body.simple.split #hero-angio { display: block; }
+.hero-angio-label { position: absolute; top: 10px; left: 0; right: 0; text-align: center; color: #c9d3de; font-size: 13px; letter-spacing: .02em; }
+body.simple #hero-bar { display: flex; align-items: center; gap: 22px; padding: 10px 18px; border-top: 1px solid var(--line); background: #0e1117; }
+.h-axis { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.h-axis input { width: 200px; }
+#hero-caption { color: #e6ecf2; font-size: 14px; flex: 1; }

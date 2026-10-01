@@ -50,7 +50,7 @@ const toEdges = (raw: any[], nonExpert: boolean): Edge[] =>
     ...(nonExpert ? { nonExpert: true } : {}),
   }));
 
-async function loadGeometry(url: string): Promise<THREE.BufferGeometry> {
+export async function loadGeometry(url: string): Promise<THREE.BufferGeometry> {
   const gltf = await new GLTFLoader().loadAsync(url);
   let geom: THREE.BufferGeometry | null = null;
   gltf.scene.traverse((o) => {

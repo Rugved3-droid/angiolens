@@ -11,6 +11,8 @@ import { type DerivedSegment, type Derivation, deriveSegments } from "./segments
 import { LABEL_COLORS } from "./labels";
 import { packSamples } from "./metrics";
 import { PredictMode } from "./predictUI";
+import { captionFor, HeroScene, type HeroView } from "./hero";
+import { loadGeometry } from "./caseData";
 
 const SEGMENT_COLORS: Record<string, string> = {
   LM: "#f0f0f0", "LAD prox": "#1f6fd1", "LAD mid": "#4a9ae0", "LAD dist": "#8cc4f5",
@@ -79,6 +81,22 @@ async function main() {
   const scene3d = new Scene3D($("scene-panel"), data, angio.angioRT.texture);
   const labels = new LabelStore(caseId, data.edges);
   const labelStatus = await labels.init();
+
+  // ---------- HERO (simple, explanatory presentation; default) ----------
+  const base = `${import.meta.env.BASE_URL}cases/${caseId}/`;
+  const files: string[] = data.meta.files ?? [];
+  const opt = (f: string) => (files.includes(f) ? loadGeometry(base + f) : Promise.resolve(null));
+  const [heroHeart, heroAorta, heroVeins, heroBody] = await Promise.all([opt("heart.glb"), opt("aorta.glb"), opt("veins.glb"), opt("body.glb")]);
+  const hero = new HeroScene($("hero-panel"), renderer, data, { heart: heroHeart, aorta: heroAorta, veins: heroVeins, body: heroBody }, angio.angioRT.texture);
+  let simple = !(params.has("advanced") || (params.has("e2e") && !params.has("simple")));
+  let heroView: HeroView = (params.get("hero_view") as HeroView) ?? "room";
+  const applyLayout = () => {
+    document.body.classList.toggle("simple", simple);
+    document.body.classList.toggle("split", simple && heroView === "split");
+    $("advanced-toggle").textContent = simple ? "Advanced" : "Simple view";
+    dirty = true;
+  };
+  $("advanced-toggle").onclick = () => { simple = !simple; if (!simple && state.mode === "predict") setMode("explore"); applyLayout(); };
 
   // blit quad for showing the angiogram texture in the left viewport (uv(0,0) = bottom-left = -u,-v)
   const blitScene = new THREE.Scene();
@@ -149,6 +167,11 @@ async function main() {
     culprits = new Set(live ? [...live.m.interBy].filter((k) => k >= 0).map((k) => others[k].id) : []);
     scene3d.setCArm(carm, data.detectorMm);
     scene3d.setRays(carm, rays);
+    hero.setCArm(carm);
+    hero.setInjected(state.injected);
+    $("hero-caption").textContent = captionFor(state.alpha, state.beta);
+    $<HTMLInputElement>("h-alpha").value = String(state.alpha);
+    $<HTMLInputElement>("h-beta").value = String(state.beta);
     angio.params.showExtension = extOn();
     const showSeg = state.showSegments && derivation.segments.length > 0;
     const segOfVertex = (edgeId: number, idx: number) => { const s = segAt(edgeId, idx); return s ? segColor(s) : null; };
@@ -480,6 +503,35 @@ async function main() {
   }
   function frame() {
     layout();
+    if (simple) {
+      // the hero animates (breathing, damping), so it renders every frame; the angiogram only when the pose changed
+      if (dirty) { dirty = false; angio.render(carm, data.detectorMm, state.injected, state.alpha * 1000 + state.beta); }
+      renderer.setRenderTarget(null);
+      renderer.setScissorTest(true);
+      renderer.setClearColor(0x0e1117, 1);
+      const full = viewportOf($("stage"));
+      renderer.setViewport(full.x, full.y, full.w, full.h);
+      renderer.setScissor(full.x, full.y, full.w, full.h);
+      renderer.clear();
+      const h = viewportOf($("hero-panel"));
+      hero.camera.aspect = h.w / h.h;
+      hero.camera.updateProjectionMatrix();
+      renderer.setViewport(h.x, h.y, h.w, h.h);
+      renderer.setScissor(h.x, h.y, h.w, h.h);
+      hero.render(renderer);
+      if (heroView === "split") {
+        const s = viewportOf($("hero-angio"));
+        const side = Math.min(s.w, s.h);
+        const x = s.x + (s.w - side) / 2, y = s.y + (s.h - side) / 2;
+        renderer.setViewport(x, y, side, side);
+        renderer.setScissor(x, y, side, side);
+        renderer.render(blitScene, blitCam);
+      }
+      renderer.setScissorTest(false);
+      requestAnimationFrame(frame);
+      return;
+    }
+    layout();
     if (dirty) {
       dirty = false;
       angio.render(carm, data.detectorMm, state.injected, state.alpha * 1000 + state.beta);
@@ -502,6 +554,45 @@ async function main() {
       drawOverlay();
     }
     requestAnimationFrame(frame);
+  }
+
+  // ---------- simple-mode angle control ----------
+  let anim = 0;
+  function animatePose(a: number, b: number, ms = 1600) {
+    const from = { a: state.alpha, b: state.beta };
+    const t0 = performance.now();
+    const my = ++anim;
+    const step = (now: number) => {
+      if (my !== anim) return;
+      const t = Math.min(1, (now - t0) / ms);
+      const e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+      state.alpha = t < 1 ? from.a + e * (a - from.a) : a;
+      state.beta = t < 1 ? from.b + e * (b - from.b) : b;
+      update();
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  const heroPreset = $<HTMLSelectElement>("h-preset");
+  heroPreset.append(new Option("AP", "0,0,left"), ...PRESETS.map(([n, a, b, t]) => new Option(`${n}`, `${a},${b},${t}`)));
+  heroPreset.onchange = () => {
+    const [a, b, t] = heroPreset.value.split(",");
+    state.injected = t as Tree;
+    animatePose(Number(a), Number(b));
+  };
+  for (const [id, key] of [["h-alpha", "alpha"], ["h-beta", "beta"]] as const) {
+    const el = $<HTMLInputElement>(id);
+    el.min = String(key === "alpha" ? ALPHA_RANGE[0] : BETA_RANGE[0]);
+    el.max = String(key === "alpha" ? ALPHA_RANGE[1] : BETA_RANGE[1]);
+    el.oninput = () => { anim++; state[key] = Number(el.value); update(); };
+  }
+  hero.setView(heroView === "beam" ? "beam" : heroView, carm);
+  applyLayout();
+  const swing = params.get("swing"); // e.g. "0,0:-30,-25"
+  if (swing) {
+    const [[a0, b0], [a1, b1]] = swing.split(":").map((p) => p.split(",").map(Number));
+    state.alpha = a0; state.beta = b0; update();
+    setTimeout(() => animatePose(a1, b1, Number(params.get("swing_ms") ?? 2600)), Number(params.get("swing_delay") ?? 800));
   }
 
   const dom = data.meta.dominance;
@@ -561,6 +652,10 @@ async function main() {
         tile: (i: number) => Array.from(predict.tileImages[i].filter((_, k) => k % 4 === 0)),
         pose: () => ({ alpha: state.alpha, beta: state.beta, tree: state.injected }),
         locked: () => (document.getElementById("alpha") as HTMLInputElement).disabled,
+      },
+      hero: {
+        setView: (v: HeroView) => { heroView = v; hero.setView(v, carm); applyLayout(); },
+        animate: (a: number, b: number, ms: number) => animatePose(a, b, ms),
       },
       metrics: () => panel.live ? { F: panel.live.m.F, O_inter: panel.live.m.O_inter, O_self: panel.live.m.O_self, O_any: panel.live.m.O_any, target: panel.live.target.key } : null,
       optimum: () => panel.optimum(),

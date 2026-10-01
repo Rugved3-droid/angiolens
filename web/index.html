@@ -9,10 +9,12 @@
     <header>
       <h1>Coronary Projection Trainer</h1>
       <div id="modes"><button data-mode="explore" class="on">Explore</button><button data-mode="predict">Predict</button></div>
+      <button id="advanced-toggle">Advanced</button>
       <span id="status">loading…</span>
     </header>
     <main id="stage">
       <canvas id="gl"></canvas>
+      <section id="hero-wrap"><div id="hero-panel"></div><div id="hero-angio"><span class="hero-angio-label">What the detector records</span></div></section>
       <section class="panel" id="angio-wrap">
         <div class="panel-title">Angiogram <span class="hint">(what the operator sees)</span></div>
         <div id="angio-panel">
@@ -26,6 +28,12 @@
         <div id="scene-panel"></div>
       </section>
     </main>
+    <section id="hero-bar">
+      <select id="h-preset" title="Standard views"><option disabled selected>Standard view…</option></select>
+      <label class="h-axis"><span>RAO</span><input id="h-alpha" type="range" step="1" /><span>LAO</span></label>
+      <label class="h-axis"><span>CAUD</span><input id="h-beta" type="range" step="1" /><span>CRAN</span></label>
+      <div id="hero-caption"></div>
+    </section>
     <section id="maps-row">
       <div id="metrics-live"></div>
       <div id="hm-F"></div>
