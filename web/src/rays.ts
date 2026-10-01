@@ -28,7 +28,8 @@ export function sampleIndices(n: number, k: number): number[] {
  * BIFURCATION_EXCLUSION_MM of the target's own end nodes are ignored (vessels touch there by definition).
  */
 export function projectionRays(carm: CArm, target: Edge, injected: Edge[], nodes: GraphNode[], nRays = 15): Ray[] {
-  const ends = [nodes[target.a].pos, nodes[target.b].pos];
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const ends = [target.a, target.b].map((id) => byId.get(id)).filter((n) => n).map((n) => n!.pos);
   const others = injected
     .filter((e) => e.id !== target.id)
     .map((e) => ({

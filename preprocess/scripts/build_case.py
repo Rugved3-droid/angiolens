@@ -121,6 +121,12 @@ def main():
         "meshes": meshes,
         "files": sorted(p.name for p in out.iterdir() if p.name != "case.json") + ["case.json"],
     }
+    # the non-expert extension is a separate, separately-reviewed layer: carry its flag over a rebuild
+    old = out / "case.json"
+    if (out / "extension.json").exists() and old.exists():
+        prev = json.loads(old.read_text()).get("non_expert_extension")
+        if prev:
+            meta["non_expert_extension"] = prev
     (out / "case.json").write_text(json.dumps(meta, indent=1))
     index = ROOT / "web" / "public" / "cases" / "index.json"
     ids = sorted({*json.loads(index.read_text())["cases"], args.case}) if index.exists() else [args.case]

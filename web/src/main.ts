@@ -5,7 +5,7 @@ import { type CaseData, type Edge, loadCase, type Tree } from "./caseData";
 import { ALPHA_RANGE, BETA_RANGE, CArm, screenToPixel, pixelToScreen, type Vec3, add, scale } from "./geometry";
 import { CULPRIT_COLOR, LABEL_NAMES, type LabelName, LabelStore, SELECT_COLOR } from "./labels";
 import { nearestEdge, pickInAngio, projectionRays, type Ray } from "./rays";
-import { Scene3D } from "./scene3d";
+import { EXTENSION_COLOR, Scene3D } from "./scene3d";
 
 // Presets: [name, alpha (LAO+), beta (CRAN+), tree it is meant for]
 const PRESETS: [string, number, number, Tree][] = [
@@ -56,7 +56,9 @@ async function main() {
   renderer.autoClear = false;
 
   const px = Number(params.get("px") ?? 512);
-  const angio = new AngioRenderer(renderer, { left: data.lumen.left, right: data.lumen.right, bone: data.bone }, px);
+  const angio = new AngioRenderer(renderer, {
+    left: data.lumen.left, right: data.lumen.right, bone: data.bone, extension: data.extension?.mesh ?? null,
+  }, px);
   const scene3d = new Scene3D($("scene-panel"), data, angio.angioRT.texture);
   const labels = new LabelStore(caseId, data.edges);
   const labelStatus = await labels.init();
@@ -73,16 +75,22 @@ async function main() {
   let rays: Ray[] = [];
   let culprits = new Set<number>();
   let dirty = true;
-  const edgeById = new Map(data.edges.map((e) => [e.id, e]));
-  const injectedEdges = () => data.edges.filter((e) => e.tree === state.injected);
+  // expert edges + (when its toggle is on) the separate non-expert extension layer
+  const extOn = () => !!data.extension && scene3d.vis.extension;
+  const allEdges = () => (extOn() ? [...data.edges, ...data.extension!.edges] : data.edges);
+  const allNodes = data.extension ? [...data.nodes, ...data.extension.nodes] : data.nodes;
+  const edgeById = new Map([...data.edges, ...(data.extension?.edges ?? [])].map((e) => [e.id, e]));
+  const injectedEdges = () => allEdges().filter((e) => e.tree === state.injected);
 
   function update() {
     carm = new CArm(state.alpha, state.beta, data.isocenter);
     const sel = state.selected !== null ? edgeById.get(state.selected)! : null;
-    rays = sel && sel.tree === state.injected ? projectionRays(carm, sel, injectedEdges(), data.nodes) : [];
+    rays = sel && sel.tree === state.injected ? projectionRays(carm, sel, injectedEdges(), allNodes) : [];
     culprits = new Set(rays.flatMap((r) => r.culprits));
     scene3d.setCArm(carm, data.detectorMm);
     scene3d.setRays(carm, rays);
+    if (state.selected !== null && edgeById.get(state.selected)?.nonExpert && !extOn()) state.selected = null;
+    angio.params.showExtension = extOn();
     scene3d.recolor(labels, data.edges, state.injected, state.selected, culprits);
     scene3d.applyVisibility();
     syncControls();
@@ -108,6 +116,13 @@ async function main() {
   }
   for (const tree of ["left", "right"] as Tree[]) {
     $<HTMLInputElement>(`inject-${tree}`).onchange = () => { state.injected = tree; update(); };
+  }
+  if (data.extension) {
+    scene3d.vis.extension = !!data.extension.meta.default_visible;
+    $("ext-status").textContent = `${data.extension.meta.status}, ${data.extension.meta.total_length_mm} mm @ ${data.extension.meta.threshold_hu} HU`;
+    $("ext-status").title = (data.extension.meta.caveats ?? []).join("\n");
+  } else {
+    $("ext-row").style.display = "none";
   }
   for (const key of Object.keys(scene3d.vis) as (keyof typeof scene3d.vis)[]) {
     const box = $<HTMLInputElement>(`vis-${key}`);
@@ -184,7 +199,9 @@ async function main() {
       const overl = rays.filter((r) => r.culprits.length).length;
       const names = [...culprits].map((id) => labels.name(edgeById.get(id)!)).join(", ");
       info.innerHTML =
-        `<b style="color:${SELECT_COLOR}">${labels.name(sel)}</b> · ${sel.tree === "left" ? "LCA" : "RCA"} tree · ${sel.lengthMm.toFixed(1)} mm` +
+        `<b style="color:${SELECT_COLOR}">${sel.nonExpert && !labels.labels.has(sel.id) ? "non-expert extension" : labels.name(sel)}</b>` +
+        (sel.nonExpert ? ` <span style="color:${EXTENSION_COLOR}">[NON-EXPERT trace]</span>` : "") +
+        ` · ${sel.tree === "left" ? "LCA" : "RCA"} tree · ${sel.lengthMm.toFixed(1)} mm` +
         (sel.tree !== state.injected
           ? `<br><i>Not injected: switch to ${sel.tree === "left" ? "LCA" : "RCA"} injection to see it in the angiogram.</i>`
           : `<br>${overl}/${rays.length} rays pass through another vessel` +
@@ -213,7 +230,7 @@ async function main() {
     if (!hit) return select(null);
     // nearest centerline sample among edges of the tree that was hit
     const hitP: Vec3 = [hit.x, hit.y, hit.z];
-    select(nearestEdge(hitP, data.edges));
+    select(nearestEdge(hitP, allEdges()));
   });
   scene3d.controls.addEventListener("change", () => (dirty = true));
 
@@ -238,6 +255,11 @@ async function main() {
       g.stroke();
       g.globalAlpha = 1;
     };
+    if (extOn() && state.injected === "right") {
+      g.setLineDash([4 * dpr, 4 * dpr]);
+      for (const e of data.extension!.edges) drawEdge(e, EXTENSION_COLOR, 1);
+      g.setLineDash([]);
+    }
     for (const id of culprits) drawEdge(edgeById.get(id)!, CULPRIT_COLOR, 1.5);
     const sel = state.selected !== null ? edgeById.get(state.selected)! : null;
     if (sel && sel.tree === state.injected) drawEdge(sel, SELECT_COLOR, 2);

@@ -126,3 +126,28 @@ flagged after a centerline rebuild.
 
 **D19 Observer framing.** "Frame patient" looks from beside the beam (along +u, slightly superior), so the detector plate never sits between the
 observer and the heart. "Frame C-arm" shows the whole C-arm. Neither changes the projection.
+
+## 2026-09-30 (Phase 1 review, item 1)
+
+**D20 Non-expert distal RCA extension.** DECIDED (separate layer, by Rugved) / PENDING REVIEW (content).
+`cpt/extension.py` and `scripts/trace_extension.py`. The trace starts at the expert RCA end (edge 1, node 1) and takes the
+largest component of smoothed HU ≥ T that touches a 2.5 mm seed sphere. It excludes chambers (opening of ≥ 200 HU by a 4-voxel ball), bone and the expert lumen. The D10 pool mask is
+not used here: its split erosion assigns ~1 mm vessels to the pool. The component is then skeletonized into geodesic branches.
+
+| Threshold | Result |
+|---|---|
+| 250 HU | fragments only |
+| **230 HU** | **one unbranched 36 mm vessel (median 300 HU, radius ≥ 0.5 mm) to (12.5, 17.7, −151.2), at the estimated crux** |
+| 210 / 200 HU | leaks into a 1.4–1.7 mL network reaching the left AV groove (venous); rejected |
+
+**No PDA/PLB is traceable** without leaking. HU steps from ~480 to ~300 exactly at the expert end, with no gap: consistent with a
+narrowing artery under partial volume, but the accompanying small cardiac vein cannot be excluded automatically.
+
+Storage:
+- Own file: `extension.json` (`non_expert: true`, provenance, caveats, edge ids ≥ 1000), plus a closed tube mesh, `extension.glb`.
+- Own flag: `case.json → non_expert_extension` (status, `default_visible`). `build_case.py` carries the flag over rebuilds.
+- Never merged into `centerlines.json`, the expert lumen meshes or the label signature.
+
+In the app: separate toggle, violet tinted tube plus dashed centerline in 3D, dashed overlay in the angiogram, and a "[NON-EXPERT trace]" tag on selection.
+It is included in rays and overlap only while visible. The layer stays **default OFF** until
+`trace_extension.py --approve` after review of `out/review/Normal_12/extension_overlay.png`.

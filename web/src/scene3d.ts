@@ -25,7 +25,10 @@ function textSprite(text: string, color: string, size = 14): THREE.Sprite {
   return s;
 }
 
+export const EXTENSION_COLOR = "#c75cff";
+
 export interface Visibility {
+  extension: boolean;
   coronaries: boolean;
   bone: boolean;
   beam: boolean;
@@ -50,7 +53,10 @@ export class Scene3D {
   private readonly sourceMesh: THREE.Mesh;
   private readonly rayGroup = new THREE.Group();
   private readonly axes = new THREE.Group();
-  vis: Visibility = { coronaries: true, bone: true, beam: true, detector: true, ghost: true, rays: true, axes: true };
+  /** non-expert layer: tinted translucent tube + dashed centerline, never mixed into the expert meshes */
+  readonly extension: THREE.Group | null = null;
+  private extensionTube: THREE.Mesh | null = null;
+  vis: Visibility = { extension: false, coronaries: true, bone: true, beam: true, detector: true, ghost: true, rays: true, axes: true };
 
   constructor(dom: HTMLElement, readonly data: CaseData, ghostTexture: THREE.Texture) {
     const iso = v3(data.isocenter);
@@ -82,6 +88,23 @@ export class Scene3D {
       left: this.lumen.left.geometry.getAttribute("_edge_id").array as Float32Array,
       right: this.lumen.right.geometry.getAttribute("_edge_id").array as Float32Array,
     };
+
+    if (data.extension) {
+      const g = new THREE.Group();
+      this.extensionTube = new THREE.Mesh(data.extension.mesh, new THREE.MeshPhongMaterial({
+        color: EXTENSION_COLOR, transparent: true, opacity: 0.45, depthWrite: false, shininess: 10,
+      }));
+      g.add(this.extensionTube);
+      for (const e of data.extension.edges) {
+        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(e.pts.map(v3)),
+          new THREE.LineDashedMaterial({ color: EXTENSION_COLOR, dashSize: 1.5, gapSize: 1.0, depthTest: false }));
+        line.computeLineDistances();
+        line.renderOrder = 5;
+        g.add(line);
+      }
+      this.scene.add(g);
+      (this as { extension: THREE.Group | null }).extension = g;
+    }
 
     this.bone = data.bone
       ? new THREE.Mesh(data.bone, new THREE.MeshLambertMaterial({
@@ -200,10 +223,18 @@ export class Scene3D {
       (mesh.material as THREE.MeshPhongMaterial).opacity = tree === injected ? 1 : 0.35;
       (mesh.material as THREE.MeshPhongMaterial).depthWrite = tree === injected;
     }
+    if (this.extensionTube && this.data.extension) {
+      const ids = this.data.extension.edges.map((e) => e.id);
+      const mat = this.extensionTube.material as THREE.MeshPhongMaterial;
+      const sel = selected !== null && ids.includes(selected);
+      mat.color.set(sel ? SELECT_COLOR : ids.some((i) => culprits.has(i)) ? CULPRIT_COLOR : EXTENSION_COLOR);
+      mat.opacity = injected === "right" ? (sel ? 0.8 : 0.45) : 0.2;
+    }
   }
 
   applyVisibility() {
     this.lumen.left.visible = this.lumen.right.visible = this.vis.coronaries;
+    if (this.extension) this.extension.visible = this.vis.coronaries && this.vis.extension;
     if (this.bone) this.bone.visible = this.vis.bone;
     this.beamGroup.visible = this.vis.beam;
     this.detector.visible = this.detectorFrame.visible = this.vis.detector;
@@ -216,7 +247,9 @@ export class Scene3D {
   pick(ndc: THREE.Vector2, trees: Tree[]): THREE.Vector3 | null {
     const rc = new THREE.Raycaster();
     rc.setFromCamera(ndc, this.camera);
-    const hits = rc.intersectObjects(trees.map((t) => this.lumen[t]).filter((m) => m.visible), false);
+    const targets: THREE.Object3D[] = trees.map((t) => this.lumen[t]).filter((m) => m.visible);
+    if (this.extensionTube && this.extension?.visible && trees.includes("right")) targets.push(this.extensionTube);
+    const hits = rc.intersectObjects(targets, false);
     return hits.length ? hits[0].point : null;
   }
 

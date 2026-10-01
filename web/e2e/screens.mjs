@@ -13,6 +13,7 @@ await page.goto(`http://localhost:5179/?case=${caseId}&e2e=1`);
 await page.waitForSelector("body[data-ready='1']", { timeout: 120000 });
 const shots = JSON.parse(process.argv[3] ?? "[]");
 for (const s of shots) {
+  for (const id of s.check ?? []) await page.check(id);
   await page.evaluate((s) => {
     window.__cpt.setPose(s.a, s.b, s.tree);
     window.__cpt.select(s.sel ?? null);

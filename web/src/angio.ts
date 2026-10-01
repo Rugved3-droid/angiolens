@@ -86,6 +86,8 @@ export interface AngioMeshes {
   left: THREE.BufferGeometry;
   right: THREE.BufferGeometry;
   bone: THREE.BufferGeometry | null;
+  /** non-expert extension (right tree), rendered only with the RCA and only when its toggle is on */
+  extension: THREE.BufferGeometry | null;
 }
 
 export class AngioRenderer {
@@ -97,11 +99,11 @@ export class AngioRenderer {
   private readonly vesselScene = new THREE.Scene();
   private readonly boneScene = new THREE.Scene();
   private readonly camera = new THREE.Camera();
-  private readonly meshes: Record<"left" | "right" | "bone", THREE.Mesh | null>;
+  private readonly meshes: Record<"left" | "right" | "bone" | "extension", THREE.Mesh | null>;
   private readonly composite: THREE.ShaderMaterial;
   private readonly compositeScene = new THREE.Scene();
   private readonly quadCamera = new THREE.Camera();
-  params = { kVessel: 0.35, kBone: 0.012, background: 0.78, noise: 0.035, showBone: true };
+  params = { kVessel: 0.35, kBone: 0.012, background: 0.78, noise: 0.035, showBone: true, showExtension: false };
 
   constructor(private readonly renderer: THREE.WebGLRenderer, geoms: AngioMeshes, px = 512) {
     this.px = px;
@@ -142,6 +144,7 @@ export class AngioRenderer {
       left: mk(geoms.left, this.vesselScene),
       right: mk(geoms.right, this.vesselScene),
       bone: mk(geoms.bone, this.boneScene),
+      extension: mk(geoms.extension, this.vesselScene),
     };
 
     this.composite = new THREE.ShaderMaterial({
@@ -163,7 +166,10 @@ export class AngioRenderer {
     this.camera.projectionMatrixInverse.copy(P).invert();
     for (const [k, m] of Object.entries(this.meshes)) {
       if (!m) continue;
-      m.visible = k === "bone" ? this.params.showBone : k === injected;
+      m.visible =
+        k === "bone" ? this.params.showBone
+        : k === "extension" ? this.params.showExtension && injected === "right"
+        : k === injected;
       const u = (m.material as THREE.ShaderMaterial).uniforms;
       u.uSource.value.set(...carm.source);
       u.uSod.value = carm.sod;
