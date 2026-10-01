@@ -104,3 +104,33 @@ Implemented twice, `preprocess/cpt/metrics.py` (reference) and `web/src/metrics.
 - **Angle grid.** 2-degree steps anchored at 0 (so AP and zero tilt are always sampled), plus the exact range ends:
   alpha -90..90 (91 values), beta -45, -44, ..., 44, 45 (47 values). Maps are stored [beta][alpha]. In the UI, alpha runs left (RAO)
   to right (LAO) and beta bottom (CAU) to top (CRA). [`test_angle_maps_grid_and_symmetry`, `2 degree grid is anchored at 0`]
+
+## 8. Branch labels and derived segments
+
+- **Label mode assigns BRANCH names only:** LM, LAD, D1, D2, septal, ramus, LCx, OM1, OM2, RCA, conus, RV marginal, PDA, PLB.
+  Labels are per centerline edge and are never inferred.
+- **Segments are derived** from the labels by fixed rules (`web/src/segments.ts`):
+  - LAD prox / mid / dist: LAD start → D1 origin → D2 origin → end.
+  - LCx prox / dist: LCx start → OM1 origin → end.
+  - RCA prox / mid / dist: equal arc-length thirds of the labeled RCA (default), or the SCCT acute-margin wording (switchable).
+    "RCA dist" is flagged when the case's distal RCA is truncated.
+  - Every other labeled branch is a single whole segment.
+- **Never invent.** A split exists only at the origin of a labeled side branch on its labeled parent. If the side branch is not labeled,
+  the remainder stays "(unsplit)", is not mission-eligible, and a **note** says why.
+- **Issues vs notes.** Label inconsistencies are **issues** and block approval: wrong tree, a gap in a branch, a side branch not on its parent,
+  or out-of-order origins. Legitimate absences are **notes** and don't block it.
+- **Approval.** The derived segmentation needs a human approval. The approval is bound to a hash of the branch labels plus the RCA rule, so
+  any label change voids it. Before approval, metrics target the labeled branch (or the edge); after approval, they target the derived segment
+  under the click (sample-level selection).
+- **The non-expert extension never takes part in segmentation.**
+
+Tests: `web/tests/segments.test.ts`, `web/e2e/segments.e2e.mjs`.
+
+## 9. Overlap shown to the user
+
+The only overlap displayed is the 2D capsule metric (section 7):
+- a ray, or a sample dot on the angiogram, is orange if its sample is inter-vessel overlapped and pink if self-overlapped;
+- culprit vessels are those whose capsules cover the target.
+
+The Phase 1 3D ray-lumen test is kept only as a hidden diagnostic (`__cpt.diagnosticRays3D` in e2e builds).
+`web/e2e/segments.e2e.mjs` checks every displayed ray colour against the capsule mask (300 rays, 0 mismatches).

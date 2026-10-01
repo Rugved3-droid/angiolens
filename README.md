@@ -57,7 +57,7 @@ npm run dev                                                                    #
 
 The URL accepts `?case=<id>&alpha=-30&beta=-25&inject=left|right`. Arrow keys nudge the C-arm 1° (Shift: 5°).
 
-Label mode: tick "Label mode", click a segment in either panel, then pick a name. Labels autosave in the browser. To make them part of the
+Label mode: tick "Label mode (branches)", click a vessel in either panel, then pick a BRANCH name (LM, LAD, D1, ...). Segments (LAD prox/mid/dist, LCx prox/dist, RCA prox/mid/dist) are derived from the branch labels and shown with "show derived segments". Check the splits in both panels, then press "Approve segmentation" (any later label change voids the approval). Missions use approved segments only. Labels autosave in the browser. To make them part of the
 case, use "Export labels.json" and put the file in `web/public/cases/<id>/`.
 
 ## Tests
@@ -71,6 +71,7 @@ npx playwright install chromium                            # once
 node e2e/phantom.e2e.mjs                                   # GPU angiogram vs Python reference; mirror images must fail
 node e2e/interaction.e2e.mjs                               # click selection in both panels, Label mode, export
 node e2e/metrics.e2e.mjs                                   # in-browser metrics + worker map optimum equal Python
+node e2e/segments.e2e.mjs                                  # derived segments + approval, ray colours = capsule metric, scale floors
 node e2e/screens.mjs Normal_12 '[{"name":"x","a":-30,"b":-25,"tree":"left","sel":5}]'   # review screenshots
 ```
 

@@ -80,18 +80,22 @@ export class MetricsPanel {
   private readonly worker = new Worker(new URL("./metricsWorker.ts", import.meta.url), { type: "module" });
   private readonly hm: Record<"F" | "O_inter" | "O_self" | "cost", Heatmap>;
   weights = { wF: 1, wO: 1 };
+  /** false = per-map scaling with floors (F and O >= 20%, cost >= 20% of wF + wO); true = fixed full range */
+  fixedScale = false;
   showOptimum = true;
   private pose: [number, number] = [0, 0];
 
   constructor(private readonly iso: Vec3, onPick: (a: number, b: number) => void, private readonly onMaps: () => void) {
     const pct = (v: number) => `${(100 * v).toFixed(0)}%`;
+    const fixed = () => this.fixedScale;
+    const frac = { vmax: () => 1, floor: () => 0.2, fixed, format: pct, onPick };
     this.hm = {
-      F: new Heatmap(document.getElementById("hm-F")!, { title: "Foreshortening", vmax: () => 1, format: pct, onPick }),
-      O_inter: new Heatmap(document.getElementById("hm-inter")!, { title: "Inter-vessel overlap", vmax: () => 1, format: pct, onPick }),
-      O_self: new Heatmap(document.getElementById("hm-self")!, { title: "Self-overlap", vmax: () => 1, format: pct, onPick }),
+      F: new Heatmap(document.getElementById("hm-F")!, { title: "Foreshortening", ...frac }),
+      O_inter: new Heatmap(document.getElementById("hm-inter")!, { title: "Inter-vessel overlap", ...frac }),
+      O_self: new Heatmap(document.getElementById("hm-self")!, { title: "Self-overlap", ...frac }),
       cost: new Heatmap(document.getElementById("hm-cost")!, {
         title: "Combined cost (lower is better)", vmax: () => this.weights.wF + this.weights.wO,
-        format: (v) => v.toFixed(2), onPick,
+        floor: () => 0.2 * (this.weights.wF + this.weights.wO), fixed, format: (v) => v.toFixed(2), onPick,
       }),
     };
     this.worker.onmessage = (ev) => {
@@ -128,6 +132,11 @@ export class MetricsPanel {
       this.worker.postMessage({ key, iso: this.iso, target: target.samples, bif: target.bif, others: otherSamples, step: 2 });
     }
     for (const h of Object.values(this.hm)) h.setPose(...this.pose);
+  }
+
+  /** current colour-scale tops, for tests */
+  scales() {
+    return Object.fromEntries(Object.entries(this.hm).map(([k, h]) => [k, h.scaleMax()]));
   }
 
   cost(m: ViewMetrics) {

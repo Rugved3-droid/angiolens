@@ -4,11 +4,18 @@ import { AngioRenderer } from "./angio";
 import { type CaseData, type Edge, loadCase, type Tree } from "./caseData";
 import { ALPHA_RANGE, BETA_RANGE, CArm, screenToPixel, pixelToScreen, type Vec3, add, scale } from "./geometry";
 import { CULPRIT_COLOR, LABEL_NAMES, type LabelName, LabelStore, SELECT_COLOR } from "./labels";
-import { nearestEdge, pickInAngio, projectionRays, type Ray } from "./rays";
-import { EXTENSION_COLOR, Scene3D } from "./scene3d";
-import { buildTarget, MetricsPanel } from "./metricsPanel";
+import { nearestSample, pickSampleInAngio, projectionRays, type Ray, samplesRays } from "./rays";
+import { EXTENSION_COLOR, SELF_COLOR, Scene3D } from "./scene3d";
+import { buildTarget, MetricsPanel, type Target } from "./metricsPanel";
+import { type DerivedSegment, type Derivation, deriveSegments, type RcaRule } from "./segments";
+import { LABEL_COLORS } from "./labels";
+import { packSamples } from "./metrics";
 
-const SELF_COLOR = "#ff6fb1";
+const SEGMENT_COLORS: Record<string, string> = {
+  LM: "#f0f0f0", "LAD prox": "#1f6fd1", "LAD mid": "#4a9ae0", "LAD dist": "#8cc4f5",
+  "LCx prox": "#2ca02c", "LCx dist": "#6fcf6f", "RCA prox": "#d62728", "RCA mid": "#ff5c5c", "RCA dist": "#ff9e9e",
+};
+const segColor = (s: DerivedSegment) => SEGMENT_COLORS[s.name] ?? LABEL_COLORS[s.branch] ?? "#cccccc";
 
 // Presets: [name, alpha (LAO+), beta (CRAN+), tree it is meant for]
 const PRESETS: [string, number, number, Tree][] = [
@@ -31,7 +38,10 @@ interface State {
   beta: number;
   injected: Tree;
   selected: number | null;
+  selectedIdx: number;
   labelMode: boolean;
+  rcaRule: RcaRule;
+  showSegments: boolean;
 }
 
 async function main() {
@@ -50,7 +60,10 @@ async function main() {
     beta: clampNum(params.get("beta"), ...BETA_RANGE, 0),
     injected: params.get("inject") === "right" ? "right" : "left",
     selected: null,
+    selectedIdx: 0,
     labelMode: false,
+    rcaRule: "thirds",
+    showSegments: true,
   };
 
   const canvas = $("gl") as HTMLCanvasElement;
@@ -77,7 +90,18 @@ async function main() {
   let carm = new CArm(state.alpha, state.beta, data.isocenter);
   let rays: Ray[] = [];
   let culprits = new Set<number>();
+  let derivation: Derivation = { segments: [], boundaries: [], issues: [], notes: [] };
+  let target: Target | null = null;
+  let targetSeg: DerivedSegment | null = null;
   let dirty = true;
+  const rcaTruncated = !!data.meta.annotation?.rca_distal_truncated;
+  const segAt = (edgeId: number, idx: number) =>
+    derivation.segments.find((s) => s.members.some((mm) => mm.edgeId === edgeId && idx >= mm.i0 && idx <= mm.i1)) ?? null;
+  const segmentsApproved = () => labels.approvalValid(state.rcaRule) && derivation.issues.length === 0;
+  const segTarget = (s: DerivedSegment): Target => ({
+    key: `seg:${s.name}`, name: s.name, edges: s.members.map((mm) => edgeById.get(mm.edgeId)!),
+    samples: packSamples(s.pts, s.radius), pts: s.pts, bif: s.bif, note: s.flags.join("; "),
+  });
   // expert edges + (when its toggle is on) the separate non-expert extension layer
   const extOn = () => !!data.extension && scene3d.vis.extension;
   const allEdges = () => (extOn() ? [...data.edges, ...data.extension!.edges] : data.edges);
@@ -89,17 +113,32 @@ async function main() {
 
   function update() {
     carm = new CArm(state.alpha, state.beta, data.isocenter);
+    if (state.selected !== null && edgeById.get(state.selected)?.nonExpert && !extOn()) state.selected = null;
     const sel = state.selected !== null ? edgeById.get(state.selected)! : null;
-    rays = sel && sel.tree === state.injected ? projectionRays(carm, sel, injectedEdges(), allNodes) : [];
-    culprits = new Set(rays.flatMap((r) => r.culprits));
+    derivation = deriveSegments(data.edges, data.nodes, labels.labels, { rcaRule: state.rcaRule, rcaDistalTruncated: rcaTruncated });
+    // metric target: the approved derived segment under the click; before approval, the labeled branch / edge
+    targetSeg = sel && sel.tree === state.injected && segmentsApproved() ? segAt(sel.id, state.selectedIdx) : null;
+    target = sel && sel.tree === state.injected ? (targetSeg ? segTarget(targetSeg) : buildTarget(sel, allEdges(), allNodes, labels)) : null;
+    const inTarget = new Set(target?.edges.map((e) => e.id) ?? []);
+    const others = injectedEdges().filter((e) => !inTarget.has(e.id));
+    panel.update(carm, target, others, `${state.injected}|ext:${extOn()}`);
+    // rays and overlap colouring come ONLY from the 2D capsule metric (the 3D ray test is a hidden diagnostic)
+    const live = panel.live;
+    rays = target && live ? samplesRays(carm, target.pts).map((r) => ({
+      ...r, overlap: live.m.interMask[r.sampleIndex!] ? "inter" as const : live.m.selfMask[r.sampleIndex!] ? "self" as const : null,
+    })) : [];
+    culprits = new Set(live ? [...live.m.interBy].filter((k) => k >= 0).map((k) => others[k].id) : []);
     scene3d.setCArm(carm, data.detectorMm);
     scene3d.setRays(carm, rays);
-    if (state.selected !== null && edgeById.get(state.selected)?.nonExpert && !extOn()) state.selected = null;
     angio.params.showExtension = extOn();
-    scene3d.recolor(labels, data.edges, state.injected, state.selected, culprits);
-    const target = sel && sel.tree === state.injected ? buildTarget(sel, allEdges(), allNodes, labels) : null;
-    const inTarget = new Set(target?.edges.map((e) => e.id) ?? []);
-    panel.update(carm, target, injectedEdges().filter((e) => !inTarget.has(e.id)), `${state.injected}|ext:${extOn()}`);
+    const showSeg = state.showSegments && derivation.segments.length > 0;
+    const segOfVertex = (edgeId: number, idx: number) => { const s = segAt(edgeId, idx); return s ? segColor(s) : null; };
+    const inSel = targetSeg
+      ? (edgeId: number, idx: number) => targetSeg!.members.some((mm) => mm.edgeId === edgeId && idx >= mm.i0 && idx <= mm.i1)
+      : undefined;
+    scene3d.recolor(labels, data.edges, state.injected, state.selected, culprits,
+      showSeg || inSel ? (e, i) => (showSeg ? segOfVertex(e, i) : null) : undefined, inSel);
+    scene3d.setBoundaries(showSeg ? derivation.boundaries.map((b) => ({ name: b.name, pos: b.pos })) : []);
     scene3d.applyVisibility();
     syncControls();
     dirty = true;
@@ -186,8 +225,9 @@ async function main() {
     update();
   });
 
-  function select(id: number | null) {
-    state.selected = id;
+  function select(p: { id: number; idx: number } | null) {
+    state.selected = p?.id ?? null;
+    state.selectedIdx = p?.idx ?? 0;
     update();
   }
 
@@ -200,6 +240,10 @@ async function main() {
     syncControls();
   };
   wf.oninput = wo.oninput = onWeights;
+  $<HTMLInputElement>("fixed-scale").onchange = (ev) => {
+    panel.fixedScale = (ev.target as HTMLInputElement).checked;
+    panel.redrawMaps();
+  };
   $("goto-opt").onclick = () => {
     const o = panel.optimum();
     if (o) { state.alpha = o.alpha; state.beta = o.beta; update(); }
@@ -226,6 +270,31 @@ async function main() {
       (target.note ? `<div class="hint">${target.note}</div>` : "");
   }
 
+  // ---------- derived segments (approval) ----------
+  $<HTMLInputElement>("seg-show").checked = state.showSegments;
+  $<HTMLInputElement>("seg-show").onchange = (ev) => { state.showSegments = (ev.target as HTMLInputElement).checked; update(); };
+  $<HTMLSelectElement>("rca-rule").onchange = (ev) => { state.rcaRule = (ev.target as HTMLSelectElement).value as RcaRule; update(); };
+  $("seg-approve").onclick = () => {
+    if (segmentsApproved()) labels.approve(null);
+    else if (derivation.issues.length === 0) labels.approve(state.rcaRule);
+    update();
+  };
+  function syncSegments() {
+    const ok = segmentsApproved();
+    const chip = (s: DerivedSegment) =>
+      `<span class="seg" style="border-color:${segColor(s)}" title="${s.flags.join("; ")}">${s.name} ${s.lengthMm.toFixed(0)} mm` +
+      `${s.flags.length ? " &#9873;" : ""}${s.complete ? "" : " (not mission-eligible)"}</span>`;
+    $("seg-list").innerHTML = (derivation.segments.map(chip).join(" ") || "<span class=\"hint\">no labeled branches yet</span>") +
+      (derivation.issues.length ? `<div class="seg-issues">${derivation.issues.map((i) => `&#9888; ${i}`).join("<br>")}</div>` : "") +
+      (derivation.notes.length ? `<div class="hint">${derivation.notes.map((i) => `&#8505; ${i}`).join("<br>")}</div>` : "") +
+      (derivation.boundaries.length ? `<div class="hint">splits: ${derivation.boundaries.map((b) => `${b.name} at ${b.rule}`).join("; ")}</div>` : "");
+    const btn = $<HTMLButtonElement>("seg-approve");
+    btn.textContent = ok ? "Revoke approval" : "Approve segmentation";
+    btn.disabled = !ok && (derivation.issues.length > 0 || derivation.segments.length === 0);
+    $("seg-status").textContent = ok ? `APPROVED (${labels.approval!.approved.slice(0, 10)}, RCA: ${labels.approval!.rca_rule})`
+      : labels.approval ? "approval void: labels or RCA rule changed since approval" : "not approved";
+  }
+
   function syncControls() {
     syncMetrics();
     alphaIn.value = String(state.alpha);
@@ -237,10 +306,11 @@ async function main() {
     $("inject-badge").textContent = state.injected === "left" ? "LCA injection" : "RCA injection";
     const sel = state.selected !== null ? edgeById.get(state.selected)! : null;
     const info = $("selection");
+    syncSegments();
     if (!sel) {
       info.innerHTML = "Click a vessel in either panel.";
     } else {
-      const overl = rays.filter((r) => r.culprits.length).length;
+      const overl = rays.filter((r) => r.overlap).length;
       const names = [...culprits].map((id) => labels.name(edgeById.get(id)!)).join(", ");
       info.innerHTML =
         `<b style="color:${SELECT_COLOR}">${sel.nonExpert && !labels.labels.has(sel.id) ? "non-expert extension" : labels.name(sel)}</b>` +
@@ -248,7 +318,7 @@ async function main() {
         ` · ${sel.tree === "left" ? "LCA" : "RCA"} tree · ${sel.lengthMm.toFixed(1)} mm` +
         (sel.tree !== state.injected
           ? `<br><i>Not injected: switch to ${sel.tree === "left" ? "LCA" : "RCA"} injection to see it in the angiogram.</i>`
-          : `<br>${overl}/${rays.length} rays pass through another vessel` +
+          : (targetSeg ? `<br>segment <b>${targetSeg.name}</b>` : "") + `<br>${overl}/${rays.length} rays on overlapped samples (capsule metric)` +
             (names ? `: <span style="color:${CULPRIT_COLOR}">${names}</span>` : ""));
     }
     $("label-row").style.display = state.labelMode ? "" : "none";
@@ -260,7 +330,7 @@ async function main() {
   overlay.addEventListener("click", (ev) => {
     const r = overlay.getBoundingClientRect();
     const [x, y] = pixelToScreen(((ev.clientX - r.left) / r.width) * px - 0.5, ((ev.clientY - r.top) / r.height) * px - 0.5, data.detectorMm, px);
-    select(pickInAngio(carm, x, y, injectedEdges()));
+    select(pickSampleInAngio(carm, x, y, injectedEdges()));
   });
   const scenePanel = $("scene-panel");
   let down: [number, number] | null = null;
@@ -274,7 +344,7 @@ async function main() {
     if (!hit) return select(null);
     // nearest centerline sample among edges of the tree that was hit
     const hitP: Vec3 = [hit.x, hit.y, hit.z];
-    select(nearestEdge(hitP, allEdges()));
+    select(nearestSample(hitP, allEdges()));
   });
   scene3d.controls.addEventListener("change", () => (dirty = true));
 
@@ -304,9 +374,25 @@ async function main() {
       for (const e of data.extension!.edges) drawEdge(e, EXTENSION_COLOR, 1);
       g.setLineDash([]);
     }
+    const drawPts = (pts: Vec3[], color: string, width: number) => drawEdge({ pts } as Edge, color, width);
+    if (state.showSegments) {
+      g.font = `600 ${10 * dpr}px system-ui`;
+      for (const s of derivation.segments.filter((s) => s.tree === state.injected)) {
+        drawPts(s.pts, segColor(s), 1.2);
+        const [x, y] = toCanvas(s.pts[Math.floor(s.pts.length / 2)]);
+        g.lineWidth = 3 * dpr; g.strokeStyle = "#000"; g.strokeText(s.name, x + 5 * dpr, y - 4 * dpr);
+        g.fillStyle = segColor(s); g.fillText(s.name, x + 5 * dpr, y - 4 * dpr);
+      }
+      for (const b of derivation.boundaries) {
+        const owner = derivation.segments.find((s) => s.pts.includes(b.pos));
+        if (owner && owner.tree !== state.injected) continue;
+        const [x, y] = toCanvas(b.pos);
+        g.fillStyle = "#fff"; g.strokeStyle = "#000"; g.lineWidth = 1.5 * dpr;
+        g.beginPath(); g.arc(x, y, 3.2 * dpr, 0, 2 * Math.PI); g.fill(); g.stroke();
+      }
+    }
     for (const id of culprits) drawEdge(edgeById.get(id)!, CULPRIT_COLOR, 1.5);
-    const sel = state.selected !== null ? edgeById.get(state.selected)! : null;
-    if (sel && sel.tree === state.injected) drawEdge(sel, SELECT_COLOR, 2);
+    if (target) drawPts(target.pts, SELECT_COLOR, 2);
     if (panel.live) {
       const { target, m } = panel.live;
       target.pts.forEach((p, i) => {
@@ -320,7 +406,7 @@ async function main() {
     }
     for (const ray of rays) {
       const [x, y] = toCanvas(ray.p);
-      g.fillStyle = ray.culprits.length ? CULPRIT_COLOR : SELECT_COLOR;
+      g.fillStyle = ray.overlap === "inter" ? CULPRIT_COLOR : ray.overlap === "self" ? SELF_COLOR : SELECT_COLOR;
       g.beginPath();
       g.arc(x, y, 2.2 * dpr, 0, 2 * Math.PI);
       g.fill();
@@ -413,7 +499,7 @@ async function main() {
         const { thickness, repaired, oddCrossings, signMismatch } = angio.readThickness();
         return { thickness: Array.from(thickness), repaired, oddCrossings, signMismatch };
       },
-      select(id: number | null) { select(id); },
+      select(id: number | null) { select(id === null ? null : { id, idx: Math.floor((edgeById.get(id)?.pts.length ?? 1) / 2) }); },
       frame(what: "patient" | "carm") { scene3d.frame(what, carm); dirty = true; },
       /** client (page) coordinates of an edge's middle sample in the angiogram, for click tests */
       angioClientPoint(id: number) {
@@ -430,8 +516,18 @@ async function main() {
         const r = scenePanel.getBoundingClientRect();
         return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
       },
+      labelEdges(map: Record<number, string>) { for (const [k, v] of Object.entries(map)) labels.set(Number(k), v as LabelName); update(); },
+      derivation: () => ({ segments: derivation.segments.map((s) => ({ name: s.name, len: s.lengthMm, complete: s.complete, flags: s.flags })), issues: derivation.issues, notes: derivation.notes, approved: segmentsApproved() }),
+      approve: () => { labels.approve(state.rcaRule); update(); return segmentsApproved(); },
+      selectSample(id: number, idx: number) { select({ id, idx }); },
+      rays: () => rays.map((r) => ({ i: r.sampleIndex, overlap: r.overlap ?? null })),
+      masks: () => panel.live ? { inter: Array.from(panel.live.m.interMask), self: Array.from(panel.live.m.selfMask) } : null,
+      target: () => target?.name ?? null,
+      diagnosticRays3D: () => { const s = state.selected !== null ? edgeById.get(state.selected) : null; return s ? projectionRays(carm, s, injectedEdges(), allNodes).map((r) => r.culprits) : []; },
       metrics: () => panel.live ? { F: panel.live.m.F, O_inter: panel.live.m.O_inter, O_self: panel.live.m.O_self, O_any: panel.live.m.O_any, target: panel.live.target.key } : null,
       optimum: () => panel.optimum(),
+      scales: () => panel.scales(),
+      setFixedScale(v: boolean) { panel.fixedScale = v; panel.redrawMaps(); },
       state: () => ({ ...state, label: state.selected === null ? null : labels.labels.get(state.selected) ?? null }),
       orbit(dx: number, dy: number, dz: number) {
         scene3d.camera.position.set(data.isocenter[0] + dx, data.isocenter[1] + dy, data.isocenter[2] + dz);

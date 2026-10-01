@@ -4,5 +4,10 @@
   "params": "2db75c09eb796651",
   "date": "2026-09-30",
   "note": "Accepted by Rugved 2026-09-30 (Phase 1 review item 2); tuned to this scan, no further tuning"
+ },
+ "annotation": {
+  "rca_distal_truncated": true,
+  "date": "2026-09-30",
+  "note": "Expert RCA annotation ends ~10-20 mm before the crux; PDA/PLB not annotated. Extension not approved (DECISIONS D20)."
  }
 }

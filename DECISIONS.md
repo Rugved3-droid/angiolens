@@ -217,3 +217,26 @@ official points lie within 0.5 mm of a lumen voxel after the header-derived tran
 
 **D25 Phase order changed.** DECIDED (Rugved). Phase 1.5 (DRR/volume rendering) is skipped for now. The order is Phase 2, then Phase 3
 (Mission + Guess); the DRR comes after Phase 3.
+
+## 2026-10-01 (pre-Phase 3: items A, B, C)
+
+**D26 Branch labels, derived segments, approval.** DECIDED (Rugved), implementation DEFAULT. Label mode now uses branch names; segment names are
+derived (see CONVENTIONS 8).
+- **RCA split:** Rugved specified "thirds per SCCT". SCCT's wording actually splits at the acute margin, so both are implemented: equal thirds
+  is the default and the acute-margin rule is a switch. The approval records which rule was used.
+- **RCA truncation:** `reviews/Normal_12.json → annotation.rca_distal_truncated = true` is copied into `case.json`, and "RCA dist" carries the flag.
+- **Missing side branches** (for example, no D2 present) are notes, not blocking issues. Otherwise a case lacking a branch could never be approved.
+- **Labels file version 2.** It holds the branch labels plus `segments_approval` (labels hash, RCA rule, date). A version 1 file
+  (segment names) is rejected with a message; none existed.
+
+**D27 One overlap definition in the display.** DECIDED (Rugved). The 3D rays and the sample dots are coloured from the capsule metric
+(orange = inter, pink = self), and culprits come from the covering capsules (`interBy`). The 3D ray-lumen check is no longer displayed;
+it stays as an internal diagnostic. Rays are now cast from the metric target (the derived segment once approved), not from the raw edge.
+
+**D28 Heatmap scale floors.** DECIDED (Rugved).
+- Per-map scaling keeps a floor: foreshortening and both overlap maps never scale below 20%; the combined cost never below 20% of (w_F + w_O),
+  which is my extension of the rule to the cost map.
+- A "fixed 0–100%" toggle uses the full range.
+- The rule is a pure function, `scaleTop()`, with unit tests.
+- Note: a straight segment seen end-on reaches 100% foreshortening and 100% self-overlap somewhere on the grid, so on many maps the per-map top is
+  legitimately 100%.

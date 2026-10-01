@@ -120,6 +120,8 @@ def main():
         "masks": {**{k: mask_report[k] for k in ("params", "bone_ml", "bone_mesh_ml", "pool_ml")},
                   "review": review_status(args.case, ROOT / "reviews")["status"]},
         "meshes": meshes,
+        "annotation": json.loads((ROOT / "reviews" / f"{args.case}.json").read_text()).get("annotation", {})
+        if (ROOT / "reviews" / f"{args.case}.json").exists() else {},
         "files": sorted(p.name for p in out.iterdir() if p.name != "case.json") + ["case.json"],
     }
     # the non-expert extension is a separate, separately-reviewed layer: carry its flag over a rebuild

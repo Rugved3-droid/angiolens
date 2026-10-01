@@ -11,14 +11,17 @@ const v3 = (p: Vec3) => new THREE.Vector3(p[0], p[1], p[2]);
 
 function textSprite(text: string, color: string, size = 14): THREE.Sprite {
   const c = document.createElement("canvas");
-  c.width = 128;
+  c.width = text.length > 2 ? 512 : 128;
   c.height = 64;
   const g = c.getContext("2d")!;
-  g.font = "bold 40px system-ui, sans-serif";
-  g.fillStyle = color;
+  g.font = `bold ${text.length > 2 ? 34 : 40}px system-ui, sans-serif`;
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.fillText(text, 64, 32);
+  g.lineWidth = 6;
+  g.strokeStyle = "#000000";
+  g.strokeText(text, c.width / 2, 32);
+  g.fillStyle = color;
+  g.fillText(text, c.width / 2, 32);
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
   s.scale.set(size * 2, size, 1);
   s.renderOrder = 10;
@@ -26,6 +29,7 @@ function textSprite(text: string, color: string, size = 14): THREE.Sprite {
 }
 
 export const EXTENSION_COLOR = "#c75cff";
+export const SELF_COLOR = "#ff6fb1";
 
 export interface Visibility {
   extension: boolean;
@@ -44,6 +48,9 @@ export class Scene3D {
   readonly controls: OrbitControls;
   readonly lumen: Record<Tree, THREE.Mesh>;
   private readonly edgeIdAttr: Record<Tree, Float32Array>;
+  /** per-vertex nearest sample index on the vertex's own edge (for colouring segments that end mid-edge) */
+  private readonly sampleIdx: Record<Tree, Int32Array>;
+  private readonly boundaryGroup = new THREE.Group();
   private readonly bone: THREE.Mesh | null;
   private readonly carmGroup = new THREE.Group();
   private readonly beamGroup = new THREE.Group();
@@ -88,6 +95,25 @@ export class Scene3D {
       left: this.lumen.left.geometry.getAttribute("_edge_id").array as Float32Array,
       right: this.lumen.right.geometry.getAttribute("_edge_id").array as Float32Array,
     };
+    const edgeById = new Map(data.edges.map((e) => [e.id, e]));
+    const nearestIdx = (tree: Tree) => {
+      const pos = this.lumen[tree].geometry.getAttribute("position");
+      const ids = this.edgeIdAttr[tree];
+      const out = new Int32Array(ids.length);
+      for (let v = 0; v < ids.length; v++) {
+        const e = edgeById.get(ids[v]);
+        if (!e) continue;
+        let best = 0, bd = Infinity;
+        const x = pos.getX(v), y = pos.getY(v), z = pos.getZ(v);
+        e.pts.forEach((p, i) => {
+          const d = (p[0] - x) ** 2 + (p[1] - y) ** 2 + (p[2] - z) ** 2;
+          if (d < bd) { bd = d; best = i; }
+        });
+        out[v] = best;
+      }
+      return out;
+    };
+    this.sampleIdx = { left: nearestIdx("left"), right: nearestIdx("right") };
 
     if (data.extension) {
       const g = new THREE.Group();
@@ -123,7 +149,7 @@ export class Scene3D {
     }));
     this.detectorFrame = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x9fb4c8 }));
     this.carmGroup.add(this.sourceMesh, this.detector, this.ghost, this.detectorFrame, this.beamGroup);
-    this.scene.add(this.carmGroup, this.rayGroup, this.axes);
+    this.scene.add(this.carmGroup, this.rayGroup, this.axes, this.boundaryGroup);
     this.buildAxes(iso);
   }
 
@@ -192,8 +218,8 @@ export class Scene3D {
     this.rayGroup.clear();
     const S = v3(carm.source);
     for (const r of rays) {
-      const hit = r.culprits.length > 0;
-      const color = hit ? CULPRIT_COLOR : SELECT_COLOR;
+      const hit = !!r.overlap;
+      const color = r.overlap === "inter" ? CULPRIT_COLOR : r.overlap === "self" ? SELF_COLOR : SELECT_COLOR;
       const pre = new THREE.Line(new THREE.BufferGeometry().setFromPoints([S, v3(r.p)]),
         new THREE.LineBasicMaterial({ color, transparent: true, opacity: hit ? 0.55 : 0.18 }));
       const post = new THREE.Line(new THREE.BufferGeometry().setFromPoints([v3(r.p), v3(r.q)]),
@@ -205,18 +231,28 @@ export class Scene3D {
   }
 
   /** Recolor lumen vertices from labels / selection / culprits; dim the uninjected tree. */
-  recolor(labels: LabelStore, edges: Edge[], injected: Tree, selected: number | null, culprits: Set<number>) {
+  recolor(labels: LabelStore, edges: Edge[], injected: Tree, selected: number | null, culprits: Set<number>,
+          segColor?: (edgeId: number, idx: number) => string | null, selectedSeg?: (edgeId: number, idx: number) => boolean) {
     const colorOf = new Map<number, THREE.Color>();
     for (const e of edges) {
-      const c = e.id === selected ? SELECT_COLOR : culprits.has(e.id) ? CULPRIT_COLOR : labels.color(e);
+      const c = e.id === selected && !selectedSeg ? SELECT_COLOR : culprits.has(e.id) ? CULPRIT_COLOR : labels.color(e);
       colorOf.set(e.id, new THREE.Color(c));
     }
     for (const tree of ["left", "right"] as Tree[]) {
       const mesh = this.lumen[tree];
       const col = mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
       const ids = this.edgeIdAttr[tree];
+      const idx = this.sampleIdx[tree];
+      const tmp = new THREE.Color();
       for (let i = 0; i < ids.length; i++) {
-        const c = colorOf.get(ids[i]) ?? new THREE.Color(0x888888);
+        let c = colorOf.get(ids[i]) ?? new THREE.Color(0x888888);
+        if (segColor) {
+          if (selectedSeg?.(ids[i], idx[i])) c = tmp.set(SELECT_COLOR);
+          else if (!culprits.has(ids[i])) {
+            const sc = segColor(ids[i], idx[i]);
+            if (sc) c = tmp.set(sc);
+          }
+        }
         col.setXYZ(i, c.r, c.g, c.b);
       }
       col.needsUpdate = true;
@@ -229,6 +265,20 @@ export class Scene3D {
       const sel = selected !== null && ids.includes(selected);
       mat.color.set(sel ? SELECT_COLOR : ids.some((i) => culprits.has(i)) ? CULPRIT_COLOR : EXTENSION_COLOR);
       mat.opacity = injected === "right" ? (sel ? 0.8 : 0.45) : 0.2;
+    }
+  }
+
+  /** White markers + names at derived-segment boundaries. */
+  setBoundaries(list: { name: string; pos: Vec3 }[]) {
+    this.boundaryGroup.clear();
+    for (const b of list) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }));
+      m.renderOrder = 6;
+      m.position.copy(v3(b.pos));
+      const s = textSprite(b.name, "#ffffff", 5);
+      s.scale.set(28, 7, 1);
+      s.position.copy(v3(b.pos)).add(new THREE.Vector3(0, 0, 6));
+      this.boundaryGroup.add(m, s);
     }
   }
 

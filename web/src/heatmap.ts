@@ -15,6 +15,19 @@ function rampColor(t: number): string {
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
+/**
+ * Colour-scale top. fixed: the full range ceil. Otherwise a "nice" step at or above max(data, floor), capped at ceil,
+ * so a map whose values stay below the floor is not stretched into false contrast.
+ */
+export function scaleTop(values: ArrayLike<number> | null, ceil: number, floor: number, fixed: boolean): number {
+  ceil = Math.max(ceil, 1e-9);
+  if (fixed || !values) return ceil;
+  let mx = floor;
+  for (let i = 0; i < values.length; i++) mx = Math.max(mx, values[i]);
+  for (const n of [0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.8, 1, 1.2, 1.5, 2, 2.5, 3, 4]) if (n >= mx - 1e-9 && n <= ceil) return n;
+  return ceil;
+}
+
 /** Cell edges halfway between neighbouring samples (handles the uneven +-45 edge rows). */
 function edges(v: number[]): number[] {
   const e = [v[0]];
@@ -25,7 +38,12 @@ function edges(v: number[]): number[] {
 
 export interface HeatmapOptions {
   title: string;
+  /** full-range ceiling of the quantity (1 for fractions, wF + wO for the cost) */
   vmax: () => number;
+  /** per-map scaling never goes below this, so small variations are not stretched into false contrast */
+  floor: () => number;
+  /** true = always use the full 0..vmax range */
+  fixed: () => boolean;
   format: (v: number) => string;
   onPick: (alpha: number, beta: number) => void;
 }
@@ -151,14 +169,8 @@ export class Heatmap {
     this.drawLegend(vmax);
   }
 
-  /** Colour scale top: a "nice" value just above the data maximum (never above the option's ceiling). */
-  private scaleMax(): number {
-    const ceil = Math.max(this.opt.vmax(), 1e-9);
-    if (!this.values) return ceil;
-    let mx = 0;
-    for (const v of this.values) mx = Math.max(mx, v);
-    for (const n of [0.05, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4]) if (n >= mx - 1e-9 && n <= ceil) return n;
-    return ceil;
+  scaleMax(): number {
+    return scaleTop(this.values, this.opt.vmax(), this.opt.floor(), this.opt.fixed());
   }
 
   private drawLegend(vmax: number) {

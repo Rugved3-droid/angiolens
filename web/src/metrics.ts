@@ -16,6 +16,8 @@ export interface ViewMetrics {
   O_self: number;
   O_any: number;
   interMask: Uint8Array;
+  /** index into `others` of a vessel whose capsule covers each sample (-1 if none) */
+  interBy: Int32Array;
   selfMask: Uint8Array;
   evaluated: Uint8Array;
 }
@@ -97,28 +99,33 @@ class CapsuleGrid {
         }
     }
   }
-  any(qx: number, qy: number, accept?: (i: number) => boolean): boolean {
+  /** index of a covering capsule, or -1 */
+  first(qx: number, qy: number, accept?: (i: number) => boolean): number {
     const list = this.cells.get(Math.floor(qx / this.h) * 1048576 + Math.floor(qy / this.h));
-    if (!list) return false;
+    if (!list) return -1;
     const c = this.cap;
     for (const i of list) {
       if (accept && !accept(i)) continue;
-      if (covers(qx, qy, c.ax[i], c.ay[i], c.bx[i], c.by[i], c.ra[i], c.rb[i])) return true;
+      if (covers(qx, qy, c.ax[i], c.ay[i], c.bx[i], c.by[i], c.ra[i], c.rb[i])) return i;
     }
-    return false;
+    return -1;
+  }
+  any(qx: number, qy: number, accept?: (i: number) => boolean): boolean {
+    return this.first(qx, qy, accept) >= 0;
   }
 }
 
 function capsulesOf(projs: { x: Float64Array; y: Float64Array; r: Float64Array }[]) {
   const n = projs.reduce((s, p) => s + Math.max(p.x.length - 1, 0), 0);
   const ax = new Float64Array(n), ay = new Float64Array(n), bx = new Float64Array(n), by = new Float64Array(n);
-  const ra = new Float64Array(n), rb = new Float64Array(n);
+  const ra = new Float64Array(n), rb = new Float64Array(n), owner = new Int32Array(n);
   let k = 0;
-  for (const p of projs)
+  projs.forEach((p, o) => {
     for (let i = 0; i + 1 < p.x.length; i++, k++) {
-      ax[k] = p.x[i]; ay[k] = p.y[i]; bx[k] = p.x[i + 1]; by[k] = p.y[i + 1]; ra[k] = p.r[i]; rb[k] = p.r[i + 1];
+      ax[k] = p.x[i]; ay[k] = p.y[i]; bx[k] = p.x[i + 1]; by[k] = p.y[i + 1]; ra[k] = p.r[i]; rb[k] = p.r[i + 1]; owner[k] = o;
     }
-  return { ax, ay, bx, by, ra, rb };
+  });
+  return { ax, ay, bx, by, ra, rb, owner };
 }
 
 /** Which target samples are evaluated for INTER (not within 3 mm of the target's own bifurcations). Pose-independent. */
@@ -149,16 +156,19 @@ function metricsAtPose(pose: Pose, target: Samples, ev: Uint8Array, arc: Float64
   for (let j = 0; j + 1 < n; j++) midArc[j] = 0.5 * (arc[j] + arc[j + 1]);
   const og = brute ? null : new CapsuleGrid(otherCaps);
   const sg = brute ? null : new CapsuleGrid(selfCaps);
-  const interMask = new Uint8Array(n), selfMask = new Uint8Array(n);
+  const interMask = new Uint8Array(n), selfMask = new Uint8Array(n), interBy = new Int32Array(n).fill(-1);
   let nEval = 0, nInter = 0, nSelf = 0, nAny = 0;
   for (let i = 0; i < n; i++) {
     const qx = pt.x[i], qy = pt.y[i];
     const far = (j: number) => Math.abs(midArc[j] - arc[i]) > SELF_ARC_MM;
     let inter = false, self = false;
     if (ev[i]) {
-      if (og) inter = og.any(qx, qy);
-      else for (let j = 0; j < otherCaps.ax.length && !inter; j++)
-        inter = covers(qx, qy, otherCaps.ax[j], otherCaps.ay[j], otherCaps.bx[j], otherCaps.by[j], otherCaps.ra[j], otherCaps.rb[j]);
+      let j = -1;
+      if (og) j = og.first(qx, qy);
+      else for (let c = 0; c < otherCaps.ax.length && j < 0; c++)
+        if (covers(qx, qy, otherCaps.ax[c], otherCaps.ay[c], otherCaps.bx[c], otherCaps.by[c], otherCaps.ra[c], otherCaps.rb[c])) j = c;
+      inter = j >= 0;
+      if (inter) interBy[i] = otherCaps.owner[j];
     }
     if (sg) self = sg.any(qx, qy, far);
     else for (let j = 0; j < selfCaps.ax.length && !self; j++)
@@ -171,7 +181,7 @@ function metricsAtPose(pose: Pose, target: Samples, ev: Uint8Array, arc: Float64
     nAny += ev[i] && (inter || self) ? 1 : 0;
   }
   const ne = Math.max(nEval, 1);
-  return { F, O_inter: nInter / ne, O_self: nSelf / n, O_any: nAny / ne, interMask, selfMask, evaluated: ev };
+  return { F, O_inter: nInter / ne, O_self: nSelf / n, O_any: nAny / ne, interMask, interBy, selfMask, evaluated: ev };
 }
 
 export function viewMetrics(carm: CArm, target: Samples, bif: Vec3[], others: Samples[], brute = false): ViewMetrics {

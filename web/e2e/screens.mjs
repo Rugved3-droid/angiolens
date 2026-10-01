@@ -14,9 +14,12 @@ await page.waitForSelector("body[data-ready='1']", { timeout: 120000 });
 const shots = JSON.parse(process.argv[3] ?? "[]");
 for (const s of shots) {
   for (const id of s.check ?? []) await page.check(id);
+  if (s.labels) await page.evaluate((l) => { window.__cpt.labelEdges(l); }, s.labels);
+  if (s.approve) await page.evaluate(() => window.__cpt.approve());
+  if (s.rcaRule) await page.selectOption("#rca-rule", s.rcaRule);
   await page.evaluate((s) => {
     window.__cpt.setPose(s.a, s.b, s.tree);
-    window.__cpt.select(s.sel ?? null);
+    if (s.sample) window.__cpt.selectSample(...s.sample); else window.__cpt.select(s.sel ?? null);
     if (s.orbit) window.__cpt.orbit(...s.orbit); else window.__cpt.frame(s.frame ?? "carm");
   }, s);
   if (s.waitMaps) await page.waitForFunction(() => window.__cpt.optimum && window.__cpt.optimum() !== null, null, { timeout: 120000 });
