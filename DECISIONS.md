@@ -49,3 +49,80 @@ the contrast-filled descending aorta). That would erase the spine from the bone 
 With a 1-voxel opening before connectivity, the spine separates (pool 289 mL). However, the FOV ends at
 z = −65, below the arch, so the descending aorta is then a *separate* component and would be classed as "bone"
 (HU > 250) and stay opacified in the DRR. Needs a decision before Phase 1 (bone mesh) and 1.5 (DRR).
+→ Superseded by D10 (revised) below.
+
+## 2026-09-30 (Phase 0 review → Phase 1)
+
+**D10 (revised): bone defined positively; blood pool = what remains.** DECIDED (approach, by Rugved) / DEFAULT (parameters).
+`preprocess/cpt/masks.py`:
+- Cortical seeds (> 700 HU, opened 1 voxel) are grown 2 voxels into > 400 HU to form a shell.
+- Shell pieces are kept by location, cortical fraction and thinness.
+- Smoothed 150–700 HU candidates are split by a 2-voxel erosion and classified one region at a time:
+  **cancellous bone** if (fraction of boundary with raw HU > 400 or the FOV edge within 1.5 mm) ≥ 0.10 **and** mean HU < 400;
+  otherwise **blood pool**.
+
+Iterations on Normal_12, and why each was dropped:
+- connectivity from the aortic root: swallowed the spine;
+- opening plus root seed: the descending aorta became "bone" (the FOV ends below the arch);
+- per-slice hole filling: the vertebral cortex is open where the circular FOV cuts it;
+- boundary-near-shell in voxel units: a synthetic aorta lying on the spine scored like bone;
+- angular rays: fatty marrow pockets, and cortex mostly below 700 HU in this scan.
+
+Measured (rim / mean HU):
+- vertebra 0.33 / 303, sternum 0.13 / 313, ribs 0.18–0.21 / 292–344 → bone;
+- descending aorta 0.02 / 485, LV 0.01 / 351 → pool.
+
+Result: bone 165 mL, pool 457 mL. Residual: about 2 mL of anterior costal-cartilage fragments (each ≤ 0.6 mL) are classed as pool. The last
+~2 mm of bone at the FOV edge lands in neither mask and keeps its own HU.
+
+**SVC check:** in Normal_12 the SVC and right heart are barely opacified (RV median 129 HU), so no dense-contrast seeds occur. Two rules guard other
+cases. A shell piece in a mediastinal location, or a solid blob (inscribed radius > 4 mm), is rejected as contrast and added to the pool, so
+inflow above 700 HU is suppressed too. Both are pinned by `tests/test_masks.py`.
+
+Review figure: `out/review/Normal_12/masks_overlay.png`; per-region decisions: `masks_report.json`.
+
+**D11 Official ASOCA centerlines are primary.** DECIDED.
+- **Frame:** the .vtp points sit in a frame offset from the CT header by P_vtp = p_lps − 2·(ox, oy, 0): the origin's x/y were written with the
+  RAS sign while the axes stayed LPS. This pure translation is derived from the header, not fitted. After it, all 7,445 points lie inside
+  the expert lumen (mean 0.0004 mm, max 0.27 mm). Every mirror alternative is off by 15–17 mm, and a free translation refinement converges to (0,0,0).
+- **Coverage:** 0.1% of official samples are more than 2 mm from my skeleton. My skeleton has 3 spurs the official set lacks: 7.3 mm at the distal
+  RCA end, plus 4.0 and 2.6 mm (bulges). The skeleton graph is kept as a fallback, used if the frame check fails.
+- **Graph:** the 6 ostium→endpoint paths are merged (1 mm tolerance) into 12 nodes and 10 edges, resampled every 0.5 mm with radius.
+
+**D12 Dominance (Normal_12).** PENDING Rugved. Neither the annotated RCA nor the annotated LCx reaches the crux.
+- **Annotated RCA:** 114.6 mm, ending at (−9.6, 0.8, −162.8). That is about 10–20 mm short of the estimated crux (x 0–10, y 20–30,
+  z −150…−160, ±10 mm). In the CT, an unannotated ~1.2 mm, ≥ 250 HU vessel continues about 33 mm along the posterior AV groove to ~(14, 21, −149).
+- **LCx:** 78.6 mm from the ostium (62.1 mm past the LM bifurcation), ending high in the posterior AV groove at (44.4, 38.5, −121.3).
+  Its CT continuation runs superiorly, most likely the great cardiac vein.
+- **Reading:** not left-dominant. Probably right-dominant, with the distal RCA/PDA missing from the expert annotation.
+
+Recorded in `case.json → dominance`. Figure: `out/review/dominance_check.png`.
+
+**D13 Segment = centerline-graph edge.** DEFAULT. Selection, rays and labels work per edge. One name may cover several edges.
+Names never come from geometry.
+
+**D14 Meshes.** DEFAULT.
+- **Lumen:** marching cubes on the padded expert mask (σ 0.6 voxel), then Taubin smoothing and quadric decimation. Both trees are watertight and
+  single-component (left 1.58 mL, right 0.65 mL, vs 1.67 / 0.69 mL in voxels).
+- **Bone:** decimation broke watertightness. Instead, marching cubes runs on a 2×-block-averaged mask with no decimation (watertight, 320k faces).
+- Each lumen vertex stores its nearest edge id (`_EDGE_ID`). Case assets total 9.1 MB.
+
+**D15 Angiogram path length.** DEFAULT.
+- **Accumulation:** order-independent. (|x−S| − SOD) goes into separate entry and exit sums, each with a counter (float32 render target;
+  a half-float fallback is reported in the status bar).
+- **Silhouette repair:** at silhouettes the rasterizer occasionally drops one crossing of a pair. Those pixels have unequal counts and are filled
+  from valid 4-neighbors (0–4 pixels per 128² phantom view).
+- **Display:** I = 0.78·exp(−0.35·t_vessel − 0.012·t_bone), 3×3 binomial blur, noise ±0.0175. Detector 250 mm, 512 px.
+
+**D16 Label storage.** DEFAULT (static app, no backend). Labels autosave to browser localStorage, and can be exported or imported as `labels.json`.
+A `labels.json` placed in `web/public/cases/<id>/` loads when nothing is stored locally. The file carries an edge signature, so stale labels are
+flagged after a centerline rebuild.
+
+**D17 Presets.** DEFAULT (adjust freely). A preset also sets the injection for its tree.
+- Left tree: RAO 30/CAUD 25, RAO 30/CRAN 30, AP/CRAN 35, LAO 40/CRAN 30, LAO 45/CAUD 30 (spider), AP/CAUD 30.
+- RCA: LAO 45, RAO 30, LAO 30/CRAN 20.
+
+**D18 Selecting a non-injected vessel** (by clicking it in 3D) highlights it in 3D and tells you to switch injection; it does not switch injection itself.
+
+**D19 Observer framing.** "Frame patient" looks from beside the beam (along +u, slightly superior), so the detector plate never sits between the
+observer and the heart. "Frame C-arm" shows the whole C-arm. Neither changes the projection.

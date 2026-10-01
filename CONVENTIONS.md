@@ -65,3 +65,21 @@ For consecutive samples, let Δp be the step and r the unit ray from S to the pa
   [`test_foreshortening_zero_on_central_ray`, `test_foreshortening_zero_perpendicular_to_local_ray_off_axis`]
 - F = 1 for a segment along its ray. [`test_foreshortening_one_along_ray`]
 - F = 1 − sin 45° for a segment at 45° to its ray. [`test_foreshortening_45_degrees`]
+
+## 6. Browser (Phase 1)
+
+- **World frame = LPS mm, verbatim.** GLB vertices are written by `cpt/glb.py` with no axis conversion. glTF's nominal +Y-up is
+  deliberately ignored, and the loader rejects any non-identity node transform. The observer camera uses `up = +z` (superior).
+  [`test_glb_roundtrip_verbatim`]
+- **TypeScript geometry = Python geometry.** `web/src/geometry.ts` reimplements sections 2–5. It is tested against the same rules and
+  against `web/tests/fixtures/geometry.json`, which Python generates (8 poses × 25 points, agreement to 1e-9 mm).
+- **Angiogram clip matrix.** `CArm.clipMatrix(W)` gives NDC x = (q·u)/(W/2) and NDC y = (q·v)/(W/2), so +u is right and +v is up by
+  construction (`clip matrix equals point projection` test). The matrix is mirror-handed (u × v = d points at the viewer), so
+  **no renderer may use triangle winding or gl_FrontFacing**. Entry and exit come from world-space face normals.
+- **Render-target orientation.** WebGL rows start at the bottom: texture uv (0,0) is the (−u, −v) corner. The left panel blits the texture
+  unchanged. The detector ghost plate's corners are D ± (W/2)u ± (W/2)v with exactly that uv. Seen from the patient/source side, the ghost
+  therefore appears mirrored, which is physically correct: you are looking at the back of the detector.
+- **End-to-end check.** `web/e2e/phantom.e2e.mjs` renders a chiral phantom in headless Chromium. The GPU path-length image must match the
+  Python reference renderer (r > 0.95, mean |error| < 0.25 mm), and its left-right and up-down mirror images must both fail that comparison.
+- **Overlay drawing** (selection, rays, glyph) uses `CArm.project` plus `screenToPixel` (row 0 = top). Picking uses the inverse
+  mapping. [`detector raster` test, `interaction.e2e.mjs`]

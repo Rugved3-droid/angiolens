@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Coronary Projection Trainer</title>
+  </head>
+  <body>
+    <header>
+      <h1>Coronary Projection Trainer</h1>
+      <span id="status">loading…</span>
+    </header>
+    <main id="stage">
+      <canvas id="gl"></canvas>
+      <section class="panel" id="angio-wrap">
+        <div class="panel-title">Angiogram <span class="hint">(what the operator sees)</span></div>
+        <div id="angio-panel">
+          <canvas id="angio-overlay"></canvas>
+          <div id="readout">AP</div>
+          <div id="inject-badge"></div>
+        </div>
+      </section>
+      <section class="panel" id="scene-wrap">
+        <div class="panel-title">Inside the patient <span class="hint">(drag to orbit the observer; never changes the projection)</span></div>
+        <div id="scene-panel"></div>
+      </section>
+    </main>
+    <footer id="controls">
+      <div class="group">
+        <label>Primary <input id="alpha" type="range" step="1" /> <span id="alpha-val"></span></label>
+        <label>Secondary <input id="beta" type="range" step="1" /> <span id="beta-val"></span></label>
+        <div class="hint">Arrow keys: ±1° (Shift ±5°)</div>
+      </div>
+      <div class="group">
+        <div><label><input type="radio" name="inject" id="inject-left" /> Inject LCA</label>
+          <label><input type="radio" name="inject" id="inject-right" /> Inject RCA</label></div>
+        <div id="presets"></div>
+      </div>
+      <div class="group">
+        <div class="toggles">
+          <label><input type="checkbox" id="vis-coronaries" /> coronaries</label>
+          <label><input type="checkbox" id="vis-bone" /> bone</label>
+          <label><input type="checkbox" id="vis-beam" /> beam</label>
+          <label><input type="checkbox" id="vis-detector" /> detector</label>
+          <label><input type="checkbox" id="vis-ghost" /> detector ghost</label>
+          <label><input type="checkbox" id="vis-rays" /> rays</label>
+          <label><input type="checkbox" id="vis-axes" /> patient axes</label>
+        </div>
+        <div><button id="frame-patient">Frame patient</button> <button id="frame-carm">Frame C-arm</button></div>
+      </div>
+      <div class="group" id="selection-group">
+        <div id="selection"></div>
+        <label><input type="checkbox" id="label-mode" /> Label mode</label>
+        <div id="label-row">
+          <select id="label-picker"></select>
+          <button id="export-labels">Export labels.json</button>
+          <label class="file">Import <input type="file" id="import-labels" accept=".json,application/json" /></label>
+          <div id="label-status" class="hint"></div>
+        </div>
+      </div>
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

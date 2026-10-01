@@ -1,0 +1,38 @@
+:root {
+  --bg: #0b0d10;
+  --panel: #12151a;
+  --fg: #d7dde4;
+  --muted: #8a96a3;
+  --accent: #ffd400;
+  --line: #262c34;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 13px/1.4 system-ui, sans-serif; }
+body { display: grid; grid-template-rows: auto 1fr auto; }
+header { display: flex; gap: 16px; align-items: baseline; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+#status { color: var(--muted); font-size: 12px; }
+#stage { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding: 8px; min-height: 0; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.panel { position: relative; display: flex; flex-direction: column; min-height: 0; pointer-events: none; }
+.panel-title { font-size: 12px; color: var(--muted); padding: 0 2px 4px; }
+.hint { color: var(--muted); font-size: 11px; }
+#angio-panel { position: relative; aspect-ratio: 1 / 1; max-height: 100%; max-width: 100%; margin: 0 auto; width: 100%; pointer-events: auto; border: 1px solid var(--line); }
+#scene-panel { flex: 1; min-height: 0; pointer-events: auto; border: 1px solid var(--line); }
+#angio-overlay { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+#readout { position: absolute; top: 8px; left: 10px; font: 600 20px/1 ui-monospace, Consolas, monospace; color: #fff; text-shadow: 0 0 4px #000; pointer-events: none; }
+#inject-badge { position: absolute; top: 10px; right: 10px; font-size: 12px; color: #fff; background: #0008; padding: 2px 6px; border-radius: 3px; pointer-events: none; }
+#controls { display: flex; flex-wrap: wrap; gap: 18px; padding: 8px 12px; border-top: 1px solid var(--line); background: var(--panel); }
+.group { display: flex; flex-direction: column; gap: 6px; }
+.group label { white-space: nowrap; }
+input[type="range"] { width: 220px; vertical-align: middle; }
+#alpha-val, #beta-val { display: inline-block; min-width: 70px; font-family: ui-monospace, Consolas, monospace; }
+#presets { display: grid; grid-template-columns: repeat(3, auto); gap: 4px; }
+button, select, .file { background: #1d232b; color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 3px 7px; font: inherit; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+.toggles { display: grid; grid-template-columns: repeat(2, auto); gap: 2px 14px; }
+#selection { max-width: 380px; }
+.file input { display: none; }
+@media (max-width: 900px) {
+  #stage { grid-template-columns: 1fr; }
+}
