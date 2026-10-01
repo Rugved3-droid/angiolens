@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# ASOCA is licence-gated (non-commercial, no redistribution): never commit raw or derived patient data.
+data/
+web/public/cases/
+out/
+node_modules/
+web/dist/
