@@ -336,3 +336,57 @@ segments) → phone as detector (/remote) → DRR.
 - **Beam view:** side-on to the beam, from the room-up side.
 - **Split view:** the heart seen from the DETECTOR side with screen-up = v, so it is laid out like the angiogram next to it.
 - Review renders use real-GPU headless Chromium (ANGLE/D3D11). SwiftShader was too slow for the physical materials.
+
+## 2026-10-01 (revised anatomy plan: Z-Anatomy provenance and frame; NOT connected to the C-arm)
+
+**D37 Source and tools.**
+- **Z-Anatomy:** https://github.com/Z-Anatomy/Models-of-human-anatomy (the old "Z-Anatomy/The-blend" repository redirects here),
+  commit ad876c0, Z-Anatomy.zip -> Startup.blend (file date 2023-05-02).
+  SHA-256: zip e0296885..., blend 9f08a17e..., License.txt 196b66b5... (full values in assets/anatomy/LICENSE.txt and provenance.json).
+- **License:** CC BY-SA 4.0, verified from the downloaded License.txt. BodyParts3D underneath is CC BY-SA 2.1 Japan. Full attribution is in
+  assets/anatomy/LICENSE.txt. The bundle also contains CC BY-NC(-SA) parts (inner ear, kidney model). Those are not exported; the kidneys are
+  read only as left/right landmarks.
+- **Blender 4.2.16 LTS:** the official portable build. blender.org's CDN answered 403 to scripted downloads (including winget), so the same file
+  was fetched from official mirrors and verified against Blender's published SHA-256 (checksum files identical on two mirrors). It runs with
+  --disable-autoexec (the file's z-anatomy.py is never executed) and --python-exit-code 1 (it quits on any script error).
+- All anatomy assets are git-ignored (assets/anatomy/, web/public/anatomy/).
+
+**D38 Hierarchy findings** (`assets/anatomy/inspect/hierarchy.json`, all 7,184 objects of every type).
+- **Coronaries are bevelled CURVE objects.** The named coronary objects are: Left coronary artery (a short LM stem: 1 spline, 3 control points),
+  Anterior interventricular artery (LAD, 6 splines), Septal branches of anterior interventricular artery (6), Circumflex artery of heart (LCx, 6),
+  Right coronary artery (14), and Right inferolateral branch of right coronary artery (8).
+- **No named PDA, diagonals, obtuse marginals, ramus, conus, RV/acute marginal, or SA/AV nodal branches.** Side branches exist only as unnamed
+  splines inside the LAD, LCx and RCA objects. Nothing is inferred from shape (`assets/anatomy/CORONARY_REPORT.md`).
+- **Chambers are separate meshes** (left/right atrium and ventricle, valves, papillary muscles). The `.g`/`.j` objects are zero-geometry
+  markers; there is no "Heart" mesh.
+- **Anomaly:** one cardiac-vein curve is named literally "????????" (a non-ASCII name lost in the source). It is reported, not guessed.
+- **Anatria-3D (reference only), checked against our file:**
+  - Confirmed: coronaries are curves; zero-geometry markers; export from the atlas scene stalls (observed here too, so the export uses an
+    empty staging scene with materials off).
+  - Not matching: their "Bonus collection/Cardiovascular system/Heart" path is empty in this file.
+
+**D39 Export** (`preprocess/blender/export_anatomy.py`).
+- **Files:** z_anatomy_heart.glb (34 structures + 26 spline branches) and z_anatomy_skeleton.glb (278 bones/cartilages).
+- **Transform:** one shared matrix for all of them; curves converted from EVALUATED geometry (the depsgraph, bevel applied); identity node
+  transforms; export_yup=False.
+- **Names:** original names are node names and are also kept in extras (anatomical_name, source_*).
+- **Manifest:** assets/anatomy/manifest.json, per object.
+- **Spline branches** (Rugved): each spline of the LAD, LCx and RCA is also a child node <VESSEL>_branch_NN. Each is evaluated exactly like its
+  parent, never moved, and carries no clinical name.
+  - The manifest records parent vessel, spline index, spline type, evaluated length, endpoints and attachment (which end, to what, gap).
+  - 25 of 26 branches attach with a 0.0 mm gap. RCA_branch_01 is the RCA trunk; its proximal end is the ostium.
+  - A first rule mis-recorded the ostium as "attached" to the nearest spline 21 mm away. That is now fixed: anything beyond 2 mm counts as the
+    ostium, in both the script and the manifest (recorded in manifest post_fixes).
+- **Verification:** all 312 exported objects satisfy bbox_LPS = R x s x bbox_source.
+- **Debug viewer:** web/anatomy.html (temporary, not connected to the C-arm), with screenshots in out/review/anatomy/.
+
+**D40 Scale check failure: heart long axis 142.0 mm > 140 mm.** OPEN (Rugved).
+- The measurement is the four-chamber extent along the first principal axis, so it includes the atria.
+- For information, the LV long axis (base to apex) is 84.3 mm.
+- The threshold and the test are unchanged; the test fails until the definition or the threshold is decided.
+
+**D41 Visible Heart Labs candidates.** Heart0088 and Heart0063 Coronary Arteries (Sketchfab, VisibleHeartLabs).
+- **License:** CC BY-NC 4.0, verified via the public Sketchfab API.
+- **Download:** needs a logged-in account (HTTP 401), so it was not attempted (MANUAL_DOWNLOAD_REQUIRED).
+- **Content:** coronary arteries only; no same-ID whole-heart model was found in public searches.
+- Per Rugved (2026-10-01) they are SKIPPED: under the rule "every heart uses its own coronaries", a coronary-only model cannot be the hero heart.

@@ -134,3 +134,33 @@ The only overlap displayed is the 2D capsule metric (section 7):
 
 The Phase 1 3D ray-lumen test is kept only as a hidden diagnostic (`__cpt.diagnosticRays3D` in e2e builds).
 `web/e2e/segments.e2e.mjs` checks every displayed ray colour against the capsule mask (300 rays, 0 mismatches).
+
+## 10. Z-Anatomy canonical LPS-oriented atlas frame
+
+This is **not** a registration to any patient (Z-Anatomy and ASOCA are different people). It only puts the whole atlas into the
+projection engine's convention: +X patient left, +Y posterior, +Z superior, millimetres.
+
+- **One transform for everything.** p_LPS = R x s x p_source_world. R is one rigid rotation and s one uniform unit scale. No translation,
+  and no structure is ever individually recentred, rotated, scaled or moved to the origin.
+  [`test_real_export_landmarks_and_scale`: every exported object's bbox_LPS equals R x s x bbox_source]
+- **Axes are determined empirically** (`preprocess/anatomy_frame.py`), from world-space centres of the evaluated geometry:
+  - LEFT = mean of (centre(X.l) - centre(X.r)) over femur, humerus, kidney and superior lung lobe. The names define anatomical left.
+    The pairs agree within 14.32 degrees; the kidneys are asymmetric.
+  - SUPERIOR = skull (frontal, occipital, parietals) - feet (calcanei, tali).
+  - POSTERIOR = vertebrae T4-T8 - body of sternum, orthogonalised against SUPERIOR.
+  - Handedness check: P x S must agree with the name-derived LEFT. Measured agreement: 1.66 degrees.
+    Mirrored labels or mirrored geometry are rejected. [`test_mirrored_labels_are_rejected`, `test_mirrored_geometry_is_rejected`]
+  - Snap: the empirical axes lie within 1.16 degrees of a signed axis permutation, so the exact permutation is used.
+- **Result for Startup.blend:** the source world axes already ARE L, P, S. Blender +X = patient left, +Y = posterior, +Z = superior.
+  R = identity; det = 1.0.
+- **Units:** the scene uses METRIC with scale_length 1.0 (display unit: cm), so 1 Blender unit = 1 m and s = 1000.
+  matrix_source_to_LPS_mm = diag(1000, 1000, 1000).
+- **Scale checks** (with real vertices, in `assets/anatomy/frame_checks.json`):
+  - T6 vertebral body width: 32.7 mm. PASS (30-50 mm).
+  - Heart long axis: 142.0 mm. **FAIL** (90-140 mm). It is measured as the extent of the four chambers (incl. both atria)
+    along their first principal axis. For information: the LV long axis (LV base nearest the left atrium -> apex) is 84.3 mm. The test is left failing,
+    with the threshold unchanged, pending Rugved's decision on the definition.
+  - Apex (sanity only, not the definition of left): the apex-minus-base direction is [0.845, -0.295, -0.446], i.e. left, anterior
+    and inferior. The long axis is 57.7 degrees out of the sagittal plane.
+- **glTF:** vertices are baked to LPS mm and every node has an identity transform. The exporter runs with export_yup=False (no axis
+  conversion). The viewer rejects any node with a non-identity transform.

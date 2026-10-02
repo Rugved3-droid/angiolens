@@ -15,3 +15,7 @@ web/playwright-report/
 .totalseg/
 assets/heart/*
 !assets/heart/README.md
+assets/anatomy/
+assets/candidates/*/*
+!assets/candidates/*/LICENSE.txt
+web/public/anatomy/

@@ -1,0 +1,18 @@
+Title:        Heart0063 Coronary Arteries
+Author:       Visible Heart Laboratories, University of Minnesota (Sketchfab user "VisibleHeartLabs", https://sketchfab.com/VisibleHeartLabs)
+URL:          https://sketchfab.com/3d-models/heart0063-coronary-arteries-849a67de317c4221b2e5f4232aabd64d
+Sketchfab uid: 849a67de317c4221b2e5f4232aabd64d
+License:      Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
+License URL:  http://creativecommons.org/licenses/by-nc/4.0/
+Requirements: "Author must be credited. No commercial use." (Sketchfab license record)
+Attribution:  "Heart0063 Coronary Arteries" by Visible Heart Laboratories, University of Minnesota (https://sketchfab.com/VisibleHeartLabs),
+              licensed under CC BY-NC 4.0 (http://creativecommons.org/licenses/by-nc/4.0/).
+Date accessed: 2026-10-01 (license verified via the public Sketchfab API: GET https://api.sketchfab.com/v3/models/849a67de317c4221b2e5f4232aabd64d)
+Published:    2022-11-18
+Public metadata: 108680 faces, 1 material, 0 textures, 0 animations. Description: "RCA four branches, LAD three branches, Cx one branch, LCA branchless".
+Same-heart-ID whole-heart/tissue model: NOT FOUND in public Sketchfab searches (2026-10-01).
+
+STATUS: MANUAL_DOWNLOAD_REQUIRED
+  The download endpoint requires a logged-in Sketchfab account (HTTP 401 without one). Not scraped or bypassed.
+  Please download from: https://sketchfab.com/3d-models/heart0063-coronary-arteries-849a67de317c4221b2e5f4232aabd64d  ("Download 3D Model", choose glTF/GLB if offered)
+  and place the file(s) in: assets/candidates/Heart0063/

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anatomy debug viewer</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #101318; color: #d7dde4; font: 13px system-ui, sans-serif; overflow: hidden; }
+      #c { position: fixed; inset: 0; width: 100%; height: 100%; }
+      #bar { position: fixed; top: 8px; left: 8px; display: flex; gap: 6px; align-items: center; background: #0009; padding: 6px 8px; border-radius: 4px; }
+      #bar button { background: #1d232b; color: #d7dde4; border: 1px solid #2a313b; border-radius: 3px; padding: 3px 8px; cursor: pointer; }
+      #view { position: fixed; top: 46px; left: 10px; font: 600 18px system-ui; color: #fff; text-shadow: 0 0 4px #000; }
+      #hover { position: fixed; bottom: 34px; left: 10px; font-size: 14px; color: #ffd400; text-shadow: 0 0 4px #000; }
+      #note { position: fixed; bottom: 8px; left: 10px; color: #8a96a3; font-size: 12px; }
+      #legend { position: fixed; top: 8px; right: 8px; background: #0009; padding: 8px 10px; border-radius: 4px; max-width: 360px; font-size: 12px; }
+      #legend div { white-space: nowrap; }
+      .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div id="bar"><b>Z-Anatomy debug (not connected to the C-arm)</b>
+      <button data-v="anterior">Anterior</button><button data-v="left">Left lateral</button><button data-v="right">Right lateral</button>
+      <button data-v="superior">Superior</button><button data-v="inferior">Inferior (from feet)</button></div>
+    <div id="view"></div>
+    <div id="legend"></div>
+    <div id="hover"></div>
+    <div id="note">LPS millimetres: +X patient LEFT, +Y POSTERIOR, +Z SUPERIOR. Skeleton 20% opacity, chambers opaque, coronaries highlighted.</div>
+    <script type="module" src="/src/anatomyDebug.ts"></script>
+  </body>
+</html>
