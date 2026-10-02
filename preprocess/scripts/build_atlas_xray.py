@@ -1,0 +1,110 @@
+"""Closed X-ray meshes from the Z-Anatomy export (D49), for the atlas sanity sheet and the Scene 4 X-ray pass.
+
+    .venv\\Scripts\\python preprocess\\scripts\\build_atlas_xray.py
+
+Reads assets/anatomy/z_anatomy_heart.glb (atlas radii) and z_anatomy_skeleton.glb, writes to assets/anatomy/ and web/public/anatomy/:
+  atlas_xray_left.glb / atlas_xray_right.glb  one closed mesh per coronary tree (tube ends fan-capped, nothing moved)
+  atlas_xray_heart.glb                        the four chambers, capped (faint heart silhouette)
+  atlas_xray_bone.glb                         closed thoracic bones near the heart (faint skeleton)
+  atlas_xray.json                             isocenter = volume centroid of both coronary trees (fixed), tree split, cap stats
+Every heart uses its own coronaries: all of this is the one Z-Anatomy atlas, under its one transform.
+"""
+import json
+import shutil
+import sys
+from pathlib import Path
+
+import numpy as np
+import trimesh
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "preprocess"))
+from cpt.closemesh import cap_holes, merge_close, signed_volume, volume_centroid  # noqa: E402
+from cpt.glb import write_glb  # noqa: E402
+
+A = ROOT / "assets" / "anatomy"
+WEB = ROOT / "web" / "public" / "anatomy"
+# split coronary objects are represented by their spline children only (the parent mesh duplicates them)
+LEFT_WHOLE = ["Left coronary artery", "Septal branches of anterior interventricular artery"]
+RIGHT_WHOLE = ["Right inferolateral branch of right coronary artery"]
+CHAMBERS = ["Left ventricle", "Right ventricle", "Left atrium", "Right atrium"]
+BONE_RADIUS_MM = 300.0      # bones whose centre lies within this distance of the isocenter
+
+
+def nodes(path):
+    sc = trimesh.load(path, process=False)
+    out = {}
+    for n in sc.graph.nodes_geometry:
+        T, g = sc.graph[n]
+        if not np.allclose(T, np.eye(4)):
+            raise SystemExit(f"{path.name}: node {n} has a non-identity transform")
+        out[n] = sc.geometry[g]
+    return out
+
+
+def closed_union(meshes, label, strict=True):
+    """strict: any mesh that stays open stops the build; otherwise it is skipped and listed."""
+    Vs, Fs, stats, off = [], [], [], 0
+    for name, m in meshes:
+        V, F = merge_close(m.vertices, m.faces)
+        V, F, st = cap_holes(V, F)
+        if signed_volume(V, F) < 0:
+            F = F[:, ::-1]
+            st["inverted"] = True
+        if st["open_edges_after"]:                     # a few non-manifold edges do not break path length; open ones do
+            if strict:
+                raise SystemExit(f"{label}: {name} still open after capping ({st})")
+            stats.append({"name": name, "skipped": True, **st})
+            continue
+        stats.append({"name": name, **st})
+        Vs.append(V)
+        Fs.append(F + off)
+        off += len(V)
+    return np.vstack(Vs), np.vstack(Fs), stats
+
+
+def main():
+    heart = nodes(A / "z_anatomy_heart.glb")
+    left = [(n, heart[n]) for n in LEFT_WHOLE] + [(n, m) for n, m in sorted(heart.items()) if n.startswith(("LAD_branch_", "LCx_branch_"))]
+    right = [(n, heart[n]) for n in RIGHT_WHOLE] + [(n, m) for n, m in sorted(heart.items()) if n.startswith("RCA_branch_")]
+    VL, FL, sl = closed_union(left, "left tree")
+    VR, FR, sr = closed_union(right, "right tree")
+    cl, vl = volume_centroid(VL, FL)
+    cr, vr = volume_centroid(VR, FR)
+    iso = (cl * vl + cr * vr) / (vl + vr)
+    VH, FH, sh = closed_union([(n, heart[n]) for n in CHAMBERS], "heart")
+    skel = nodes(A / "z_anatomy_skeleton.glb")
+    bones = []
+    for n, m in sorted(skel.items()):
+        if n.endswith(".g"):
+            continue
+        c = np.asarray(m.vertices).mean(0)
+        if np.linalg.norm(c - iso) <= BONE_RADIUS_MM:
+            bones.append((n, m))
+    VB, FB, sb = closed_union(bones, "bones", strict=False)
+    meta = {
+        "source": "Z-Anatomy Startup.blend via z_anatomy_heart.glb (atlas radii, D46) and z_anatomy_skeleton.glb",
+        "frame": "LPS mm (atlas frame, identity transform)",
+        "isocenter_LPS": [round(float(x), 3) for x in iso],
+        "isocenter_rule": "volume centroid of both closed coronary trees (fixed; never moves with the injected tree)",
+        "trees": {"left": {"meshes": [s["name"] for s in sl], "volume_mm3": round(vl, 1), "centroid_LPS": cl.round(2).tolist()},
+                  "right": {"meshes": [s["name"] for s in sr], "volume_mm3": round(vr, 1), "centroid_LPS": cr.round(2).tolist()}},
+        "caps": {"left": sl, "right": sr, "heart": sh},
+        "bones": {"radius_mm": BONE_RADIUS_MM, "used": [x["name"] for x in sb if not x.get("skipped")],
+                  "skipped_not_closable": [x["name"] for x in sb if x.get("skipped")]},
+        "note": "tube ends and valve rings are fan-capped from their own rim centroid; no vertex is moved (D49)",
+    }
+    WEB.mkdir(parents=True, exist_ok=True)
+    for name, V, F in (("left", VL, FL), ("right", VR, FR), ("heart", VH, FH), ("bone", VB, FB)):
+        p = A / f"atlas_xray_{name}.glb"
+        write_glb(p, V, F, name=f"atlas_xray_{name}", extras={"source": "Z-Anatomy", "closed": True})
+        shutil.copy(p, WEB / p.name)
+    (A / "atlas_xray.json").write_text(json.dumps(meta, indent=1))
+    shutil.copy(A / "atlas_xray.json", WEB / "atlas_xray.json")
+    print(json.dumps({"isocenter_LPS": meta["isocenter_LPS"], "left_mm3": meta["trees"]["left"]["volume_mm3"],
+                      "right_mm3": meta["trees"]["right"]["volume_mm3"], "bones_used": sum(not x.get("skipped") for x in sb), "bones_skipped": [x["name"] for x in sb if x.get("skipped")],
+                      "left_meshes": len(sl), "right_meshes": len(sr)}, indent=1))
+
+
+if __name__ == "__main__":
+    main()

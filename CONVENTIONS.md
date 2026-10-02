@@ -221,3 +221,17 @@ projection engine's convention: +X patient left, +Y posterior, +Z superior, mill
   - It also logs Blender's peak working set. The full export peaks at about 6.2 GB; the read-only probe at about 3.7 GB.
 - **No shell heredocs.** They have failed repeatedly here. Write scripts to files, then run them.
 - **Review gates:** stop with screenshots at every gate and ask; never assume approval.
+
+## 12. Atlas X-ray (D49, D50)
+
+- **Closed meshes only.** Path length = sum of exits - sum of entries, so every attenuating mesh is closed and outward-wound. Open atlas
+  tubes are fan-capped (holes only, no vertex moves) by `preprocess/scripts/build_atlas_xray.py` [`tests/test_closemesh.py`].
+- **Isocenter** = volume centroid of both closed coronary trees, one constant (atlas_xray.json). Switching the injected tree never
+  moves it. It is the C-arm rig's origin and the angiogram's isocenter.
+- **Two renderers, one definition.** `cpt/meshrender.py` (exact, CPU) is the reference; `web/src/angio.ts` (GPU) is the app.
+  They agree on the atlas trees at the standard views, and mirrored GPU images must fail that comparison
+  [`tests/test_meshrender.py`, `web/e2e/atlas_xray.e2e.mjs`].
+- **The C-arm hardware follows the projection.** Rig basis = (u, v, d) of the same CArm, at the isocenter. The detector's outer face
+  and the monitor inset show the render target unchanged (texture (0,0) = the (-u, -v) corner). No display flips (section 6).
+- The Phase 0 sanity sheet (`preprocess/scripts/phase0_atlas.py`) must pass before any change to the atlas X-ray. It fails the run if
+  the spine does not flip sides between RAO 30 and LAO 45, or superior does not project up.

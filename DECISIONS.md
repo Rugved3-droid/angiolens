@@ -536,3 +536,69 @@ comparison file z_anatomy_heart_illustrative.glb; z_anatomy_heart_tapered.glb is
 - **Viewer:** one skin mesh and one glass material; the limb fade is per vertex. The atlas's flat "SKELETAL SYSTEM" label board
   (`Skeletal system.g`, in the skeleton export since D39) became visible in the full-body view and is now hidden in the viewer. The
   exporter still includes it; exclude `.g` boards from the skeleton at the next export.
+
+## 2026-10-02 (look approved with polish; atlas X-ray; Scenes 3-4)
+
+**D49 Atlas X-ray meshes, isocenter and Phase 0 sanity sheet.** DECIDED (Rugved: sanity sheet first), method DEFAULT.
+- **Closed meshes** (`preprocess/scripts/build_atlas_xray.py`, `cpt/closemesh.py`). Path length needs closed, outward-wound meshes;
+  the atlas tubes are open at both ends (12-vertex rings).
+  - Every boundary loop is fan-capped from its own rim centroid. Holes only; no vertex moves (unit-tested).
+  - Left tree = LM stem + LAD/LCx spline branches + septal branches (14 meshes). Right tree = RCA spline branches + right
+    inferolateral branch (15). Split parent meshes are left out (they duplicate their splines).
+  - Overlapping tubes at junctions are summed, not unioned: a few mm of double path where a branch starts inside its parent.
+  - Heart chambers are capped at the valve rings, for the faint silhouette. The right atrium keeps 1 non-manifold edge from the atlas.
+  - Bones: closed bones within 300 mm of the isocenter (136). Skipped as not closable: ethmoid, both humeri, xiphoid.
+  - Every heart uses its own coronaries: everything is the one Z-Anatomy atlas under its one transform.
+- **Isocenter** = volume centroid of both closed trees = (25.4, -45.5, 1291.5) LPS mm. It is fixed and never moves with the
+  injected tree (the D4 rule, for the atlas).
+- **Exact CPU mesh renderer** (`cpt/meshrender.py`): per-pixel signed ray/triangle crossings (exit - entry), rasterised by triangle
+  bounding box.
+  - Tested against analytic sphere chords at an oblique view (< 0.25 mm), inward winding and the AP raster orientation.
+  - It is the CPU twin of the GPU method, and the ground truth for the atlas.
+- **Sanity sheet** (`preprocess/scripts/phase0_atlas.py`, out/phase0/atlas/): the Phase 0 views and figure code, skeleton faint.
+  0 unpaired pixels in every view.
+  - RCA "C" in LAO 45 and "L" in RAO 30: by eye, yes.
+  - Spider view (LAO 40 / CAUD 30) opens the LM bifurcation: yes.
+  - Spine flip (computed; T4-T8 centroid minus heart centroid, screen x): -103 mm in RAO 30 and +92 mm in LAO 45 (spine left, then
+    right). Also -31 mm in AP, -104 in RAO 30 / CAUD 25 and +81 in the spider view.
+  - Superior projects up in all 8 views.
+
+**D50 Scenes 3 (cath lab) and 4 (X-ray pass).** DECIDED (Rugved: spec), details DEFAULT. web/src/cathLab.ts; atlas.html.
+- **Room:** room up = -y (supine). The table top touches the body's most posterior point; floor 950 mm below.
+  - The C-arm stand is at the head end. The C-arm is the hero scene's construction, re-skinned: satin shell, dark accents, a blue
+    trim on the arc.
+  - The rig is oriented every frame by the same CArm basis (u, v, d) at the fixed isocenter, so it cannot drift from the projection.
+- **C-arm views** (buttons): AP, RAO 30, LAO 45, RAO caudal (RAO 30 / CAUD 25), Spider (LAO 40 / CAUD 30).
+  - Swings are smooth in angle space; every frame is a real CArm pose, and the image is live while the X-ray is on.
+  - On arrival the acquisition builds outward from the centre of the detector.
+- **Cameras:** Room (patient's right, toward the feet, from above); Operator (patient's right side at the hip, eyes ~1.65 m above
+  the floor); Beam (side-on: tube, heart, detector in one line; free orbit with the projection fixed); Side by side (heart from
+  the detector side with screen-up = v, next to the image). The Beam and Side-by-side cameras ride with the C-arm during swings.
+- **X-ray** (Scene 4): the validated GPU renderer (angio.ts) on the D49 meshes, with selective LCA/RCA injection. The bones are faint
+  (k 0.010/mm) and the heart a faint silhouette, through a new optional "soft" channel (k 0.0035/mm).
+  - The soft channel is off by default, so the ASOCA app is unchanged; the phantom e2e still passes.
+  - In 3D the non-injected tree is dimmed. A beam pyramid runs from the focal spot to the detector corners.
+  - The image shows on the detector's outer face (u right, v up) and in a monitor inset (render target blitted unchanged).
+- **Verified:** web/e2e/atlas_xray.e2e.mjs compares GPU against CPU path length at AP, RAO 30, LAO 45, RAO 30/CAUD 25 and the spider
+  view (left tree), plus LAO 45 (right tree).
+  - Every pose: r = 1.0000, mean error 0.001 mm, 0 repaired pixels.
+  - The left-right and up-down mirror images all fail (r <= 0.13).
+- **Captions** are one line, in words; button labels carry the view names.
+- **Not yet:** the heart beats in 3D but the X-ray meshes are the rest pose (static image).
+
+**D51 Look polish** (Rugved's review of D46-D48).
+- **Pulmonary arteries:** lighter blue than the venae cavae and cardiac veins (standard convention); no violet.
+- **Trunk shape** (reported, not reshaped), measured along the valve -> bifurcation axis:
+  - 35-37 mm over the first ~14 mm (the sinus end; wider than a typical adult main PA);
+  - 22-25 mm mid-trunk;
+  - 28-29 mm at the bifurcation, matching the 28 mm bifurcation tube, so it is NOT bulbous there.
+- **Coronary contrast:** myocardium muted toward brown with little specular. Coronaries brighter, more saturated, with a small
+  emissive lift. The aorta stays a softer red.
+- **Tissue:** three terms added to the myocardium's physical lighting.
+  - A wrap-lighting / subsurface-like warm term in the terminator.
+  - A faint warm back-scatter at grazing angles.
+  - Procedural muscle-fibre normal detail: helical ridges around the LV long axis, from the REST position (they stay on the muscle
+    while it beats). They fade out where they would alias (fwidth), which fixed a moire seen in the side-by-side view.
+- **Chest view:** a soft warm rim light on the heart, driven by the body fade (0 in the close-up, 1 in the chest view and the lab).
+  - A first version washed the whole heart pink: the rim term had the view vector's sign inverted (vViewPosition already points
+    surface -> camera). Fixed, together with the same slip in the back-scatter term.

@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { CathLab } from "./cathLab";
 
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -62,12 +63,59 @@ vec3 cptBeat0(vec3 p) {
 vec3 cptBeat(vec3 p) {
   return p + (cptBeat0(p) - p) * (1.0 - smoothstep(uEnv.x, uEnv.y, length(p - uHeartC)));
 }`;
-function withBeat<T extends THREE.Material>(m: T): T {
+/** Rim light on the heart, 0 in the close-up and 1 in the chest view, so the heart separates from the ribs behind the glass. */
+const rimU = { uRim: { value: 0 }, uRimColor: { value: new THREE.Color("#ffe3d8") } };
+// Myocardium as tissue, not plastic (polish pass). Three terms are added to three.js's physical lighting:
+//  * muscle-fibre normal detail: fine helical ridges around the LV long axis, computed from the REST position, so the
+//    pattern stays on the muscle while the heart beats; value noise breaks the regularity;
+//  * wrap lighting: a warm term in the terminator region, where light would scatter through tissue;
+//  * a faint view-dependent warm back-scatter at grazing angles.
+const TISSUE_FRAG_HEAD = /* glsl */ `
+uniform vec3 uBase; uniform vec3 uAxis; varying vec3 vRest;
+float cptHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float cptNoise(vec3 p) {
+  vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(cptHash(i), cptHash(i + vec3(1,0,0)), f.x), mix(cptHash(i + vec3(0,1,0)), cptHash(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(cptHash(i + vec3(0,0,1)), cptHash(i + vec3(1,0,1)), f.x), mix(cptHash(i + vec3(0,1,1)), cptHash(i + vec3(1,1,1)), f.x), f.y), f.z);
+}`;
+const TISSUE_NORMAL = /* glsl */ `
+{
+  vec3 rr = vRest - uBase;
+  float aa = dot(rr, uAxis);
+  vec3 radial = rr - uAxis * aa;
+  vec3 e1 = normalize(cross(uAxis, abs(uAxis.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0)));
+  vec3 e2 = cross(uAxis, e1);
+  float R = max(length(radial), 1.0);
+  float theta = atan(dot(radial, e2), dot(radial, e1));
+  float n = cptNoise(vRest * 0.35);
+  float phase = 4.5 * (aa + 0.45 * theta * R) + 6.0 * n;           // ~1.4 mm ridges, helical, irregular
+  vec3 circ = normalize(cross(uAxis, radial) + 1e-5);
+  vec3 g = normalize(mat3(viewMatrix) * normalize(uAxis + 0.45 * circ));
+  g = g - normal * dot(g, normal);
+  float fade = 1.0 - smoothstep(0.6, 1.6, fwidth(phase));          // ridges smaller than a pixel fade out (no moire)
+  normal = normalize(normal + fade * (0.075 * cos(phase) * normalize(g + 1e-5) + 0.03 * (cptNoise(vRest * 1.7) - 0.5) * g));
+}`;
+const TISSUE_LIGHT = /* glsl */ `
+{
+  vec3 L = normalize(vec3(-0.6, 0.8, 1.9));                        // the camera-carried key light, in view space
+  float ndl = dot(normal, L);
+  float wrap = clamp((ndl + 0.55) / 1.55, 0.0, 1.0) - clamp(ndl, 0.0, 1.0);
+  float back = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 2.5);   // vViewPosition: surface -> camera
+  outgoingLight += diffuseColor.rgb * vec3(1.0, 0.45, 0.35) * (0.55 * wrap + 0.18 * back);
+}`;
+const RIM_LIGHT = /* glsl */ `
+outgoingLight += uRimColor * pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0) * 0.38 * uRim;`;
+function withBeat<T extends THREE.Material>(m: T, opts: { tissue?: boolean } = {}): T {
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, motion);
-    sh.vertexShader = FIELD + "\n" + sh.vertexShader.replace("#include <begin_vertex>", "vec3 transformed = cptBeat(vec3(position));");
+    Object.assign(sh.uniforms, motion, rimU);
+    sh.vertexShader = FIELD + "\nvarying vec3 vRest;\n" + sh.vertexShader.replace("#include <begin_vertex>",
+      "vec3 transformed = cptBeat(vec3(position));\n  vRest = position;");
+    let f = "uniform float uRim; uniform vec3 uRimColor;\n" + (opts.tissue ? TISSUE_FRAG_HEAD : "varying vec3 vRest;") + "\n" + sh.fragmentShader;
+    if (opts.tissue) f = f.replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n" + TISSUE_NORMAL);
+    f = f.replace("#include <opaque_fragment>", (opts.tissue ? TISSUE_LIGHT : "") + RIM_LIGHT + "\n#include <opaque_fragment>");
+    sh.fragmentShader = f;
   };
-  m.customProgramCacheKey = () => "cptBeat";
+  m.customProgramCacheKey = () => (opts.tissue ? "cptBeatTissue" : "cptBeat");
   return m;
 }
 /** Shared section plane for the body (skin + bones) in the axial views: keep dot(n, p) + w >= 0. */
@@ -90,22 +138,25 @@ function withChestRise<T extends THREE.Material>(m: T): T {
 }
 
 // ---------------- materials ----------------
+// polish pass: myocardium muted toward brown with little specular (tissue, not plastic); coronaries brighter and more
+// saturated, with a small emissive lift, so they are the first thing the eye reads; the aorta stays a softer red
 const ventricleMat = withBeat(new THREE.MeshPhysicalMaterial({
-  color: "#5c1913", roughness: 0.5, sheen: 0.45, sheenColor: new THREE.Color("#e2735a"), sheenRoughness: 0.45,
-  clearcoat: 0.3, clearcoatRoughness: 0.4,
-}));
+  color: "#5a2c23", roughness: 0.74, specularIntensity: 0.32, sheen: 0.22, sheenColor: new THREE.Color("#c48a74"),
+  sheenRoughness: 0.7,
+}), { tissue: true });
 const atriumMat = withBeat(new THREE.MeshPhysicalMaterial({
-  color: "#8a4430", roughness: 0.6, sheen: 0.4, sheenColor: new THREE.Color("#f0a07a"), sheenRoughness: 0.55,
-  clearcoat: 0.15, clearcoatRoughness: 0.55,
-}));
+  color: "#7a4a3a", roughness: 0.78, specularIntensity: 0.3, sheen: 0.2, sheenColor: new THREE.Color("#d0a084"),
+  sheenRoughness: 0.75,
+}), { tissue: true });
 const coronaryMat = withBeat(new THREE.MeshPhysicalMaterial({
-  color: "#e5121c", emissive: "#5c0006", emissiveIntensity: 0.55, roughness: 0.28, clearcoat: 0.85, clearcoatRoughness: 0.14,
+  color: "#ff1418", emissive: "#a0000a", emissiveIntensity: 0.8, roughness: 0.24, clearcoat: 0.9, clearcoatRoughness: 0.12,
 }));
 const veinMat = withBeat(new THREE.MeshPhysicalMaterial({
   color: "#1e2c72", emissive: "#060a24", roughness: 0.36, clearcoat: 0.5, clearcoatRoughness: 0.25,
 }));
 // great vessels (D46), illustration convention: the aorta and its branches a softer arterial red than the coronaries (so the
-// coronaries still read where they leave the aortic wall), the venae cavae blue, the pulmonary arteries violet
+// coronaries still read where they leave the aortic wall), the venae cavae blue, the pulmonary arteries a LIGHTER blue
+// (standard convention; lighter than the cavae and the cardiac veins)
 const aortaMat = withBeat(new THREE.MeshPhysicalMaterial({
   color: "#b9473a", roughness: 0.42, sheen: 0.35, sheenColor: new THREE.Color("#f2a08c"), sheenRoughness: 0.5,
   clearcoat: 0.45, clearcoatRoughness: 0.3,
@@ -114,7 +165,7 @@ const cavaMat = withBeat(new THREE.MeshPhysicalMaterial({
   color: "#3552a6", emissive: "#070d26", roughness: 0.4, clearcoat: 0.45, clearcoatRoughness: 0.3,
 }));
 const pulmonaryMat = withBeat(new THREE.MeshPhysicalMaterial({
-  color: "#6b4bb5", emissive: "#120a26", roughness: 0.42, clearcoat: 0.45, clearcoatRoughness: 0.3,
+  color: "#4f80cc", emissive: "#081428", roughness: 0.5, clearcoat: 0.2, clearcoatRoughness: 0.4,
 }));
 const boneMat = (opacity: number) => withChestRise(new THREE.MeshStandardMaterial({
   color: "#e4dac4", roughness: 0.6, transparent: true, opacity, depthWrite: false,
@@ -210,7 +261,13 @@ const atriaMeshes: THREE.Mesh[] = [];
 const ostia: Record<string, { p: THREE.Vector3; n: THREE.Vector3 }> = {};
 const limbMeshes: THREE.Mesh[] = [];
 const heartC = new THREE.Vector3();
-let sceneNo: 1 | 2 = 1;
+let sceneNo: 1 | 2 | 3 | 4 = 1;
+let lab: CathLab | null = null;
+const treeLeft: THREE.Mesh[] = [];
+const treeRight: THREE.Mesh[] = [];
+const coronaryDimMat = withBeat(new THREE.MeshPhysicalMaterial({
+  color: "#ff1418", emissive: "#3a0004", roughness: 0.3, transparent: true, opacity: 0.22, depthWrite: false,
+}));
 let fade = 0;
 let limbFade = 1;
 let labelMode = false;
@@ -340,6 +397,28 @@ async function load() {
   if (skin) bodyGroup.add(skin.scene);
   scene.add(bodyGroup);
 
+  // ---- Scenes 3-4 (D50): the cath lab and the X-ray pass, on the closed atlas X-ray meshes (D49) ----
+  const xrMeta = await fetch("/anatomy/atlas_xray.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const xrGeo = await Promise.all(["left", "right", "bone", "heart"].map((t) => get(`atlas_xray_${t}.glb`)));
+  if (xrMeta && xrGeo.every(Boolean) && skin) {
+    const geo = (g: Awaited<ReturnType<typeof get>>) => {
+      let out: THREE.BufferGeometry | null = null;
+      g!.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) out = (o as THREE.Mesh).geometry; });
+      return out!;
+    };
+    const bodyBox = new THREE.Box3().setFromObject(skin.scene);
+    lab = new CathLab(renderer, { left: geo(xrGeo[0]), right: geo(xrGeo[1]), bone: geo(xrGeo[2]), heart: geo(xrGeo[3]),
+      isocenter: xrMeta.isocenter_LPS }, bodyBox);
+    lab.room.visible = lab.rig.visible = false;
+    scene.add(lab.room, lab.rig);
+    for (const b of branches) (/^RCA_/.test(b.name) ? treeRight : treeLeft).push(b);
+    heart.scene.traverse((o) => {
+      const n = nameOf(o);
+      if (n === "Left coronary artery" || n === "Septal branches of anterior interventricular artery") treeLeft.push(o as THREE.Mesh);
+      if (n === "Right inferolateral branch of right coronary artery") treeRight.push(o as THREE.Mesh);
+    });
+  }
+
   // compile every program now (body included) so the pull-out never stalls on a first-use shader compile
   bodyGroup.visible = true;
   camera.position.copy(heartC).add(new THREE.Vector3(0, -1050, 0));
@@ -468,8 +547,116 @@ function setHeartView(v: "front" | "root", ms: number) {
   caption(v === "root" ? ROOT_CAPTION : "The heart. Drag to turn it; point at a vessel to see its name.");
 }
 function setRoutes(on: boolean) { routesGroup.visible = on; }
+
+// ---------------- Scenes 3-4: cath lab and X-ray pass (D50) ----------------
+// Standard views by name; captions in words (no numbers), as everywhere in the explainer.
+const CARM_VIEWS: Record<string, { a: number; b: number; caption: string }> = {
+  ap: { a: 0, b: 0, caption: "Straight on: the detector sits right above the chest." },
+  rao30: { a: -30, b: 0, caption: "Right anterior oblique: the detector swings toward the patient's right." },
+  lao45: { a: 45, b: 0, caption: "Left anterior oblique: the detector swings toward the patient's left." },
+  raocaud: { a: -30, b: -25, caption: "Right oblique, tilted toward the feet: the circumflex and its branches open up." },
+  spider: { a: 40, b: -30, caption: "The spider view: left oblique and toward the feet; the left main splits like a spider's legs." },
+};
+type LabCam = "room" | "operator" | "beam" | "split";
+let labCam: LabCam = "room";
+let carmView = "ap";
+function labPose(cam: LabCam): Pose {
+  if (cam === "operator") return lab!.operatorPose(heartC);
+  if (cam === "beam") return lab!.beamPose();
+  if (cam === "split") return lab!.detectorSidePose(heartC);
+  return lab!.roomPose(heartC);
+}
+function syncLabButtons() {
+  document.querySelectorAll<HTMLButtonElement>("#carmViews button").forEach((b) => b.classList.toggle("on", b.dataset.v === carmView));
+  document.querySelectorAll<HTMLButtonElement>("#labCams button, #xrCams button").forEach((b) => b.classList.toggle("on", b.dataset.v === labCam));
+  document.querySelectorAll<HTMLButtonElement>("#inject button").forEach((b) => b.classList.toggle("on", b.dataset.v === lab?.injected));
+}
+/** The side-by-side shows only the heart (turned to the detector's view) next to the image: no room, no body. */
+function applySplit() {
+  const split = sceneNo === 4 && labCam === "split";
+  if (lab) { lab.room.visible = !split; lab.rig.visible = !split; }
+  bodyGroup.visible = !split;
+  $("monitor").style.display = sceneNo === 4 && !split ? "block" : "none";
+  $("splitLabel").style.display = split ? "block" : "none";
+}
+function setLabCam(cam: LabCam, ms: number) {
+  if (!lab || sceneNo < 3) return;
+  labCam = cam;
+  applySplit();
+  syncLabButtons();
+  moveTo(labPose(cam), ms);
+  caption(cam === "operator" ? "The operator's view: standing at the patient's right side, at the hip."
+    : cam === "beam" ? "Side-on to the beam: tube, heart and detector in one line. Drag to orbit; the projection stays fixed."
+    : cam === "split" ? "Left: the heart turned the way the detector sees it. Right: the image it makes."
+    : "The cath lab: the C-arm turns around the patient, and the heart stays at its centre.");
+}
+function setCArmView(v: string, ms: number) {
+  if (!lab || sceneNo < 3) return;
+  carmView = v;
+  syncLabButtons();
+  const V = CARM_VIEWS[v];
+  lab.swingTo(V.a, V.b, ms, () => {
+    if (labCam === "beam" || labCam === "split") moveTo(labPose(labCam), 0);
+  });
+  caption(V.caption);
+}
+function setInject(t: "left" | "right") {
+  if (!lab) return;
+  lab.setInjected(t);
+  applyInjectionLook();
+  syncLabButtons();
+  caption(t === "left" ? "Contrast in the left coronary artery: only that tree shows on the image."
+    : "Contrast in the right coronary artery: only that tree shows on the image.");
+}
+/** Scene 4: the non-injected tree is dimmed in 3D (it does not appear on the image). Everywhere else both trees are full. */
+function applyInjectionLook() {
+  const on = sceneNo === 4 && !!lab;
+  for (const m of treeLeft) m.material = on && lab!.injected === "right" ? coronaryDimMat : coronaryMat;
+  for (const m of treeRight) m.material = on && lab!.injected === "left" ? coronaryDimMat : coronaryMat;
+}
+function showLab(n: 3 | 4, ms: number) {
+  if (!lab) { caption("The cath lab needs the atlas X-ray meshes (build_atlas_xray.py)."); return; }
+  const from = sceneNo;
+  sceneNo = n;
+  if (labelMode) setLabelMode(false);
+  for (const [id, s] of [["bHeart", 1], ["bPatient", 2], ["bLab", 3], ["bXray", 4]] as const) $(id).classList.toggle("on", n === s);
+  $("views").style.display = "none";
+  $("heartViews").style.display = "none";
+  $("carmViews").style.display = "contents";
+  $("labCams").style.display = n === 3 ? "contents" : "none";
+  $("xrCams").style.display = n === 4 ? "contents" : "none";
+  $("inject").style.display = n === 4 ? "contents" : "none";
+  if (n === 3 && (labCam === "beam" || labCam === "split")) labCam = "room";
+  if (n === 4 && (labCam === "room" || labCam === "operator")) labCam = from === 3 ? labCam : "room";
+  lab.room.visible = lab.rig.visible = true;
+  bodyGroup.visible = true;
+  applySplit();
+  applyInjectionLook();
+  lab.setXray(n === 4);
+  syncLabButtons();
+  const f0 = fade, lf0 = limbFade, rf0 = rootFade;
+  setClip("front");
+  moveTo(labPose(labCam), ms, (e) => {
+    fade = THREE.MathUtils.lerp(f0, 1, THREE.MathUtils.smoothstep(e, 0, 0.6));
+    limbFade = THREE.MathUtils.lerp(lf0, 1, e);
+    setRootFade(THREE.MathUtils.lerp(rf0, 1, e));
+  });
+  caption(n === 3 ? "The cath lab: the C-arm turns around the patient, and the heart stays at its centre."
+    : "X-rays travel from the tube, through the chest, to the detector, where the image forms.");
+}
+
 function showScene(n: 1 | 2, ms: number) {
   sceneNo = n;
+  if (lab) {
+    lab.setXray(false);
+    lab.room.visible = lab.rig.visible = false;
+    applyInjectionLook();
+    $("monitor").style.display = "none";
+    $("splitLabel").style.display = "none";
+    for (const id of ["carmViews", "labCams", "xrCams", "inject"]) $(id).style.display = "none";
+    $("bLab").classList.remove("on");
+    $("bXray").classList.remove("on");
+  }
   $("bHeart").classList.toggle("on", n === 1);
   $("bPatient").classList.toggle("on", n === 2);
   $("views").style.display = n === 2 ? "contents" : "none";
@@ -607,8 +794,39 @@ $("bVeins").onclick = () => {
   $("bVeins").classList.toggle("on", on);
 };
 $("bLabel").onclick = () => setLabelMode(!labelMode);
+$("bLab").onclick = () => showLab(3, 3200);
+$("bXray").onclick = () => showLab(4, 2400);
+document.querySelectorAll<HTMLButtonElement>("#carmViews button").forEach((b) => (b.onclick = () => setCArmView(b.dataset.v!, 2600)));
+document.querySelectorAll<HTMLButtonElement>("#labCams button, #xrCams button").forEach((b) => (b.onclick = () => setLabCam(b.dataset.v as LabCam, 2200)));
+document.querySelectorAll<HTMLButtonElement>("#inject button").forEach((b) => (b.onclick = () => setInject(b.dataset.v as "left" | "right")));
+
+// ---------------- the image: monitor inset and side-by-side (raw blit of the angiogram render target, no flips) ----------------
+const blitMat = new THREE.ShaderMaterial({
+  uniforms: { uMap: { value: null as THREE.Texture | null } }, depthTest: false, depthWrite: false,
+  vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+  fragmentShader: "uniform sampler2D uMap; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(uMap, vUv).rgb, 1.0); }",
+});
+const blitScene = new THREE.Scene();
+const blitQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMat);
+blitQuad.frustumCulled = false;
+blitScene.add(blitQuad);
+const blitCam = new THREE.Camera();
+/** Draw the angiogram into the rectangle of a DOM element (CSS px). Texture (0,0) = the (-u,-v) corner: u right, v up. */
+function blitInto(el: HTMLElement) {
+  const c = canvas.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const pr = renderer.getPixelRatio();
+  const x = (r.left - c.left) * pr, y = (c.bottom - r.bottom) * pr, w = r.width * pr, h = r.height * pr;
+  blitMat.uniforms.uMap.value = lab!.angio.angioRT.texture;
+  renderer.setScissorTest(true);
+  renderer.setScissor(x / pr, y / pr, w / pr, h / pr);
+  renderer.setViewport(x / pr, y / pr, w / pr, h / pr);
+  renderer.render(blitScene, blitCam);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, c.width, c.height);
+}
 
 // ---------------- frame loop ----------------
+let lastNow = performance.now();
 const t0 = performance.now();
 const still = params.has("still");          // screenshots: freeze motion at end-diastole / mid-breath
 function tick(now: number) {
@@ -620,6 +838,7 @@ function tick(now: number) {
   skinMat.uniforms.uFade.value = fade;
   skinMat.uniforms.uLimbFade.value = limbFade;
   boneTrunk.opacity = 0.13 * fade;
+  rimU.uRim.value = fade;                      // the heart's rim light follows the body fade-in (chest view only)
   boneLimb.opacity = 0.07 * fade * limbFade;
   limbMeshes.forEach((m) => (m.visible = limbFade > 0.01));
   if (tween && !tween(now)) tween = null;
@@ -629,14 +848,61 @@ function tick(now: number) {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
+  const dt = Math.min(0.1, (now - lastNow) / 1000);
+  lastNow = now;
+  if (lab && sceneNo >= 3) {
+    const swinging = lab.swinging;
+    lab.update(now, dt);
+    if (swinging && !tween && (labCam === "beam" || labCam === "split")) {   // these cameras ride with the C-arm
+      const p = labPose(labCam);
+      camera.up.copy(p.up); camera.position.copy(p.pos); controls.target.copy(p.target); camera.lookAt(p.target);
+    }
+  }
   if (!tween) controls.update();
-  renderer.render(scene, camera);
+  const split = sceneNo === 4 && labCam === "split" && lab;
+  if (split) {
+    // left half: the heart from the detector side; right half: the image (square, centred)
+    const half = Math.floor(w / 2);
+    camera.aspect = half / h;
+    camera.updateProjectionMatrix();
+    renderer.setViewport(0, 0, half, h);
+    renderer.setScissor(0, 0, half, h);
+    renderer.setScissorTest(true);
+    renderer.render(scene, camera);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    blitInto($("splitImage"));
+  } else {
+    renderer.render(scene, camera);
+    if (lab && sceneNo === 4) blitInto($("monitorImage"));
+  }
   requestAnimationFrame(tick);
 }
 
 caption("Loading the atlas…");
 load().then(() => {
-  const s = params.get("scene") === "2" ? 2 : 1;
+  const sp = Number(params.get("scene") ?? 1);
+  if ((sp === 3 || sp === 4) && lab) {
+    // ?scene=3|4&carm=ap|rao30|lao45|raocaud|spider&cam=room|operator|beam|split&inject=left|right (review and recording)
+    const cv = params.get("carm") ?? "ap";
+    const V = CARM_VIEWS[cv] ?? CARM_VIEWS.ap;
+    carmView = CARM_VIEWS[cv] ? cv : "ap";
+    lab.setPose(V.a, V.b);
+    if (params.get("inject") === "right") lab.injected = "right";
+    labCam = (params.get("cam") as LabCam) ?? "room";
+    bodyGroup.visible = true;
+    fade = 1;
+    showLab(sp, 0);
+    if (sp === 4 && labCam !== "split") caption(V.caption);
+    if (sp === 4) { lab.setXray(true, false); }
+    requestAnimationFrame(tick);
+    requestAnimationFrame(() => requestAnimationFrame(() => (document.body.dataset.ready = "1")));
+    (window as unknown as Record<string, unknown>).atlas = { showScene, setView, setHeartView, setRoutes, showLab, setCArmView, setLabCam, setInject, lab };
+    return;
+  }
+  const s = sp === 2 ? 2 : 1;
   const v = params.get("view") ?? (s === 1 ? "front" : "front");
   currentView = s === 1 && v === "lao" ? "lao" : "front";
   bodyGroup.visible = s === 2;
@@ -650,5 +916,5 @@ load().then(() => {
   requestAnimationFrame(tick);
   requestAnimationFrame(() => requestAnimationFrame(() => (document.body.dataset.ready = "1")));
   // automation hooks for the review recording (same code paths as the buttons)
-  (window as unknown as Record<string, unknown>).atlas = { showScene, setView, setHeartView, setRoutes };
+  (window as unknown as Record<string, unknown>).atlas = { showScene, setView, setHeartView, setRoutes, showLab, setCArmView, setLabCam, setInject, lab };
 }).catch((e) => { caption(String(e)); throw e; });

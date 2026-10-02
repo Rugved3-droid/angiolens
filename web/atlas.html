@@ -26,14 +26,33 @@
       #labelPanel .names button.cur { background: #ffd24a; color: #111; }
       #labelPanel .row { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
       #sel { font-weight: 600; margin-bottom: 4px; }
-      @media (max-width: 640px) { #labelPanel { width: auto; left: 14px; } #caption { font-size: 14px; } }
+      /* no backdrop blur here: the canvas draws the image underneath this frame */
+      #monitor { position: fixed; right: 16px; bottom: 90px; padding: 8px; display: none; pointer-events: none;
+        border: 1px solid var(--line); border-radius: 10px; background: transparent; }
+      #monitor .lbl, #splitLabel .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+      #monitorImage { width: min(30vw, 300px); aspect-ratio: 1; border-radius: 4px; outline: 1px solid var(--line); }
+      #splitLabel { position: fixed; left: 50%; top: 0; bottom: 0; right: 0; display: none; pointer-events: none;
+        flex-direction: column; align-items: center; justify-content: center; }
+      #splitLabel[style*="block"] { display: flex !important; }
+      #splitImage { width: min(42vw, 72vh); aspect-ratio: 1; border-radius: 4px; outline: 1px solid var(--line); margin-bottom: 10px; }
+      @media (max-width: 640px) { #labelPanel { width: auto; left: 14px; } #caption { font-size: 14px; } #monitorImage { width: 38vw; } }
     </style>
   </head>
   <body>
     <canvas id="c"></canvas>
     <div id="bar" class="panel">
       <button id="bHeart" class="on">Heart</button><button id="bPatient">Heart in the patient</button>
+      <button id="bLab">Cath lab</button><button id="bXray">X-ray</button>
       <span class="sep"></span>
+      <span id="carmViews" style="display:none">
+        <button data-v="ap">AP</button><button data-v="rao30">RAO 30</button><button data-v="lao45">LAO 45</button>
+        <button data-v="raocaud">RAO caudal</button><button data-v="spider">Spider</button>
+      </span>
+      <span id="labCams" style="display:none"><button data-v="room">Room</button><button data-v="operator">Operator</button></span>
+      <span id="xrCams" style="display:none">
+        <button data-v="room">Room</button><button data-v="beam">Beam</button><button data-v="split">Side by side</button>
+      </span>
+      <span id="inject" style="display:none"><button data-v="left">Left coronary</button><button data-v="right">Right coronary</button></span>
       <span id="heartViews" style="display:contents">
         <button data-v="front" class="on">Whole heart</button><button data-v="root">Aortic root</button>
       </span>
@@ -45,6 +64,9 @@
       <button id="bVeins" class="on">Cardiac veins</button><button id="bLabel">Label branches</button>
     </div>
     <div id="caption" class="panel"></div>
+    <!-- the image (Scene 4): the canvas draws the angiogram into these rectangles; the frames are HTML only -->
+    <div id="monitor"><div class="lbl">Image</div><div id="monitorImage"></div></div>
+    <div id="splitLabel"><div id="splitImage"></div><div class="lbl">The image on the detector</div></div>
     <div id="hover"></div>
     <div id="labelPanel" class="panel">
       <h3>Label mode</h3>

@@ -58,9 +58,11 @@ const PATH_LENGTH_GLSL = /* glsl */ `
 const COMPOSITE_FRAG = /* glsl */ `
   uniform sampler2D uVessel;
   uniform sampler2D uBone;
+  uniform sampler2D uSoft;
   uniform vec2 uTexel;
   uniform float uKVessel;
   uniform float uKBone;
+  uniform float uKSoft;
   uniform float uBackground;
   uniform float uNoise;
   uniform float uSeed;
@@ -77,7 +79,8 @@ const COMPOSITE_FRAG = /* glsl */ `
         t += w[i + 1] * w[j + 1] * vec2(pathLength(uVessel, uv, uTexel), pathLength(uBone, uv, uTexel));
       }
     t /= 16.0;
-    float I = uBackground * exp(-uKVessel * max(t.x, 0.0) - uKBone * max(t.y, 0.0));
+    float s = uKSoft > 0.0 ? max(pathLength(uSoft, vUv, uTexel), 0.0) : 0.0;
+    float I = uBackground * exp(-uKVessel * max(t.x, 0.0) - uKBone * max(t.y, 0.0) - uKSoft * s);
     I += uNoise * (hash(gl_FragCoord.xy) - 0.5);
     gl_FragColor = vec4(vec3(clamp(I, 0.0, 1.0)), 1.0);
   }`;
@@ -88,22 +91,26 @@ export interface AngioMeshes {
   bone: THREE.BufferGeometry | null;
   /** non-expert extension (right tree), rendered only with the RCA and only when its toggle is on */
   extension: THREE.BufferGeometry | null;
+  /** optional faint soft-tissue channel (atlas X-ray: the heart silhouette); attenuation params.kSoft per mm, 0 = off */
+  soft?: THREE.BufferGeometry | null;
 }
 
 export class AngioRenderer {
   readonly px: number;
   readonly vesselRT: THREE.WebGLRenderTarget;
   readonly boneRT: THREE.WebGLRenderTarget;
+  readonly softRT: THREE.WebGLRenderTarget;
   readonly angioRT: THREE.WebGLRenderTarget;
   readonly floatPrecision: "float" | "half";
   private readonly vesselScene = new THREE.Scene();
   private readonly boneScene = new THREE.Scene();
+  private readonly softScene = new THREE.Scene();
   private readonly camera = new THREE.Camera();
-  private readonly meshes: Record<"left" | "right" | "bone" | "extension", THREE.Mesh | null>;
+  private readonly meshes: Record<"left" | "right" | "bone" | "extension" | "soft", THREE.Mesh | null>;
   private readonly composite: THREE.ShaderMaterial;
   private readonly compositeScene = new THREE.Scene();
   private readonly quadCamera = new THREE.Camera();
-  params = { kVessel: 0.35, kBone: 0.012, background: 0.78, noise: 0.035, showBone: true, showExtension: false };
+  params = { kVessel: 0.35, kBone: 0.012, kSoft: 0, background: 0.78, noise: 0.035, showBone: true, showExtension: false };
 
   constructor(private readonly renderer: THREE.WebGLRenderer, geoms: AngioMeshes, px = 512) {
     this.px = px;
@@ -117,6 +124,7 @@ export class AngioRenderer {
     });
     this.vesselRT = accum();
     this.boneRT = accum();
+    this.softRT = accum();
     this.angioRT = new THREE.WebGLRenderTarget(px, px, {
       minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false,
     });
@@ -145,14 +153,15 @@ export class AngioRenderer {
       right: mk(geoms.right, this.vesselScene),
       bone: mk(geoms.bone, this.boneScene),
       extension: mk(geoms.extension, this.vesselScene),
+      soft: mk(geoms.soft ?? null, this.softScene),
     };
 
     this.composite = new THREE.ShaderMaterial({
       vertexShader: QUAD_VERT, fragmentShader: COMPOSITE_FRAG, depthTest: false, depthWrite: false,
       uniforms: {
-        uVessel: { value: this.vesselRT.texture }, uBone: { value: this.boneRT.texture },
+        uVessel: { value: this.vesselRT.texture }, uBone: { value: this.boneRT.texture }, uSoft: { value: this.softRT.texture },
         uTexel: { value: new THREE.Vector2(1 / px, 1 / px) },
-        uKVessel: { value: 0 }, uKBone: { value: 0 }, uBackground: { value: 0 }, uNoise: { value: 0 }, uSeed: { value: 0 },
+        uKVessel: { value: 0 }, uKBone: { value: 0 }, uKSoft: { value: 0 }, uBackground: { value: 0 }, uNoise: { value: 0 }, uSeed: { value: 0 },
       },
     });
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.composite);
@@ -169,6 +178,7 @@ export class AngioRenderer {
       m.visible =
         k === "bone" ? this.params.showBone
         : k === "extension" ? this.params.showExtension && injected === "right"
+        : k === "soft" ? this.params.kSoft > 0
         : k === injected;
       const u = (m.material as THREE.ShaderMaterial).uniforms;
       u.uSource.value.set(...carm.source);
@@ -179,7 +189,9 @@ export class AngioRenderer {
     const prevClear = r.getClearColor(new THREE.Color());
     const prevAlpha = r.getClearAlpha();
     r.setClearColor(0x000000, 0);
-    for (const [rt, scene] of [[this.vesselRT, this.vesselScene], [this.boneRT, this.boneScene]] as const) {
+    const passes = [[this.vesselRT, this.vesselScene], [this.boneRT, this.boneScene]] as [THREE.WebGLRenderTarget, THREE.Scene][];
+    if (this.meshes.soft && this.params.kSoft > 0) passes.push([this.softRT, this.softScene]);
+    for (const [rt, scene] of passes) {
       r.setRenderTarget(rt);
       r.clear();
       r.render(scene, this.camera);
@@ -188,6 +200,7 @@ export class AngioRenderer {
     const u = this.composite.uniforms;
     u.uKVessel.value = this.params.kVessel;
     u.uKBone.value = this.params.showBone ? this.params.kBone : 0;
+    u.uKSoft.value = this.meshes.soft ? this.params.kSoft : 0;
     u.uBackground.value = this.params.background;
     u.uNoise.value = this.params.noise;
     u.uSeed.value = seed;

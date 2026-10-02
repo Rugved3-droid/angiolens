@@ -16,8 +16,12 @@ metrics live behind "Advanced". There are two apps on one validated geometry eng
   - The vessels have the atlas's own authored sizes (D46), and the great vessels down to the iliac bifurcation are shown.
   - Catheter access routes are exported but hidden (D47). The skin is one welded surface (D48).
 
-Next, only after the atlas look is approved: Scene 3 (cath lab), then Scene 4 (the X-ray pass driven by the existing engine, using the
-atlas coronaries). The TotalSegmentator heart (section "Simple view" below) is **no longer the hero heart**: Z-Anatomy is (D43). The
+- **Scene 3, cath lab:** table, glass patient, C-arm. Smooth swings between the standard views; Room and Operator cameras.
+- **Scene 4, X-ray pass:** the validated engine on the atlas coronaries (D49-D50). Selective LCA/RCA injection with a faint skeleton
+  and heart silhouette; beam cone; the image builds on the detector; Beam (free orbit) and Side-by-side views.
+
+Next (not started): Scene 5 (catheter up the aorta to the effective ostium, contrast filling), Scene 6 (cross-section), the
+phone-as-detector controller, relative-move Predict questions, Mission/Guess. The TotalSegmentator heart (section "Simple view" below) is **no longer the hero heart**: Z-Anatomy is (D43). The
 TotalSegmentator pipeline is kept only for the ASOCA case's own anatomy.
 
 ## Atlas scenes (Z-Anatomy)
@@ -33,14 +37,21 @@ powershell -ExecutionPolicy Bypass -File preprocess\blender\run_blender.ps1 -Scr
 # 3. copy the viewer files and check
 foreach ($f in "heart","heart_illustrative","access_routes","skeleton","skin") { Copy-Item "assets\anatomy\z_anatomy_$f.glb" web\public\anatomy\ }
 .\.venv\Scripts\python -m pytest -q tests\test_anatomy_frame.py tests\test_anatomy_export.py tests\test_weld.py
-cd web; node e2e/atlas_shots.mjs shots      # review screenshots -> out/review/atlas/
+# 4. atlas X-ray: closed meshes + isocenter, the Phase 0 sanity sheet (out/phase0/atlas/), GPU reference fixtures
+.\.venv\Scripts\python preprocess\scripts\build_atlas_xray.py
+.\.venv\Scripts\python preprocess\scripts\phase0_atlas.py
+.\.venv\Scripts\python preprocess\scripts\atlas_xray_fixtures.py
+cd web; node e2e/atlas_xray.e2e.mjs        # GPU angiogram == CPU reference on the atlas; mirrored images must fail
+node e2e/atlas_shots.mjs shots              # review screenshots -> out/review/atlas/
+node e2e/lab_shots.mjs all                  # cath lab / X-ray screenshots + swing recording -> out/review/lab/
 ```
 
 Files: `z_anatomy_heart.glb` (atlas radii, THE geometry), `z_anatomy_heart_illustrative.glb` (illustrative taper, comparison only),
 `z_anatomy_access_routes.glb` (femoral + right radial, hidden by default), `z_anatomy_skeleton.glb`, `z_anatomy_skin.glb` (welded),
 `manifest.json` (per-object provenance, calibre, effective ostia, access-route continuity, weld statistics).
 
-The URL accepts `atlas.html?scene=1|2&view=front|lao|root|left|right|feet|head|body&routes&still`.
+The URL accepts `atlas.html?scene=1|2&view=front|lao|root|left|right|feet|head|body&routes&still`, and for the lab
+`atlas.html?scene=3|4&carm=ap|rao30|lao45|raocaud|spider&cam=room|operator|beam|split&inject=left|right`.
 
 ## Data
 
