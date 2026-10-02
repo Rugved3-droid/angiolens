@@ -2,7 +2,7 @@
 
 No axis conversion is applied (glTF's nominal +Y-up is ignored on purpose); the viewer
 treats +z as up. One mesh, one primitive, POSITION + optional NORMAL + optional custom
-`_EDGE_ID` (float32 per vertex, nearest centerline edge).
+`_EDGE_ID` (float32 per vertex, nearest centerline edge) + optional other custom scalar attributes.
 """
 from __future__ import annotations
 
@@ -15,7 +15,9 @@ _FLOAT, _UINT = 5126, 5125
 _ARRAY_BUFFER, _ELEMENT_ARRAY_BUFFER = 34962, 34963
 
 
-def write_glb(path, vertices, faces, normals=None, edge_id=None, name="mesh", extras=None):
+def write_glb(path, vertices, faces, normals=None, edge_id=None, name="mesh", extras=None, attributes=None):
+    """attributes: optional {"_NAME": per-vertex floats}, extra custom scalar attributes (glTF requires the leading underscore;
+    three.js exposes them lower-cased, e.g. _ARM -> geometry.attributes._arm)."""
     v = np.ascontiguousarray(vertices, np.float32)
     f = np.ascontiguousarray(faces, np.uint32)
     chunks, views, accessors, attrs = [], [], [], {}
@@ -40,6 +42,9 @@ def write_glb(path, vertices, faces, normals=None, edge_id=None, name="mesh", ex
     if edge_id is not None:
         attrs["_EDGE_ID"] = add(np.ascontiguousarray(edge_id, np.float32), _ARRAY_BUFFER,
                                 {"componentType": _FLOAT, "count": len(v), "type": "SCALAR"})
+    for k, a in (attributes or {}).items():
+        assert k.startswith("_") and len(a) == len(v), k
+        attrs[k] = add(np.ascontiguousarray(a, np.float32), _ARRAY_BUFFER, {"componentType": _FLOAT, "count": len(v), "type": "SCALAR"})
     ind = add(f.ravel(), _ELEMENT_ARRAY_BUFFER, {"componentType": _UINT, "count": f.size, "type": "SCALAR"})
     gltf = {
         "asset": {"version": "2.0", "generator": "cpt.glb (LPS mm, no axis conversion)"},

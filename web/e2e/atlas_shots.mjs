@@ -1,5 +1,6 @@
 // Review screenshots + a short recording of the atlas scenes (web/atlas.html).
-//   copy assets/anatomy/*.glb -> web/public/anatomy/ first;  node e2e/atlas_shots.mjs [shots|video|all]
+//   copy z_anatomy_{heart,heart_illustrative,access_routes,skeleton,skin}.glb from assets/anatomy/ -> web/public/anatomy/ first
+//   (not z_anatomy_skin_regions.glb, the per-region intermediate);  node e2e/atlas_shots.mjs [shots|video|all]
 import { mkdirSync, writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { createServer } from "vite";
@@ -14,8 +15,9 @@ const ready = (page) => page.waitForSelector("body[data-ready='1']", { timeout: 
 
 if (what === "shots" || what === "all") {
   const SHOTS = [
-    ["scene1_heart_front", "scene=1&view=front"], ["scene1_heart_lao", "scene=1&view=lao"],
+    ["scene1_heart_front", "scene=1&view=front"], ["scene1_heart_lao", "scene=1&view=lao"], ["scene1_aortic_root", "scene=1&view=root"],
     ["scene2_chest_front", "scene=2&view=front"], ["scene2_chest_left", "scene=2&view=left"], ["scene2_chest_feet", "scene=2&view=feet"],
+    ["scene2_body_access_routes", "scene=2&view=body&routes"],      // review only: the routes are hidden in the scenes
     ...(process.env.EXTRA ? process.env.EXTRA.split(";").map((s) => s.split("|")) : []),
   ];
   for (const [name, q] of SHOTS) {

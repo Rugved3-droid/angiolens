@@ -3,7 +3,44 @@
 Personal learning tool: how a 3D coronary tree becomes a 2D angiogram at a given C-arm angle.
 Geometry rules: [CONVENTIONS.md](CONVENTIONS.md). Choices and open questions: [DECISIONS.md](DECISIONS.md).
 
-**Status: Phase 2** (foreshortening, inter/self capsule overlap, angle-space heatmaps), on top of Phase 1 (dual viewer, thickness angiogram, C-arm, detector ghost, projection rays, linked selection, Label mode). Phase 3 in progress: **Predict** mode is done (header button). Next: Mission + Guess, then phone-as-detector, then the DRR.
+**Status (2026-10-02).** The product is a simple, cinematic, animated explainer, not a dashboard. There are no numbers by default;
+metrics live behind "Advanced". There are two apps on one validated geometry engine:
+
+- **A. Main C-arm app** (`index.html`, ASOCA case Normal_12, a real patient CT):
+  - validated LPS projection and X-ray rendering, with a synchronized 3D panel (C-arm, detector ghost, rays);
+  - metrics and heatmaps, branch labels with derived SCCT segments, and Predict mode;
+  - the distal-RCA extension is off (judged venous-leaning) and dominance is "indeterminate".
+- **B. Atlas scenes** (`atlas.html`, the Z-Anatomy heart, skeleton and skin, CC BY-SA 4.0). Not yet connected to the C-arm.
+  - Scene 1: the beating heart close-up, with an aortic-root close-up.
+  - Scene 2: the heart inside a glass body, with five views.
+  - The vessels have the atlas's own authored sizes (D46), and the great vessels down to the iliac bifurcation are shown.
+  - Catheter access routes are exported but hidden (D47). The skin is one welded surface (D48).
+
+Next, only after the atlas look is approved: Scene 3 (cath lab), then Scene 4 (the X-ray pass driven by the existing engine, using the
+atlas coronaries). The TotalSegmentator heart (section "Simple view" below) is **no longer the hero heart**: Z-Anatomy is (D43). The
+TotalSegmentator pipeline is kept only for the ASOCA case's own anatomy.
+
+## Atlas scenes (Z-Anatomy)
+
+Source, license and frame: DECISIONS D37-D48 and CONVENTIONS sections 10-11. All exports are git-ignored.
+
+```powershell
+# 1. export (needs Startup.blend in assets/anatomy/source/; checks free memory first; peak ~6.2 GB)
+powershell -ExecutionPolicy Bypass -File preprocess\blender\run_blender.ps1 -Script preprocess\blender\export_anatomy.py `
+  -Log assets\anatomy\blender_stdout.txt -ScriptArgs "assets\anatomy\frame.json|assets\anatomy|assets\anatomy\provenance.json"
+# 2. weld the skin regions into one surface
+.\.venv\Scripts\python preprocess\scripts\weld_skin.py
+# 3. copy the viewer files and check
+foreach ($f in "heart","heart_illustrative","access_routes","skeleton","skin") { Copy-Item "assets\anatomy\z_anatomy_$f.glb" web\public\anatomy\ }
+.\.venv\Scripts\python -m pytest -q tests\test_anatomy_frame.py tests\test_anatomy_export.py tests\test_weld.py
+cd web; node e2e/atlas_shots.mjs shots      # review screenshots -> out/review/atlas/
+```
+
+Files: `z_anatomy_heart.glb` (atlas radii, THE geometry), `z_anatomy_heart_illustrative.glb` (illustrative taper, comparison only),
+`z_anatomy_access_routes.glb` (femoral + right radial, hidden by default), `z_anatomy_skeleton.glb`, `z_anatomy_skin.glb` (welded),
+`manifest.json` (per-object provenance, calibre, effective ostia, access-route continuity, weld statistics).
+
+The URL accepts `atlas.html?scene=1|2&view=front|lao|root|left|right|feet|head|body&routes&still`.
 
 ## Data
 

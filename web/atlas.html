@@ -34,6 +34,9 @@
     <div id="bar" class="panel">
       <button id="bHeart" class="on">Heart</button><button id="bPatient">Heart in the patient</button>
       <span class="sep"></span>
+      <span id="heartViews" style="display:contents">
+        <button data-v="front" class="on">Whole heart</button><button data-v="root">Aortic root</button>
+      </span>
       <span id="views" style="display:contents">
         <button data-v="front">Front</button><button data-v="left">Left side</button><button data-v="right">Right side</button>
         <button data-v="feet">From the feet</button><button data-v="head">From the head</button>
@@ -50,7 +53,7 @@
       <div id="names"></div>
       <div class="row"><button id="lExport">Export labels</button><label><input id="lImport" type="file" accept=".json" hidden /><button id="lImportBtn">Import</button></label></div>
     </div>
-    <div id="foot">Z-Anatomy (CC BY-SA 4.0) · vessel calibre is illustrative</div>
+    <div id="foot">Z-Anatomy atlas (CC BY-SA 4.0) · vessel sizes are the atlas's own, not a patient's</div>
     <script type="module" src="/src/atlasHero.ts"></script>
   </body>
 </html>

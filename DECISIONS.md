@@ -399,7 +399,9 @@ segments) → phone as detector (/remote) → DRR.
 - Both exist to catch unit errors. This replaces the single 90-140 mm "heart long axis" check (D40, now closed).
 - Definitions are in CONVENTIONS section 10 and frame_checks.json; tests in tests/test_anatomy_frame.py.
 
-**D43 Z-Anatomy is the hero heart (Rugved). Illustrative coronary calibre.**
+**D43 Z-Anatomy is the hero heart (Rugved). Illustrative coronary calibre.** CORRECTED by D46: the premise below ("constant
+1.0 mm atlas tubes") was wrong. The atlas authors per-point radii, and the main export now keeps them. The taper survives only as the
+comparison file z_anatomy_heart_illustrative.glb; z_anatomy_heart_tapered.glb is deleted.
 - **Taper:** the constant 1.0 mm atlas tubes are re-exported with curve point radius, linear in arc length from the proximal end:
   LM 4.5 mm; main LAD/LCx/RCA 3.5 -> 1.5 mm; side branches 2.0 -> 1.0 mm.
 - **Which spline is "main":** spline 0 of the LAD, LCx and RCA objects. Each one attaches to the LM (LAD, LCx) or starts at the aortic root
@@ -417,14 +419,16 @@ segments) → phone as detector (/remote) → DRR.
 - 240 region meshes are exported with the same single transform (z_anatomy_skin.glb). Excluded: hair, nail plates, perionyx, eyebrows,
   eyelashes, and "Regions of human body.g", a flat board beside the body.
 - No other body model is used.
-- The region seams show faintly as lines in the glass shading; this is left as is.
+- The region seams show faintly as lines in the glass shading; this is left as is. REVERSED by D48 (Rugved): the regions are now welded
+  into one surface.
 
 **D45 Atlas scenes** (web/atlas.html, src/atlasHero.ts; e2e: atlas_shots.mjs, atlas_label.e2e.mjs).
 - **Scene 1, the heart:** PBR materials. Ventricles deep muscle red, atria lighter and browner. Coronaries saturated red with clearcoat
   gloss. Cardiac veins dark blue, with a toggle. Studio lighting: environment light plus key, rim and fill lights that travel with the
   camera. Free orbit; hover names; no numbers.
 - **Not shown:** valves and papillary muscles (internal). The atlas's great vessels (aorta, SVC, pulmonary arteries) are schematic 1 mm
-  centreline curves and are hidden; whether to give them an illustrative calibre too is OPEN (Rugved).
+  centreline curves and are hidden; whether to give them an illustrative calibre too is OPEN (Rugved). CORRECTED by D46: they were never
+  1 mm; they carry the atlas's own radii (ascending aorta 30 mm). They are now shown.
 - **Heartbeat:** about 64 per minute; ventricles squeeze radially and the base descends, with an atrial kick before systole. Breathing is a
   4.6 s cycle that lowers the heart, swells the chest skin and lifts the anterior chest wall.
 - **Shared field:** all of it is the one position-only displacement field (CONVENTIONS section 10).
@@ -443,3 +447,92 @@ segments) → phone as detector (/remote) → DRR.
   - It does not block the scenes. Unlabeled branches show "<vessel> (branch not yet named)" on hover.
 - **Recording:** made inside the page. MediaRecorder captures a 2D composite of the WebGL canvas, the background and the caption.
   Playwright's screencast dropped most transition frames, while the page itself runs at 27-60 fps.
+
+## 2026-10-02 (atlas corrections: authored radii, great vessels, effective ostia, access routes, welded skin)
+
+**D46 Atlas radii are THE calibre; great vessels; effective ostium.** DECIDED (Rugved), details DEFAULT.
+- **Correction of D43 and D45.** Z-Anatomy's vessels are bevelled curves with AUTHORED per-point radii: diameter = 2 x 0.5 mm bevel x the
+  point radius. The evaluated export always carried them; the earlier "constant 1.0 mm tubes" / "1 mm schematic great vessels" claims
+  were measurement errors. Measured on the old untapered file: ascending aorta 30.0 mm, LM 3.98 mm, RCA trunk 3.63 -> 1.21 mm,
+  SVC 21.3 mm. The manifest even recorded the authored ranges (previous_point_radii_range).
+- **Files.** `z_anatomy_heart.glb` keeps the atlas radii and is THE geometry for the scenes and, later, the X-ray and metrics. The D43
+  taper survives only as `z_anatomy_heart_illustrative.glb` (comparison). `z_anatomy_heart_tapered.glb` is deleted.
+  - Exported diameters are measured and tested against the authored ones (+-25%), for the LM stem and all 26 split branches.
+  - The UI footer now reads "vessel sizes are the atlas's own, not a patient's".
+- **The aortic root is NOT narrowed** (Rugved: a 23-25 mm root is anatomically wrong). It keeps the atlas's ~30 mm. The earlier
+  "<= 1 mm ostium" rule was too strict and is dropped, together with the planned Bezier subdivision and root narrowing.
+- **Effective ostium** = where the coronary centreline, walked from its ostial end, first leaves the closed (capped) ascending-aortic
+  surface. A buried ostial end (up to ~4.5 mm) is fine: the vessel visibly emerges from the wall. Only a FLOATING ostium is a defect,
+  and it stops the export. Result:
+  - LM: proximal end 3.38 mm inside the wall. It runs 7.5 mm before emerging, leaving the wall at 75 degrees to its normal (shallow).
+  - RCA: proximal end 2.08 mm inside, emerging after 2.25 mm at 23 degrees.
+  - Neither floats. The points are stored in the manifest and on the LM / RCA_branch_01 nodes as the future catheter engagement target.
+  - Inside/outside is a 7-ray parity vote plus a nearest-normal cross-check, because a single ray gave a false "floating LM" on the
+    first run. Verified again without Blender in tests/test_anatomy_export.py.
+- **Great vessels shown:**
+  - aorta: ascending, arch, thoracic and abdominal, down to the iliac bifurcation;
+  - arch branches: brachiocephalic trunk, left common carotid, left subclavian;
+  - venae cavae: SVC and thoracic IVC (the IVC was missing from the first list by mistake; its real name is "Inferior vena cava
+    (thoracic part)");
+  - pulmonary arteries: trunk, bifurcation, left and right. No pulmonary veins (Rugved).
+  - The old list asked for "Arch of aorta" and "Inferior vena cava", which do not exist in the file, so the arch was never exported.
+- **Tessellation, display only:** tubes go from 12 to 24 steps per Bezier segment and from bevel resolution 4 to 12, with closed ends
+  (fill caps). No centreline, radius or placement changes.
+- **Pulmonary trunk** (a coarse 138-vertex atlas mesh): 2x linear subdivision, 10x Laplacian smoothing of interior vertices, every vertex
+  clamped to within 1 mm of its starting point on the original surface; rims fixed. Measured deviation: 0.52 mm (new -> original) and
+  0.61 mm (original -> new); no vertex needed clamping (Rugved: target <= 1 mm; never moved as a whole).
+- **Viewer:**
+  - Materials: aorta and arch branches in a softer arterial red than the coronaries (so the coronaries read where they leave the
+    wall); venae cavae blue; pulmonary arteries violet.
+  - New Scene 1 view "Aortic root": the camera looks along the mean of the two ostial wall normals, lifted toward the head, 165 mm
+    away. On the way in, the atria (their appendages cover both ostia), the pulmonary arteries and the cardiac veins fade out, and
+    the ventricles become a ghost (22% opacity), so the right-ventricular outflow tract no longer hides the root. A first version
+    that only hid the pulmonary arteries showed neither ostium.
+  - Visible and NOT fixed (atlas geometry, untouched): a crease on the root above the LM, and a faint seam line where the ascending
+    aorta meets the arch (two capped tubes end to end).
+  - The heartbeat field got a radial envelope (CONVENTIONS section 10), so the far aorta does not swing with the heartbeat.
+
+**D47 Catheter access routes** (for Scene 5; exported once now). DECIDED (Rugved), details DEFAULT.
+- `z_anatomy_access_routes.glb`, same atlas radii, same single transform, same tessellation and caps. Hidden by default in the scenes;
+  the review shot uses `?routes`.
+- **Femoral (both sides):** common iliac (18 -> 12 mm) -> external iliac (12 -> 9.3 mm) -> femoral (9.3 mm, 357 mm long).
+  - The atlas has NO separate common femoral object. Its "Femoral artery" starts at the end of the external iliac and runs down the
+    thigh, so the common femoral is its proximal part.
+- **Radial (right):** brachiocephalic trunk (heart file) -> right subclavian (9 -> 5 mm) -> axillary (5) -> brachial (5 -> 4) -> radial (4 -> 2.2 mm).
+- **Continuity:** every link (and the aortic chain: ascending -> arch -> thoracic -> abdominal) meets its parent's distal end with a
+  0.00 mm gap. No gaps.
+- **Aortic bifurcation:** the abdominal aorta ends exactly where both common iliacs start, at z = 1030.6 mm. The atlas's own label
+  "Aortic bifurcation" sits at the same height (z = 1030.2). Level: L3 spans z 1021-1066 mm and L4 spans 994-1036 mm, so the bifurcation
+  is at the L3/L4 junction, upper L4.
+- The common iliacs start at 18 mm, the abdominal aorta's own end calibre. That is the atlas's value, kept as is.
+
+**D48 Welded skin (reverses the "seams left as is" of D44).** DECIDED (Rugved), method DEFAULT.
+- **Finding:** in the atlas, 200 of the 240 skin regions carry a Solidify modifier (3 mm, offset -1). Evaluated, each region is a thin
+  CLOSED SHELL (outer + inner sheet with opposite normals).
+  - That is why half of all skin normals pointed inward, and why neighbouring shells overlapped (3-4 faces per edge).
+  - The export now switches Solidify off (in memory; the file is never saved), so each region is its single outer sheet.
+- **Weld** (`preprocess/cpt/weld.py`, run by `preprocess/scripts/weld_skin.py`):
+  - exact merge at 0.01 mm;
+  - then rim vertices snap ACROSS the crack onto the neighbouring region's rim, within 4 mm. Never along their own rim: a unit test
+    caught an early version dragging open-rim vertices sideways. The snap is sequential, because a simultaneous one swapped facing
+    corners.
+  - Winding is made consistent across every shared edge, and each piece is turned outward by ray parity (the atlas winding is not
+    trusted). Normals are smooth across the seams.
+- **Kept:** region names (extras.region_names) and per-vertex `_REGION`, `_ARM`, `_LEG`.
+  - Arm regions: deltoid, arm, bicipital grooves, elbow, cubital fossa, forearm, radial foveola, wrist, hand, digits. Leg regions:
+    thigh, knee, popliteal fossa, leg, ankle, malleoli, foot, digits of foot.
+  - Gluteal, hip, inguinal and femoral-triangle regions count as trunk. The old name regex had treated gluteal/femoral as limb and
+    missed the elbow and bicipital grooves.
+  - The side views fade the limbs by max(_ARM, _LEG) per vertex.
+- **Result** (manifest.skin_weld and GLB extras):
+  - 240 sheets (27,732 vertices, 45,028 faces) became one mesh of 22,726 vertices and 45,009 faces. The exact merge closed most
+    seams; 337 rim vertices were snapped, max 3.9 mm (p99 3.7 mm).
+  - Orientation: 6 pieces (body 41,028 faces, each auricle 1,989, and 3 single faces). The atlas sheets already faced outward, so no
+    piece had to turn. Inconsistent shared edges: 0.
+  - Left open: 766 open edges (holes where hair/nails/eyebrows were excluded, plus T-junction seams that are closed geometrically).
+    Also 78 rim vertices with a residual crack of up to 3.5 mm, almost all in the folds of the auricles, plus a few on the lateral
+    thorax and arm. They are invisible in the glass skin; more snap passes oscillated instead of converging.
+  - Edges with more than 2 faces: 5, in the atlas's own auricle and big-toe meshes; 9 exact duplicate faces dropped.
+- **Viewer:** one skin mesh and one glass material; the limb fade is per vertex. The atlas's flat "SKELETAL SYSTEM" label board
+  (`Skeletal system.g`, in the skeleton export since D39) became visible in the full-body view and is now hidden in the viewer. The
+  exporter still includes it; exclude `.g` boards from the skeleton at the next export.

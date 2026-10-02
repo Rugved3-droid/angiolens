@@ -40,10 +40,14 @@ controls.dampingFactor = 0.08;
 const motion = {
   uBase: { value: new THREE.Vector3() }, uAxis: { value: new THREE.Vector3(0, 0, -1) }, uLen: { value: 80 },
   uVent: { value: 0 }, uAtr: { value: 0 }, uBreath: { value: 0 }, uHeartC: { value: new THREE.Vector3() },
+  uEnv: { value: new THREE.Vector2(1e5, 1e5 + 1) },
 };
+// uEnv = (r0, r1): the field acts fully within r0 of the heart centre (every heart and coronary vertex lies inside r0, so the
+// heart moves exactly as before) and fades to zero by r1, so the far aorta, the access routes and the limbs stay still.
 const FIELD = /* glsl */ `
 uniform vec3 uBase; uniform vec3 uAxis; uniform float uLen; uniform float uVent; uniform float uAtr; uniform float uBreath;
-vec3 cptBeat(vec3 p) {
+uniform vec3 uHeartC; uniform vec2 uEnv;
+vec3 cptBeat0(vec3 p) {
   vec3 r = p - uBase;
   float a = dot(r, uAxis);
   float h = a / uLen;                                   // 0 at the LV base, 1 at the apex, < 0 over the atria
@@ -54,6 +58,9 @@ vec3 cptBeat(vec3 p) {
   q += uAxis * (5.0 * uVent * wv * (1.0 - clamp(h, 0.0, 1.0)));   // base descends toward a nearly still apex
   q += vec3(0.0, 0.0, -2.5 * uBreath);                              // the diaphragm carries the heart down on inspiration
   return q;
+}
+vec3 cptBeat(vec3 p) {
+  return p + (cptBeat0(p) - p) * (1.0 - smoothstep(uEnv.x, uEnv.y, length(p - uHeartC)));
 }`;
 function withBeat<T extends THREE.Material>(m: T): T {
   m.onBeforeCompile = (sh) => {
@@ -97,34 +104,49 @@ const coronaryMat = withBeat(new THREE.MeshPhysicalMaterial({
 const veinMat = withBeat(new THREE.MeshPhysicalMaterial({
   color: "#1e2c72", emissive: "#060a24", roughness: 0.36, clearcoat: 0.5, clearcoatRoughness: 0.25,
 }));
+// great vessels (D46), illustration convention: the aorta and its branches a softer arterial red than the coronaries (so the
+// coronaries still read where they leave the aortic wall), the venae cavae blue, the pulmonary arteries violet
+const aortaMat = withBeat(new THREE.MeshPhysicalMaterial({
+  color: "#b9473a", roughness: 0.42, sheen: 0.35, sheenColor: new THREE.Color("#f2a08c"), sheenRoughness: 0.5,
+  clearcoat: 0.45, clearcoatRoughness: 0.3,
+}));
+const cavaMat = withBeat(new THREE.MeshPhysicalMaterial({
+  color: "#3552a6", emissive: "#070d26", roughness: 0.4, clearcoat: 0.45, clearcoatRoughness: 0.3,
+}));
+const pulmonaryMat = withBeat(new THREE.MeshPhysicalMaterial({
+  color: "#6b4bb5", emissive: "#120a26", roughness: 0.42, clearcoat: 0.45, clearcoatRoughness: 0.3,
+}));
 const boneMat = (opacity: number) => withChestRise(new THREE.MeshStandardMaterial({
   color: "#e4dac4", roughness: 0.6, transparent: true, opacity, depthWrite: false,
 }));
 const boneTrunk = boneMat(0.32);
 const boneLimb = boneMat(0.18);
 
+/** The welded skin (D48): one surface; _arm/_leg are per-vertex weights from the atlas region names, used to fade the limbs. */
 function glassSkin() {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide,
     uniforms: {
-      ...motion, uFade: { value: 0 }, uClip: clipU,
+      ...motion, uFade: { value: 0 }, uLimbFade: { value: 1 }, uClip: clipU,
       uBody: { value: new THREE.Color("#cfe4ff") }, uEdge: { value: new THREE.Color("#8fd0ff") },
     },
     vertexShader: /* glsl */ `
       uniform float uBreath; uniform vec3 uHeartC;
-      varying vec3 vN; varying vec3 vV; varying vec3 vW;
+      attribute float _arm; attribute float _leg;
+      varying vec3 vN; varying vec3 vV; varying vec3 vW; varying float vLimb;
       void main() {
         float w = exp(-pow((position.z - (uHeartC.z - 40.0)) / 190.0, 2.0));
         vec3 p = position + normal * (3.5 * w * uBreath);
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         vW = p;
+        vLimb = max(_arm, _leg);
         vN = normalize(normalMatrix * normal);
         vV = normalize(-mv.xyz);
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */ `
-      uniform float uFade; uniform vec4 uClip; uniform vec3 uBody; uniform vec3 uEdge;
-      varying vec3 vN; varying vec3 vV; varying vec3 vW;
+      uniform float uFade; uniform float uLimbFade; uniform vec4 uClip; uniform vec3 uBody; uniform vec3 uEdge;
+      varying vec3 vN; varying vec3 vV; varying vec3 vW; varying float vLimb;
       void main() {
         if (dot(uClip.xyz, vW) + uClip.w < 0.0) discard;
         vec3 n = normalize(vN), v = normalize(vV);
@@ -132,12 +154,11 @@ function glassSkin() {
         vec3 l = normalize(vec3(-0.5, 0.7, 0.6));
         float spec = pow(max(dot(reflect(-l, n * sign(dot(n, v))), v), 0.0), 48.0);
         vec3 c = mix(uBody, uEdge, f) + spec * 0.35;
-        gl_FragColor = vec4(c, uFade * (0.016 + 0.42 * f + 0.1 * spec));
+        gl_FragColor = vec4(c, uFade * mix(1.0, uLimbFade, vLimb) * (0.016 + 0.42 * f + 0.1 * spec));
       }`,
   });
 }
-const skinTrunk = glassSkin();
-const skinLimb = glassSkin();
+const skinMat = glassSkin();
 const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 1e6);
 
 // ---------------- names ----------------
@@ -149,9 +170,15 @@ const FRIENDLY: Record<string, string> = {
   "Right coronary artery": "Right coronary artery",
   "Right inferolateral branch of right coronary artery": "Right inferolateral branch",
   "????????": "Cardiac vein (unnamed in the atlas)",
+  "Bifurcation of pulmonary trunk": "Pulmonary trunk (bifurcation)",
+  "Inferior vena cava (thoracic part)": "Inferior vena cava",
 };
+const AORTA = new Set(["Ascending aorta", "Aortic arch", "Thoracic aorta", "Abdominal aorta", "Brachiocephalic trunk",
+  "Left common carotid artery", "Left subclavian artery"]);
+const CAVA = new Set(["Superior vena cava", "Inferior vena cava (thoracic part)"]);
+const PULMONARY = new Set(["Pulmonary trunk", "Bifurcation of pulmonary trunk", "Left pulmonary artery", "Right pulmonary artery"]);
 const SHORT: Record<string, string> = { LAD: "LAD", LCx: "circumflex", RCA: "right coronary" };
-const CORONARY = new Set(Object.keys(FRIENDLY).filter((k) => k !== "????????"));
+const CORONARY = new Set(Object.keys(FRIENDLY).slice(0, 6));
 const VENTRICLES = new Set(["Left ventricle", "Right ventricle"]);
 const ATRIA = new Set(["Left atrium", "Right atrium"]);
 const LIMB_RE = /humer|radius|ulna|scaphoid|lunate|triquetr|pisiform|trapezi|capitate|hamate|metacarp|phalan|sesamoid|carp|hand|digit|palm|thenar|forearm|antebrach|brachial|cubital|arm\b|arm\.|of arm|wrist|femur|tibia|fibula|patella|talus|calcane|tars|foot|thigh|leg\b|leg\.|knee|ankle|gluteal|crural|femoral|popliteal|malleol|toe/i;
@@ -169,13 +196,18 @@ const STORE = "cpt.atlas.branchLabels.v1";
 let labels: Record<string, string> = {};
 try { labels = JSON.parse(localStorage.getItem(STORE) ?? "{}").labels ?? {}; } catch { labels = {}; }
 const saveLabels = () => { try { localStorage.setItem(STORE, JSON.stringify(labelFile())); } catch { /* private mode: export still works */ } };
-const labelFile = () => ({ version: 1, source: "Z-Anatomy Startup.blend (tapered export)", nodes: "LAD/LCx/RCA_branch_NN", labels, saved: new Date().toISOString() });
+const labelFile = () => ({ version: 1, source: "Z-Anatomy Startup.blend (atlas export)", nodes: "LAD/LCx/RCA_branch_NN", labels, saved: new Date().toISOString() });
 
 // ---------------- state ----------------
 const branches: THREE.Mesh[] = [];
 const pickables: THREE.Mesh[] = [];
 const veins: THREE.Mesh[] = [];
 const bodyGroup = new THREE.Group();
+const routesGroup = new THREE.Group();          // catheter access routes (D47): hidden unless asked for
+routesGroup.visible = false;
+const rootHide: THREE.Mesh[] = [];              // structures in front of the aortic root, faded out in the root close-up
+const atriaMeshes: THREE.Mesh[] = [];
+const ostia: Record<string, { p: THREE.Vector3; n: THREE.Vector3 }> = {};
 const limbMeshes: THREE.Mesh[] = [];
 const heartC = new THREE.Vector3();
 let sceneNo: 1 | 2 = 1;
@@ -210,11 +242,13 @@ function refreshBranchLook() {
 async function load() {
   const loader = new GLTFLoader();
   const get = (f: string) => loader.loadAsync(`/anatomy/${f}`).catch(() => null);
-  const [heart, skel, skin] = await Promise.all([get("z_anatomy_heart_tapered.glb"), get("z_anatomy_skeleton.glb"), get("z_anatomy_skin.glb")]);
-  if (!heart) throw new Error("z_anatomy_heart_tapered.glb missing in web/public/anatomy/");
-  for (const g of [heart, skel, skin]) g?.scene.updateMatrixWorld(true);
+  // z_anatomy_heart.glb carries the atlas's authored vessel radii (D46); z_anatomy_heart_illustrative.glb is comparison only
+  const [heart, skel, skin, routes] = await Promise.all([get("z_anatomy_heart.glb"), get("z_anatomy_skeleton.glb"),
+    get("z_anatomy_skin.glb"), get("z_anatomy_access_routes.glb")]);
+  if (!heart) throw new Error("z_anatomy_heart.glb missing in web/public/anatomy/");
+  for (const g of [heart, skel, skin, routes]) g?.scene.updateMatrixWorld(true);
   const id = new THREE.Matrix4();
-  [heart, skel, skin].forEach((g) => g?.scene.traverse((o) => {
+  [heart, skel, skin, routes].forEach((g) => g?.scene.traverse((o) => {
     if ((o as THREE.Mesh).isMesh && !o.matrixWorld.equals(id)) throw new Error(`node "${nameOf(o)}" has a non-identity transform`);
   }));
 
@@ -223,8 +257,16 @@ async function load() {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const n = nameOf(o);
+    const os = o.userData.effective_ostium_LPS as number[] | undefined;
+    if (os) ostia[n === "Left coronary artery" ? "LM" : "RCA"] = {
+      p: new THREE.Vector3(...os), n: new THREE.Vector3(...(o.userData.effective_ostium_wall_normal_LPS as number[])),
+    };
     if (/_branch_\d+$/.test(n)) {
       m.material = coronaryMat; branches.push(m); pickables.push(m);
+    } else if (AORTA.has(n) || CAVA.has(n) || PULMONARY.has(n)) {
+      m.material = AORTA.has(n) ? aortaMat : CAVA.has(n) ? cavaMat : pulmonaryMat;
+      pickables.push(m);
+      if (PULMONARY.has(n)) rootHide.push(m);
     } else if (CORONARY.has(n)) {
       m.material = coronaryMat;
       const split = o.children.some((c) => /_branch_\d+$/.test(nameOf(c)));
@@ -233,6 +275,7 @@ async function load() {
     } else if (VENTRICLES.has(n) || ATRIA.has(n)) {
       m.material = VENTRICLES.has(n) ? ventricleMat : atriumMat;
       pickables.push(m);
+      if (ATRIA.has(n)) atriaMeshes.push(m);
       box.expandByObject(m);
       const p = m.geometry.getAttribute("position");
       const tgt = n === "Left ventricle" ? lv : n === "Left atrium" ? la : null;
@@ -240,9 +283,10 @@ async function load() {
     } else if (o.userData.source_parent === "Cardiac veins.g" || /vein|sinus|\?\?\?/i.test(n)) {
       m.material = veinMat; veins.push(m); pickables.push(m);
     } else {
-      m.visible = false;   // valves, papillary muscles (inside) and the atlas's schematic 1 mm great-vessel centrelines
+      m.visible = false;   // valves and papillary muscles (inside the heart)
     }
   });
+  if (!ostia.LM || !ostia.RCA) throw new Error("effective ostia missing from z_anatomy_heart.glb (re-export, D46)");
   box.getCenter(heartC);
   // beat axis from the geometry itself: LV base (LV vertices nearest the LA) -> LV apex
   const laC = la.reduce((a, b) => a.add(b), new THREE.Vector3()).divideScalar(la.length);
@@ -255,11 +299,31 @@ async function load() {
   motion.uAxis.value.copy(apex.clone().sub(base).normalize());
   motion.uLen.value = apex.distanceTo(base);
   motion.uHeartC.value.copy(heartC);
+  // beat envelope: r0 just encloses every chamber, coronary and cardiac-vein vertex, so they move exactly as before
+  let r0 = 0;
+  const pv = new THREE.Vector3();
+  heart.scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || !(m.material === ventricleMat || m.material === atriumMat || m.material === coronaryMat || m.material === veinMat
+      || branches.includes(m))) return;
+    const p = m.geometry.getAttribute("position");
+    for (let i = 0; i < p.count; i++) r0 = Math.max(r0, pv.fromBufferAttribute(p, i).distanceTo(heartC));
+  });
+  motion.uEnv.value.set(r0 + 2, r0 + 120);
   scene.add(heart.scene);
+  if (routes) {
+    routes.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) { m.material = aortaMat; pickables.push(m); }
+    });
+    routesGroup.add(routes.scene);
+  }
+  scene.add(routesGroup);
 
   if (skel) skel.scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
+    if (/\.g$/.test(nameOf(o))) { m.visible = false; return; }   // the atlas's flat "SKELETAL SYSTEM" label board, not a bone
     const limb = LIMB_RE.test(nameOf(o));
     m.material = limb ? boneLimb : boneTrunk;
     m.renderOrder = 1;
@@ -268,8 +332,8 @@ async function load() {
   if (skin) skin.scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
-    const limb = LIMB_RE.test(nameOf(o));
-    m.material = limb ? skinLimb : skinTrunk;
+    if (!m.geometry.getAttribute("_arm") || !m.geometry.getAttribute("_leg")) throw new Error("skin is not the welded export (D48)");
+    m.material = skinMat;
     m.renderOrder = 2;
   });
   if (skel) bodyGroup.add(skel.scene);
@@ -307,7 +371,21 @@ const DIRS: Record<string, { dir: THREE.Vector3; up: THREE.Vector3; caption: str
 const CLIP: Record<string, [THREE.Vector3, number] | null> = {
   feet: [new THREE.Vector3(0, 0, 1), -125], head: [new THREE.Vector3(0, 0, -1), -125],
 };
+const ROOT_DIST = 165, BODY_DIST = 3900;
+const ROOT_CAPTION = "The aortic root: both coronary arteries leave the aorta just above the valve.";
 function poseFor(view: string, dist: number): Pose {
+  if (view === "root") {
+    // looking at the aortic root from outside both ostia: the mean of the two wall normals, lifted a little toward the head;
+    // screen-up is the patient's superior direction
+    const target = ostia.LM.p.clone().add(ostia.RCA.p).multiplyScalar(0.5);
+    const dir = ostia.LM.n.clone().add(ostia.RCA.n).normalize().add(new THREE.Vector3(0, 0, 0.35)).normalize();
+    return { pos: target.clone().addScaledVector(dir, ROOT_DIST), target, up: new THREE.Vector3(0, 0, 1) };
+  }
+  if (view === "body") {
+    // whole body from the front (review of the access routes): centred between the head and the knees
+    const target = new THREE.Vector3(heartC.x, heartC.y, heartC.z - 420);
+    return { pos: target.clone().add(new THREE.Vector3(0, -BODY_DIST, 0)), target, up: new THREE.Vector3(0, 0, 1) };
+  }
   const V = DIRS[view];
   const target = heartC.clone().add(new THREE.Vector3(0, 0, dist > 500 ? 35 : 0));
   return { pos: target.clone().addScaledVector(V.dir.clone().normalize(), dist), target, up: V.up.clone() };
@@ -361,13 +439,45 @@ function caption(text: string) {
   c.style.opacity = "0";
   setTimeout(() => { c.textContent = text; c.style.opacity = "1"; }, 250);
 }
+let rootFade = 1;                                 // 1 = structures in front of the aortic root fully shown
+/** Fade toward the root close-up: the atria (their appendages cover both ostia), the pulmonary arteries and the cardiac veins
+ *  disappear; the ventricles become a ghost so the right-ventricular outflow tract no longer hides the root. */
+function setOpacity(m: THREE.Material, op: number) {
+  const t = op < 0.999;
+  if (m.transparent !== t) { m.transparent = t; m.depthWrite = !t; m.needsUpdate = true; }
+  m.opacity = op;
+}
+function setRootFade(v: number) {
+  rootFade = v;
+  rootHide.forEach((m) => (m.visible = v > 0.02));
+  setOpacity(pulmonaryMat, v);
+  setOpacity(atriumMat, v);
+  setOpacity(ventricleMat, 0.22 + 0.78 * v);
+  atriaMeshes.forEach((m) => (m.visible = v > 0.02));
+  const veinsOn = $("bVeins").classList.contains("on") && !labelMode;
+  veins.forEach((m) => (m.visible = veinsOn && v > 0.5));
+}
+/** Scene 1 views: the whole heart, or a close-up of the aortic root (the pulmonary trunk in front of it is taken away). */
+function setHeartView(v: "front" | "root", ms: number) {
+  if (sceneNo !== 1) return;
+  currentView = v;
+  document.querySelectorAll<HTMLButtonElement>("#heartViews button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+  const f0 = rootFade, f1 = v === "root" ? 0 : 1;
+  if (f1 > 0) setRootFade(Math.max(f0, 0.03));
+  moveTo(poseFor(v, HEART_DIST), ms, (e) => setRootFade(THREE.MathUtils.lerp(f0, f1, e)));
+  caption(v === "root" ? ROOT_CAPTION : "The heart. Drag to turn it; point at a vessel to see its name.");
+}
+function setRoutes(on: boolean) { routesGroup.visible = on; }
 function showScene(n: 1 | 2, ms: number) {
   sceneNo = n;
   $("bHeart").classList.toggle("on", n === 1);
   $("bPatient").classList.toggle("on", n === 2);
   $("views").style.display = n === 2 ? "contents" : "none";
+  $("heartViews").style.display = n === 1 ? "contents" : "none";
+  document.querySelectorAll<HTMLButtonElement>("#heartViews button").forEach((b) => b.classList.toggle("on", b.dataset.v === "front"));
   const f0 = fade;
   const lf0 = limbFade;
+  const rf0 = rootFade;
   currentView = n === 1 && currentView === "lao" ? "lao" : "front";
   if (n === 2) bodyGroup.visible = true;
   setClip("front");
@@ -375,6 +485,7 @@ function showScene(n: 1 | 2, ms: number) {
     // the body fades in during the second half of the pull-out (out during the first half of the push-in)
     fade = n === 2 ? THREE.MathUtils.smoothstep(e, 0.3, 0.95) : f0 * (1 - THREE.MathUtils.smoothstep(e, 0.0, 0.55));
     limbFade = THREE.MathUtils.lerp(lf0, 1, e);
+    setRootFade(THREE.MathUtils.lerp(rf0, 1, e));
     if (e >= 1 && n === 1) bodyGroup.visible = false;
   });
   caption(n === 1 ? "The heart. Drag to turn it; point at a vessel to see its name."
@@ -387,13 +498,13 @@ function setView(v: string, ms: number) {
   document.querySelectorAll<HTMLButtonElement>("#views button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
   const lf0 = limbFade, lf1 = v === "left" || v === "right" ? 0 : 1;
   const prevClip = CLIP[prev], nextClip = CLIP[v];
-  moveTo(poseFor(v, CHEST_DIST), ms, (e) => {
+  moveTo(poseFor(v, v === "body" ? BODY_DIST : CHEST_DIST), ms, (e) => {
     limbFade = THREE.MathUtils.lerp(lf0, lf1, e);
     if (nextClip) setClip(v, THREE.MathUtils.smoothstep(e, 0.2, 0.8));
     else if (prevClip) setClip(prev, 1 - THREE.MathUtils.smoothstep(e, 0.0, 0.5));
     else setClip(v);
   });
-  caption(DIRS[v].caption);
+  caption(v === "body" ? "The whole patient, from the front." : DIRS[v].caption);
 }
 
 // ---------------- hover + label picking ----------------
@@ -489,6 +600,7 @@ $<HTMLInputElement>("lImport").onchange = async (e) => {
 $("bHeart").onclick = () => showScene(1, 2600);
 $("bPatient").onclick = () => showScene(2, 3600);
 document.querySelectorAll<HTMLButtonElement>("#views button").forEach((b) => (b.onclick = () => setView(b.dataset.v!, 2200)));
+document.querySelectorAll<HTMLButtonElement>("#heartViews button").forEach((b) => (b.onclick = () => setHeartView(b.dataset.v as "front" | "root", 2400)));
 $("bVeins").onclick = () => {
   const on = !veins[0]?.visible;
   veins.forEach((v) => (v.visible = on));
@@ -505,8 +617,8 @@ function tick(now: number) {
   motion.uVent.value = ph < 0.42 ? Math.pow(Math.sin((Math.PI * ph) / 0.42), 1.6) : 0;
   motion.uAtr.value = ph > 0.8 ? Math.pow(Math.sin((Math.PI * (ph - 0.8)) / 0.2), 2) : 0;
   motion.uBreath.value = sceneNo === 2 || fade > 0 ? 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / 4.6) : 0;
-  for (const s of [skinTrunk, skinLimb]) s.uniforms.uFade.value = fade;
-  skinLimb.uniforms.uFade.value = fade * limbFade;
+  skinMat.uniforms.uFade.value = fade;
+  skinMat.uniforms.uLimbFade.value = limbFade;
   boneTrunk.opacity = 0.13 * fade;
   boneLimb.opacity = 0.07 * fade * limbFade;
   limbMeshes.forEach((m) => (m.visible = limbFade > 0.01));
@@ -531,10 +643,12 @@ load().then(() => {
   fade = s === 2 ? 1 : 0;
   showScene(s, 0);
   if (s === 1 && v === "lao") { moveTo(poseFor("lao", HEART_DIST), 0); caption(DIRS.lao.caption); }
+  if (s === 1 && v === "root") setHeartView("root", 0);
   if (s === 2 && v !== "front") setView(v, 0);
+  if (params.has("routes")) setRoutes(true);          // review only: the catheter access routes stay hidden in the scenes
   if (params.has("label")) setLabelMode(true);
   requestAnimationFrame(tick);
   requestAnimationFrame(() => requestAnimationFrame(() => (document.body.dataset.ready = "1")));
   // automation hooks for the review recording (same code paths as the buttons)
-  (window as unknown as Record<string, unknown>).atlas = { showScene, setView };
+  (window as unknown as Record<string, unknown>).atlas = { showScene, setView, setHeartView, setRoutes };
 }).catch((e) => { caption(String(e)); throw e; });

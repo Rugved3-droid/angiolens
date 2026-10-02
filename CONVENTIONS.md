@@ -166,17 +166,58 @@ projection engine's convention: +X patient left, +Y posterior, +Z superior, mill
     and inferior. The long axis is 57.7 degrees out of the sagittal plane.
 - **glTF:** vertices are baked to LPS mm and every node has an identity transform. The exporter runs with export_yup=False (no axis
   conversion). The viewer rejects any node with a non-identity transform.
-- **Illustrative coronary calibre** (D43). Atlas coronaries are constant 1.0 mm tubes. `z_anatomy_heart_tapered.glb` re-exports them
-  with curve point radius (a multiplier of the bevel radius), linear in centreline arc length from the proximal end. Diameters,
-  proximal -> distal: LM 4.5 -> 4.5 mm, main LAD/LCx/RCA (spline 0) 3.5 -> 1.5 mm, every other spline 2.0 -> 1.0 mm.
-  - Proximal end of an ostial trunk = the endpoint nearer the ascending-aorta centreline. For any other spline it is the end that
-    touches another coronary spline (<= 2 mm, else the export fails).
-  - Only the tube radius changes: the centrelines, the single transform and the evaluated-geometry export are untouched.
-  - Diameters are re-measured on the exported meshes and tested (+-25%).
-  - The tapered file is THE geometry for the scenes, and later for the X-ray and metrics. `z_anatomy_heart.glb` (untapered) is kept
-    for comparison only. The manifest and the UI say "illustrative calibre".
-- **Body surface** (D44). The skin is Z-Anatomy's own "9: Regions of human body": 240 named surface regions in the same atlas, under the same
-  single transform. Hair, nails and the flat ".g" label boards are excluded.
+- **Vessel calibre = the atlas's AUTHORED radii** (D46, correcting D43). Every Z-Anatomy vessel is a bevelled curve whose tube
+  diameter is 2 x bevel depth (0.5 mm) x the per-point curve radius the atlas authors set: LM about 4.0 -> 3.6 mm, RCA trunk
+  4.0 -> 0.9 mm, ascending aorta 30 -> 28 mm, SVC 21 -> 25 mm. The evaluated export always carried these radii; D43's "constant
+  1.0 mm tubes" was a measurement error.
+  - `z_anatomy_heart.glb` keeps them and is THE geometry for the scenes and, later, the X-ray and metrics. Exported diameters are
+    measured on the meshes and tested against the authored ones (+-25%) [`test_main_export_keeps_atlas_radii`].
+  - `z_anatomy_heart_illustrative.glb` (comparison only) overwrites the coronary radii with a linear taper (LM 4.5; main LAD/LCx/RCA
+    3.5 -> 1.5; side branches 2.0 -> 1.0 mm). The proximal end of an ostial trunk is the endpoint nearer the ascending-aorta centreline;
+    for any other spline, the end touching another coronary spline (<= 2 mm, else the export fails).
+  - Never narrow the aortic root, never subdivide or reshape a centreline. Changing tessellation is allowed (finer steps along and
+    around a tube, closed ends), because it moves no centreline and no radius.
+- **Great vessels** (D46): ascending aorta, arch, thoracic and abdominal aorta (to the iliac bifurcation), brachiocephalic trunk, left
+  common carotid, left subclavian, SVC, thoracic IVC, pulmonary trunk, its bifurcation and both pulmonary arteries (no pulmonary
+  veins). Tubes are closed (fill caps) [`test_great_vessels_present_closed_and_root_not_narrowed`]. The pulmonary trunk is a coarse
+  atlas mesh, refined for display only: subdivided and smoothed with every vertex kept within 1 mm of the original surface; the
+  deviation is measured both ways and logged in the manifest.
+- **Effective ostium** (D46): the point where a coronary centreline, walked from its ostial end, first leaves the closed
+  ascending-aortic surface. It is stored in the manifest and on the LM / RCA_branch_01 nodes (glTF extras), as the future catheter
+  engagement target.
+  - An ostial end buried inside the wall (up to about 4.5 mm) is acceptable: the vessel visibly emerges from the aortic wall.
+  - A FLOATING ostium (proximal end outside the wall) is a defect and stops the export.
+  - Inside/outside is a 7-ray parity vote, cross-checked against the nearest-surface normal. A single ray can be wrong: it was for
+    the LM. Re-checked independently with numpy ray parity [`test_effective_ostia_on_wall_none_floating`].
+- **Catheter access routes** (D47): `z_anatomy_access_routes.glb`, hidden by default in the scenes, same rules and same single
+  transform. Femoral route on both sides (common iliac -> external iliac -> femoral) and the right radial route (right subclavian ->
+  axillary -> brachial -> radial; the brachiocephalic trunk is in the heart file). Continuity is checked link by link
+  [`test_access_routes_continuous_and_bifurcation`].
+- **Body surface** (D44, D48). The skin is Z-Anatomy's own "9: Regions of human body": 240 named surface regions in the same atlas, under the
+  same single transform. Hair, nails and the flat ".g" label boards are excluded.
+  - In the atlas each region is a thin closed shell (Solidify modifier, 3 mm, offset -1). The export switches Solidify off (in memory
+    only), so each region is its single outer sheet.
+  - `preprocess/scripts/weld_skin.py` (`cpt/weld.py`) welds the sheets into ONE mesh. It merges coincident vertices, then snaps the few
+    remaining rim vertices across the crack onto the neighbouring region's rim (never along their own rim; displacement logged).
+  - It then makes the winding consistent and turns every piece outward by ray parity. Normals are smooth across the seams.
+  - Region names are kept in extras.region_names, with per-vertex `_REGION`, `_ARM` and `_LEG` (weights in [0, 1]). The side views
+    fade the limbs by these weights [`test_skin_is_one_welded_surface_facing_out`, `tests/test_weld.py`].
 - **Atlas scenes motion** (D45). Heartbeat and breathing are ONE displacement field, evaluated in the vertex shader at rest positions for
   myocardium, coronaries and veins alike, so a vessel on the surface stays on the surface. The field is a function of position only,
   and nothing is moved per object.
+  - The field has a radial envelope around the heart centre (D46). It is full strength out to a radius that encloses every chamber,
+    coronary and cardiac-vein vertex, so the heart moves exactly as before. It fades to zero 120 mm further out, so the abdominal
+    aorta, the access routes and the limbs stay still. Still a function of position only.
+
+## 11. Working rules (all anatomy and tooling)
+
+- **Every heart uses ITS OWN coronaries.** Never combine anatomy across subjects: ASOCA (real patients), Z-Anatomy (atlas), Visible
+  Heart Labs (specimens) each stay whole and separate. No mixing of meshes, centrelines, radii or landmarks between them.
+- **Z-Anatomy: one transform for everything** (section 10). Never move, rotate or scale a single structure.
+- **No anatomy data in git:** no ASOCA-derived files, no atlas exports (assets/anatomy/, web/public/anatomy/ are git-ignored). Code and
+  docs only.
+- **Blender:** 4.2.16 LTS, always `--disable-autoexec --python-exit-code 1`, always through `preprocess/blender/run_blender.ps1`.
+  - The machine has 11.9 GB RAM, so the runner checks available memory first and refuses to start below the threshold.
+  - It also logs Blender's peak working set. The full export peaks at about 6.2 GB; the read-only probe at about 3.7 GB.
+- **No shell heredocs.** They have failed repeatedly here. Write scripts to files, then run them.
+- **Review gates:** stop with screenshots at every gate and ask; never assume approval.

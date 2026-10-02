@@ -91,10 +91,10 @@ def test_real_export_landmarks_and_scale():
 
 
 @pytest.mark.skipif(not MAN.exists(), reason="Z-Anatomy export not present (git-ignored assets)")
-def test_illustrative_calibre_taper():
+def test_illustrative_calibre_taper_comparison_file():
     m = json.loads(MAN.read_text())
-    cal = m["calibre"]
-    assert cal["status"].startswith("ILLUSTRATIVE")
+    cal = m["calibre"]["illustrative"]                   # D46: comparison only; the main export keeps the atlas radii
+    assert cal["status"].startswith("ILLUSTRATIVE") and "comparison" in cal["status"]
     sp = cal["splines"]
     assert len(sp) == 1 + 6 + 6 + 6 + 14 + 8
     assert sum(s["kind"] == "MAIN" for s in sp) == 3 and sum(s["kind"] == "LM" for s in sp) == 1
@@ -105,4 +105,5 @@ def test_illustrative_calibre_taper():
         assert s["measured_diameter_mm_distal"] == pytest.approx(s["diameter_mm_distal"], rel=0.25), s
         assert s["measured_diameter_mm_proximal"] > s["measured_diameter_mm_distal"], s   # taper runs from the proximal end
     groups = {o["export_group"] for o in m["objects"]}
-    assert {"heart", "heart_tapered", "skeleton", "skin"} <= groups
+    assert {"heart", "heart_illustrative", "access_routes", "skeleton", "skin"} <= groups
+    assert not (ROOT / "assets" / "anatomy" / "z_anatomy_heart_tapered.glb").exists(), "stale tapered file must be deleted (D46)"
