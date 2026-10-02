@@ -13,6 +13,8 @@ Rules (CONVENTIONS.md section 10):
   * Multi-spline coronary curves (LAD, LCx, RCA) are ALSO exported spline by spline as child nodes named
     "<VESSEL>_branch_NN" (NN = spline index + 1). Each is evaluated exactly like its parent (same bevel, same object,
     same single transform), never moved. No clinical branch names are assigned (Rugved labels them in Label mode).
+  * The heart is exported twice in one run: z_anatomy_heart.glb (atlas tubes, comparison) and z_anatomy_heart_tapered.glb
+    (ILLUSTRATIVE coronary calibre via curve point radius, D43). The skin is the atlas's own "9: Regions of human body" (D44).
   * Export runs from a separate EMPTY staging scene with materials off: exporting from the Z-Anatomy scene itself stalls in
     the glTF gatherer (observed here; also reported by Anatria-3D). The viewer does its own shading.
 """
@@ -23,6 +25,7 @@ from pathlib import Path
 import bmesh
 import bpy
 import mathutils
+import mathutils.kdtree
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 frame = json.loads(Path(argv[0]).read_text())
@@ -197,6 +200,9 @@ def export_branches(src, vessel_ob, stage, group):
             me.flip_normals()
         me.materials.clear()
         bpy.context.scene.collection.objects.unlink(tmp)
+        tmp_curve = tmp.data
+        bpy.data.objects.remove(tmp, do_unlink=True)
+        bpy.data.curves.remove(tmp_curve)
         bm = bmesh.new(); bm.from_mesh(me); bmesh.ops.triangulate(bm, faces=bm.faces[:]); tris = len(bm.faces); bm.free()
         name = f"{tag}_branch_{i + 1:02d}"
         ob = bpy.data.objects.new(name, me)
@@ -265,44 +271,184 @@ def export(objs, group, path):
     return made
 
 
+# ---------------- illustrative calibre (radius taper) ----------------
+# Z-Anatomy coronaries are constant-width tubes (bevel_depth 0.5 mm radius). For the LOOK and for the X-ray an
+# ILLUSTRATIVE calibre is applied through curve point radius (a multiplier of bevel_depth), linear in centreline arc length
+# from the proximal end. Nothing is moved: only tube radius changes; centrelines, transform and evaluated export are unchanged.
+TAPER_MM = {"LM": (4.5, 4.5), "MAIN": (3.5, 1.5), "SIDE": (2.0, 1.0)}   # (proximal, distal) DIAMETER, mm
+CORONARY_OBJECTS = ["Left coronary artery", "Anterior interventricular artery", "Septal branches of anterior interventricular artery",
+                    "Circumflex artery of heart", "Right coronary artery", "Right inferolateral branch of right coronary artery"]
+MAIN_PARENT = {"Anterior interventricular artery": "Left coronary artery", "Circumflex artery of heart": "Left coronary artery",
+               "Right coronary artery": "OSTIUM", "Left coronary artery": "OSTIUM"}
+
+
+def control_point_arclength(obj, sp):
+    """Arc length (mm, LPS) of the evaluated centreline at each control point, and the total length."""
+    P = spline_centreline_lps(obj, sp)
+    cum = [0.0]
+    for a, b in zip(P[:-1], P[1:]):
+        cum.append(cum[-1] + (b - a).length)
+    if sp.type == "BEZIER":
+        res = max(int(obj.data.resolution_u), 2)
+        return [cum[min(k * res, len(cum) - 1)] for k in range(len(sp.bezier_points))], cum[-1]
+    return cum, cum[-1]
+
+
+def apply_taper():
+    lines = {(n, i): spline_centreline_lps(bpy.data.objects[n], sp)
+             for n in CORONARY_OBJECTS for i, sp in enumerate(bpy.data.objects[n].data.splines)}
+    aorta = bpy.data.objects.get("Ascending aorta")
+    aorta_lines = [spline_centreline_lps(aorta, sp) for sp in aorta.data.splines]
+    out = []
+    for n in CORONARY_OBJECTS:
+        o = bpy.data.objects[n]
+        base_r_mm = o.data.bevel_depth * (M @ o.matrix_world).to_scale()[0]
+        for i, sp in enumerate(o.data.splines):
+            P = lines[(n, i)]
+            ends = {"start": P[0], "end": P[-1]}
+            if MAIN_PARENT.get(n) == "OSTIUM" and i == 0:
+                # ostial trunk: proximal end = endpoint nearer the ascending-aorta centreline (aortic root)
+                d = {k: min(nearest_on(L, e)[0] for L in aorta_lines) for k, e in ends.items()}
+                prox = min(d, key=d.get)
+                why = f"ostial trunk: endpoint nearer the aortic-root centreline ({d[prox]:.1f} vs {max(d.values()):.1f} mm)"
+            else:
+                best = None
+                for k, e in ends.items():
+                    for key, L in lines.items():
+                        if key != (n, i):
+                            g = nearest_on(L, e)[0]
+                            if best is None or g < best[0]:
+                                best = (g, k, key)
+                prox = best[1]
+                why = f"attached end: {best[2][0]} spline {best[2][1]} at {best[0]:.2f} mm"
+                if best[0] > ATTACH_TOL_MM:
+                    raise SystemExit(f"taper {n} spline {i}: no attachment within {ATTACH_TOL_MM} mm ({why})")
+            kind = "LM" if n == "Left coronary artery" else "MAIN" if (i == 0 and n in MAIN_PARENT) else "SIDE"
+            d0, d1 = TAPER_MM[kind]
+            s_cp, total = control_point_arclength(o, sp)
+            pts = list(sp.bezier_points) if sp.type == "BEZIER" else list(sp.points)
+            old = [p.radius for p in pts]
+            for p, sv in zip(pts, s_cp):
+                t = sv / total if total > 0 else 0.0
+                if prox == "end":
+                    t = 1.0 - t
+                p.radius = ((d0 + (d1 - d0) * t) / 2.0) / base_r_mm
+            out.append({"object": n, "spline_index": i, "kind": kind, "proximal_end": prox, "proximal_reason": why,
+                        "diameter_mm_proximal": d0, "diameter_mm_distal": d1, "length_mm": round(total, 2),
+                        "base_bevel_radius_mm": round(base_r_mm, 4), "previous_point_radii_range": [min(old), max(old)],
+                        "calibre": "illustrative"})
+    log(f"taper applied to {len(out)} coronary splines")
+    return out
+
+
+def measured_end_diameters(ob, centreline):
+    """Mean tube diameter (mm) over the first and last 8% of the centreline samples, measured on the exported mesh."""
+    kd = mathutils.kdtree.KDTree(len(centreline))
+    for k, c in enumerate(centreline):
+        kd.insert(c, k)
+    kd.balance()
+    n = len(centreline)
+    a, b = [], []
+    for v in ob.data.vertices:
+        c, k, d = kd.find(v.co)
+        if 0 < k < 0.08 * n:
+            a.append(2 * d)
+        elif 0.92 * n < k < n - 1:
+            b.append(2 * d)
+    return (round(sum(a) / len(a), 2) if a else None, round(sum(b) / len(b), 2) if b else None)
+
+
+def cleanup(made):
+    """Remove one export pass's objects and meshes and give the atlas objects their names back (in memory; never saved)."""
+    for ob in made:
+        me = ob.data
+        bpy.data.objects.remove(ob, do_unlink=True)
+        if me is not None and me.users == 0:
+            bpy.data.meshes.remove(me)
+    for o in bpy.data.objects:
+        if o.name.startswith("__src__"):
+            o.name = o.name[len("__src__"):]
+    for sc in list(bpy.data.scenes):
+        if sc.name.startswith("__EXPORT_"):
+            bpy.data.scenes.remove(sc)
+
+
+# skin = Z-Anatomy's own body surface ("9: Regions of human body", tiled into named surface regions), same atlas
+SKIN_EXCLUDE = ("hair", "nail", "perionyx", "eyelash", "eyebrow")
+skin = [o for o in bpy.context.scene.objects if (coll_path(o) or "").startswith("Scene Collection/9: Regions of human body")
+        and not o.name.endswith(".g") and not any(k in o.name.lower() for k in SKIN_EXCLUDE) and has_geometry(o)]
+log(f"skin: {len(skin)} surface-region meshes (excluded *.g boards and {SKIN_EXCLUDE})")
+
 out_dir.mkdir(parents=True, exist_ok=True)
 log(f"selected heart {len(heart_set)} objects, skeleton {len(skel)} objects")
-heart_objs = export(heart_set, "heart", out_dir / "z_anatomy_heart.glb")
+heart_names = [o.name for o in heart_set]
+heart_objs = export(heart_set, "heart", out_dir / "z_anatomy_heart.glb")          # untapered: kept for comparison
+chk_verts = {o.name: [tuple(v.co) for v in o.data.vertices] for o in heart_objs
+             if o.name in ("Left ventricle", "Right ventricle", "Left atrium", "Right atrium")}
+n_untapered = len(manifest)
+cleanup(heart_objs)
+
+taper = apply_taper()
+dg = bpy.context.evaluated_depsgraph_get()
+dg.update()
+tap_objs = export([bpy.data.objects[n] for n in heart_names], "heart_tapered", out_dir / "z_anatomy_heart_tapered.glb")
+meas = {}
+for ob in tap_objs:
+    if "_branch_" in ob.name:
+        src = bpy.data.objects["__src__" + ob["parent_vessel"]]
+        meas[(ob["parent_vessel"], ob["spline_index"])] = measured_end_diameters(
+            ob, spline_centreline_lps(src, src.data.splines[ob["spline_index"]]))
+for t in taper:
+    m0 = meas.get((t["object"], t["spline_index"]))
+    if m0:
+        t["measured_diameter_mm_proximal"], t["measured_diameter_mm_distal"] = m0 if t["proximal_end"] == "start" else m0[::-1]
+for e in manifest[n_untapered:]:
+    if e.get("parent_vessel") or e["anatomical_name"] in CORONARY_OBJECTS:
+        e["calibre"] = "illustrative (taper via curve point radius; see manifest.calibre)"
+cleanup(tap_objs)
+
 skel_objs = export(skel, "skeleton", out_dir / "z_anatomy_skeleton.glb")
+skin_objs = export(skin, "skin", out_dir / "z_anatomy_skin.glb")
 
 # ---------------- scale checks with real vertices (LPS mm) ----------------
 import numpy as np  # noqa: E402  (Blender ships numpy)
 
-
-def verts(ob):
-    return np.array([v.co[:] for v in ob.data.vertices])
-
-
-by = {o.name: o for o in heart_objs + skel_objs if o.parent is None or "_branch_" not in o.name}
-chamber = np.vstack([verts(by[n]) for n in ("Left ventricle", "Right ventricle", "Left atrium", "Right atrium") if n in by])
+CH = {n: np.array(v) for n, v in chk_verts.items()}
+chamber = np.vstack([CH[n] for n in ("Left ventricle", "Right ventricle", "Left atrium", "Right atrium")])
 cen = chamber.mean(0)
 w, V = np.linalg.eigh(np.cov((chamber - cen).T))
 ax = V[:, -1]
 proj = (chamber - cen) @ ax
-heart_long_mm = float(proj.max() - proj.min())
-lv = verts(by["Left ventricle"])
-# apex = LV vertex farthest from the base (atria centroid) along the long axis
-atria = np.vstack([verts(by[n]) for n in ("Left atrium", "Right atrium") if n in by]).mean(0)
+four_chamber_mm = float(proj.max() - proj.min())
+lv, la = CH["Left ventricle"], CH["Left atrium"]
+atria = np.vstack([CH["Left atrium"], CH["Right atrium"]]).mean(0)
 dirn = ax if np.dot(lv.mean(0) - atria, ax) > 0 else -ax
-apex = lv[np.argmax((lv - atria) @ dirn)]
-t6 = verts(by["Vertebra T6"])
+apex = lv[np.argmax((lv - atria) @ dirn)]                  # LV vertex farthest from the atria along the principal axis
+dla = np.linalg.norm(lv - la.mean(0), axis=1)
+base = lv[dla <= np.percentile(dla, 10)].mean(0)            # LV base: the 10% of LV vertices nearest the left atrium (mitral side)
+lv_long_mm = float(np.linalg.norm(apex - base))
+t6 = np.array([v.co[:] for v in next(o for o in skel_objs if o.name == "Vertebra T6").data.vertices])
 ys = t6[:, 1]
 body = t6[ys <= ys.min() + 0.35 * (ys.max() - ys.min())]   # anterior 35% of the AP extent = vertebral body (+Y is posterior)
 t6_body_width = float(body[:, 0].max() - body[:, 0].min())
 long_axis_from_sagittal_deg = float(np.degrees(np.arcsin(abs(dirn[0]))))  # angle of the axis out of the sagittal (y-z) plane
 checks = {
-    "heart_long_axis_mm": round(heart_long_mm, 1), "heart_long_axis_ok": 90 <= heart_long_mm <= 140,
+    # D42: primary = LV long axis 70-110 mm; secondary = four-chamber principal-axis length 100-160 mm (both catch unit errors)
+    "lv_long_axis_mm": round(lv_long_mm, 1), "lv_long_axis_ok": 70 <= lv_long_mm <= 110,
+    "four_chamber_principal_axis_mm": round(four_chamber_mm, 1), "four_chamber_principal_axis_ok": 100 <= four_chamber_mm <= 160,
     "t6_vertebral_body_width_mm": round(t6_body_width, 1), "t6_body_width_ok": 30 <= t6_body_width <= 50,
-    "heart_centroid_LPS": cen.round(1).tolist(), "apex_LPS": apex.round(1).tolist(),
+    "heart_centroid_LPS": cen.round(1).tolist(), "apex_LPS": apex.round(1).tolist(), "lv_base_LPS": base.round(1).tolist(),
     "apex_minus_base_direction_LPS": dirn.round(3).tolist(),
     "apex_is_left_anterior_inferior": bool(dirn[0] > 0 and dirn[1] < 0 and dirn[2] < 0),
     "long_axis_angle_from_sagittal_plane_deg": round(long_axis_from_sagittal_deg, 1),
 }
 (out_dir / "frame_checks.json").write_text(json.dumps(checks, indent=1))
-(out_dir / "manifest.json").write_text(json.dumps({"frame": frame, "checks": checks, "objects": manifest}, indent=1))
-print("EXPORTED heart", len(heart_objs), "skeleton", len(skel_objs), json.dumps(checks))
+(out_dir / "manifest.json").write_text(json.dumps({
+    "frame": frame, "checks": checks,
+    "calibre": {"status": "ILLUSTRATIVE calibre, not measured anatomy", "diameters_mm_proximal_distal": TAPER_MM,
+                "method": "curve point radius = target radius / bevel radius, linear in centreline arc length from the proximal end",
+                "files": {"tapered": "z_anatomy_heart_tapered.glb (scenes; to be used by the X-ray and metrics)",
+                          "untapered": "z_anatomy_heart.glb (original constant 1.0 mm tubes; comparison only)"},
+                "splines": taper},
+    "objects": manifest}, indent=1))
+print("EXPORTED heart", len(heart_objs), "tapered", len(tap_objs), "skeleton", len(skel_objs), "skin", len(skin_objs), json.dumps(checks))

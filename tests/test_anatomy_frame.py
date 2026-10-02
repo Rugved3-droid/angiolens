@@ -74,10 +74,35 @@ def test_real_export_landmarks_and_scale():
         assert C[a][0] > C[b][0] + 100, f"{a} must be patient-left (+x) of {b}"
     assert C["Vertebra T6"][1] > C["Body of sternum"][1] + 50, "vertebral bodies must be posterior (+y) to the sternum"
     assert C["Frontal bone"][2] > C["Calcaneus.l"][2] + 1200, "skull must be superior (+z) to the feet"
-    assert ck["heart_long_axis_ok"], ck["heart_long_axis_mm"]
+    # D42: primary LV long axis 70-110 mm, secondary four-chamber principal-axis length 100-160 mm (unit-error guards)
+    assert ck["lv_long_axis_ok"], ck["lv_long_axis_mm"]
+    assert ck["four_chamber_principal_axis_ok"], ck["four_chamber_principal_axis_mm"]
     assert ck["t6_body_width_ok"], ck["t6_vertebral_body_width_mm"]
     assert ck["apex_is_left_anterior_inferior"], ck["apex_minus_base_direction_LPS"]   # sanity only, not the definition
+    R = np.array(m["frame"]["matrix_source_to_LPS_mm"])
+    checked = 0
     for o in m["objects"]:                              # one shared transform: bbox_LPS == R*s*bbox_source (axis-aligned case)
-        R = np.array(m["frame"]["matrix_source_to_LPS_mm"])
+        if "bbox_source" not in o:                      # split spline branches: same transform, no separate source object
+            continue
+        checked += 1
         lo, hi = np.array(o["bbox_source"])
         np.testing.assert_allclose(np.sort(np.stack([R @ lo, R @ hi]), 0), np.array(o["bbox_LPS"]), atol=0.05)
+    assert checked > 500
+
+
+@pytest.mark.skipif(not MAN.exists(), reason="Z-Anatomy export not present (git-ignored assets)")
+def test_illustrative_calibre_taper():
+    m = json.loads(MAN.read_text())
+    cal = m["calibre"]
+    assert cal["status"].startswith("ILLUSTRATIVE")
+    sp = cal["splines"]
+    assert len(sp) == 1 + 6 + 6 + 6 + 14 + 8
+    assert sum(s["kind"] == "MAIN" for s in sp) == 3 and sum(s["kind"] == "LM" for s in sp) == 1
+    for s in sp:
+        if "measured_diameter_mm_proximal" not in s:
+            continue                                     # only split branches (LAD/LCx/RCA) are measured
+        assert s["measured_diameter_mm_proximal"] == pytest.approx(s["diameter_mm_proximal"], rel=0.25), s
+        assert s["measured_diameter_mm_distal"] == pytest.approx(s["diameter_mm_distal"], rel=0.25), s
+        assert s["measured_diameter_mm_proximal"] > s["measured_diameter_mm_distal"], s   # taper runs from the proximal end
+    groups = {o["export_group"] for o in m["objects"]}
+    assert {"heart", "heart_tapered", "skeleton", "skin"} <= groups

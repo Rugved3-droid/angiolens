@@ -390,3 +390,56 @@ segments) → phone as detector (/remote) → DRR.
 - **Download:** needs a logged-in account (HTTP 401), so it was not attempted (MANUAL_DOWNLOAD_REQUIRED).
 - **Content:** coronary arteries only; no same-ID whole-heart model was found in public searches.
 - Per Rugved (2026-10-01) they are SKIPPED: under the rule "every heart uses its own coronaries", a coronary-only model cannot be the hero heart.
+
+## 2026-10-01 (Scenes 1 and 2 on the Z-Anatomy hero heart; still NOT connected to the C-arm)
+
+**D42 Scale checks redefined** (Rugved: "my spec was ambiguous, not a real failure").
+- PRIMARY: LV long axis, base to apex, 70-110 mm. Measured 84.3 mm: PASS.
+- SECONDARY: four-chamber principal-axis length, 100-160 mm. Measured 142.0 mm: PASS.
+- Both exist to catch unit errors. This replaces the single 90-140 mm "heart long axis" check (D40, now closed).
+- Definitions are in CONVENTIONS section 10 and frame_checks.json; tests in tests/test_anatomy_frame.py.
+
+**D43 Z-Anatomy is the hero heart (Rugved). Illustrative coronary calibre.**
+- **Taper:** the constant 1.0 mm atlas tubes are re-exported with curve point radius, linear in arc length from the proximal end:
+  LM 4.5 mm; main LAD/LCx/RCA 3.5 -> 1.5 mm; side branches 2.0 -> 1.0 mm.
+- **Which spline is "main":** spline 0 of the LAD, LCx and RCA objects. Each one attaches to the LM (LAD, LCx) or starts at the aortic root
+  (RCA). All 41 splines of the 6 coronary objects are tapered: the LM, the 3 split vessels, the septal branches and the right inferolateral
+  branch.
+- **Proximal ends:** every spline's proximal end was found by attachment (gap <= 2 mm) or, for ostial trunks, by distance to the
+  ascending-aorta centreline (RCA 12.7 vs 63.9 mm; LM 11.5 vs 18.5 mm). All 41 came out as the spline "start".
+- **Measured on the exported meshes:** main splines about 3.3-3.4 -> 1.6 mm, side branches about 1.95 -> 1.02 mm.
+- **Files:** the export runs once and writes both z_anatomy_heart.glb (untapered, comparison) and z_anatomy_heart_tapered.glb (used).
+  The manifest records method, targets, measurements and "ILLUSTRATIVE calibre"; the UI footer says "vessel calibre is illustrative".
+- **For later:** the X-ray and metrics are to use the tapered geometry when the atlas is connected (not yet).
+
+**D44 Body surface from the same atlas.**
+- Z-Anatomy contains a skin: "9: Regions of human body", the body surface tiled into named regions (pectoral, presternal, mammary, ...).
+- 240 region meshes are exported with the same single transform (z_anatomy_skin.glb). Excluded: hair, nail plates, perionyx, eyebrows,
+  eyelashes, and "Regions of human body.g", a flat board beside the body.
+- No other body model is used.
+- The region seams show faintly as lines in the glass shading; this is left as is.
+
+**D45 Atlas scenes** (web/atlas.html, src/atlasHero.ts; e2e: atlas_shots.mjs, atlas_label.e2e.mjs).
+- **Scene 1, the heart:** PBR materials. Ventricles deep muscle red, atria lighter and browner. Coronaries saturated red with clearcoat
+  gloss. Cardiac veins dark blue, with a toggle. Studio lighting: environment light plus key, rim and fill lights that travel with the
+  camera. Free orbit; hover names; no numbers.
+- **Not shown:** valves and papillary muscles (internal). The atlas's great vessels (aorta, SVC, pulmonary arteries) are schematic 1 mm
+  centreline curves and are hidden; whether to give them an illustrative calibre too is OPEN (Rugved).
+- **Heartbeat:** about 64 per minute; ventricles squeeze radially and the base descends, with an atrial kick before systole. Breathing is a
+  4.6 s cycle that lowers the heart, swells the chest skin and lifts the anterior chest wall.
+- **Shared field:** all of it is the one position-only displacement field (CONVENTIONS section 10).
+- **Scene 2, the heart in the patient:**
+  - Glass skin with Fresnel edge glow; faint bones; the opaque heart inside.
+  - "Heart in the patient" is a smooth pull-out that fades the body in.
+  - Views: Front, Left side, Right side, From the feet, From the head. Each is a smooth camera move with a one-line caption.
+  - In the side views the arms fade out. The axial views cut the body with a section plane 125 mm below or above the heart centre,
+    so the camera does not have to look through the legs or the head.
+  - Every caption was checked against the camera basis (e.g. from the feet with anterior up, patient left is screen right).
+- **Shaders:** every program is precompiled at load, so the pull-out does not stall.
+- **Label mode:** click any of the 26 branch nodes and pick D1/D2/OM1/PDA/PLB/acute marginal/conus/... from fixed lists.
+  - Labels are saved in localStorage and can be exported and imported as atlas_branch_labels.json (version 1). An optional default can
+    be shipped at web/public/anatomy/.
+  - Veins hide while labelling, since their blue clashes with the LAD colour family.
+  - It does not block the scenes. Unlabeled branches show "<vessel> (branch not yet named)" on hover.
+- **Recording:** made inside the page. MediaRecorder captures a 2D composite of the WebGL canvas, the background and the caption.
+  Playwright's screencast dropped most transition frames, while the page itself runs at 27-60 fps.

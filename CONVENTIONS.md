@@ -157,10 +157,26 @@ projection engine's convention: +X patient left, +Y posterior, +Z superior, mill
   matrix_source_to_LPS_mm = diag(1000, 1000, 1000).
 - **Scale checks** (with real vertices, in `assets/anatomy/frame_checks.json`):
   - T6 vertebral body width: 32.7 mm. PASS (30-50 mm).
-  - Heart long axis: 142.0 mm. **FAIL** (90-140 mm). It is measured as the extent of the four chambers (incl. both atria)
-    along their first principal axis. For information: the LV long axis (LV base nearest the left atrium -> apex) is 84.3 mm. The test is left failing,
-    with the threshold unchanged, pending Rugved's decision on the definition.
+  - PRIMARY: LV long axis 84.3 mm. PASS (70-110 mm). Apex = LV vertex farthest from the atria centroid along the four-chamber
+    principal axis; base = mean of the 10% of LV vertices nearest the left-atrium centroid (mitral side).
+  - SECONDARY: four-chamber principal-axis length 142.0 mm. PASS (100-160 mm). Extent of LV+RV+LA+RA vertices along their first
+    principal axis (includes the atria, hence longer than the LV).
+  - Both exist to catch unit errors (a metre/centimetre slip fails both by a factor of ten), not to grade anatomy (D42).
   - Apex (sanity only, not the definition of left): the apex-minus-base direction is [0.845, -0.295, -0.446], i.e. left, anterior
     and inferior. The long axis is 57.7 degrees out of the sagittal plane.
 - **glTF:** vertices are baked to LPS mm and every node has an identity transform. The exporter runs with export_yup=False (no axis
   conversion). The viewer rejects any node with a non-identity transform.
+- **Illustrative coronary calibre** (D43). Atlas coronaries are constant 1.0 mm tubes. `z_anatomy_heart_tapered.glb` re-exports them
+  with curve point radius (a multiplier of the bevel radius), linear in centreline arc length from the proximal end. Diameters,
+  proximal -> distal: LM 4.5 -> 4.5 mm, main LAD/LCx/RCA (spline 0) 3.5 -> 1.5 mm, every other spline 2.0 -> 1.0 mm.
+  - Proximal end of an ostial trunk = the endpoint nearer the ascending-aorta centreline. For any other spline it is the end that
+    touches another coronary spline (<= 2 mm, else the export fails).
+  - Only the tube radius changes: the centrelines, the single transform and the evaluated-geometry export are untouched.
+  - Diameters are re-measured on the exported meshes and tested (+-25%).
+  - The tapered file is THE geometry for the scenes, and later for the X-ray and metrics. `z_anatomy_heart.glb` (untapered) is kept
+    for comparison only. The manifest and the UI say "illustrative calibre".
+- **Body surface** (D44). The skin is Z-Anatomy's own "9: Regions of human body": 240 named surface regions in the same atlas, under the same
+  single transform. Hair, nails and the flat ".g" label boards are excluded.
+- **Atlas scenes motion** (D45). Heartbeat and breathing are ONE displacement field, evaluated in the vertex shader at rest positions for
+  myocardium, coronaries and veins alike, so a vessel on the surface stays on the surface. The field is a function of position only,
+  and nothing is moved per object.
