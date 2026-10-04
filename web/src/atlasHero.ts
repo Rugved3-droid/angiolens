@@ -8,6 +8,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { CathLab } from "./cathLab";
+import { CathSim, type Access, type Target } from "./cath";
 
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -105,17 +106,30 @@ const TISSUE_LIGHT = /* glsl */ `
 }`;
 const RIM_LIGHT = /* glsl */ `
 outgoingLight += uRimColor * pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0) * 0.38 * uRim;`;
-function withBeat<T extends THREE.Material>(m: T, opts: { tissue?: boolean } = {}): T {
+/** Scene 5 contrast window (mm along the coronary tree from the effective ostium): the SAME uniform object as the X-ray's
+ *  angio.fill once the cath lab exists, so the 3D glow and the angiogram fill together. Default: no contrast. */
+const fillU = { uFill: { value: new THREE.Vector2(-1e9, -1e9) } };
+// contrast in 3D: the filled part glows, with a brighter band at the moving front (needs the per-vertex _s from atlas_fill.bin)
+const FILL_LIGHT = /* glsl */ `
+{
+  float filled = step(vS, uFill.x) * step(uFill.y, vS);
+  float band = uFill.x < 1e8 ? exp(-pow((vS - uFill.x) / 4.0, 2.0)) : 0.0;
+  outgoingLight = mix(outgoingLight, vec3(1.0, 0.93, 0.82), 0.55 * filled) + vec3(1.0, 0.75, 0.45) * 1.6 * band;
+}`;
+function withBeat<T extends THREE.Material>(m: T, opts: { tissue?: boolean; fill?: boolean } = {}): T {
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, motion, rimU);
-    sh.vertexShader = FIELD + "\nvarying vec3 vRest;\n" + sh.vertexShader.replace("#include <begin_vertex>",
-      "vec3 transformed = cptBeat(vec3(position));\n  vRest = position;");
-    let f = "uniform float uRim; uniform vec3 uRimColor;\n" + (opts.tissue ? TISSUE_FRAG_HEAD : "varying vec3 vRest;") + "\n" + sh.fragmentShader;
+    Object.assign(sh.uniforms, motion, rimU, opts.fill ? fillU : {});
+    sh.vertexShader = FIELD + "\nvarying vec3 vRest;\n" + (opts.fill ? "attribute float _s; varying float vS;\n" : "")
+      + sh.vertexShader.replace("#include <begin_vertex>",
+        "vec3 transformed = cptBeat(vec3(position));\n  vRest = position;" + (opts.fill ? "\n  vS = _s;" : ""));
+    let f = "uniform float uRim; uniform vec3 uRimColor;\n" + (opts.tissue ? TISSUE_FRAG_HEAD : "varying vec3 vRest;") + "\n"
+      + (opts.fill ? "uniform vec2 uFill; varying float vS;\n" : "") + sh.fragmentShader;
     if (opts.tissue) f = f.replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n" + TISSUE_NORMAL);
-    f = f.replace("#include <opaque_fragment>", (opts.tissue ? TISSUE_LIGHT : "") + RIM_LIGHT + "\n#include <opaque_fragment>");
+    f = f.replace("#include <opaque_fragment>", (opts.tissue ? TISSUE_LIGHT : "") + (opts.fill ? FILL_LIGHT : "") + RIM_LIGHT
+      + "\n#include <opaque_fragment>");
     sh.fragmentShader = f;
   };
-  m.customProgramCacheKey = () => (opts.tissue ? "cptBeatTissue" : "cptBeat");
+  m.customProgramCacheKey = () => (opts.tissue ? "cptBeatTissue" : opts.fill ? "cptBeatFill" : "cptBeat");
   return m;
 }
 /** Shared section plane for the body (skin + bones) in the axial views: keep dot(n, p) + w >= 0. */
@@ -261,7 +275,7 @@ const atriaMeshes: THREE.Mesh[] = [];
 const ostia: Record<string, { p: THREE.Vector3; n: THREE.Vector3 }> = {};
 const limbMeshes: THREE.Mesh[] = [];
 const heartC = new THREE.Vector3();
-let sceneNo: 1 | 2 | 3 | 4 = 1;
+let sceneNo: 1 | 2 | 3 | 4 | 5 = 1;
 let lab: CathLab | null = null;
 const treeLeft: THREE.Mesh[] = [];
 const treeRight: THREE.Mesh[] = [];
@@ -272,6 +286,23 @@ let fade = 0;
 let limbFade = 1;
 let labelMode = false;
 let selected: THREE.Mesh | null = null;
+
+// ---- Scene 5 (D53): catheter + contrast, ILLUSTRATIVE ----
+let cath: CathSim | null = null;
+const fillable = new Set<THREE.Mesh>();                  // 3D coronary nodes that carry the per-vertex _s (contrast fill)
+const coronaryFillMat = withBeat(new THREE.MeshPhysicalMaterial({
+  color: "#ff1418", emissive: "#a0000a", emissiveIntensity: 0.8, roughness: 0.24, clearcoat: 0.9, clearcoatRoughness: 0.12,
+}), { fill: true });
+const catheterMat = withBeat(new THREE.MeshPhysicalMaterial({
+  color: "#e8eef6", roughness: 0.32, clearcoat: 0.7, clearcoatRoughness: 0.2, emissive: "#8aa2bf", emissiveIntensity: 0.55,
+}));
+const wireMat = withBeat(new THREE.MeshPhysicalMaterial({ color: "#c9d2dc", metalness: 0.9, roughness: 0.22 }));
+const puffMat = new THREE.MeshBasicMaterial({ color: "#fff1dc", transparent: true, opacity: 0.45, depthWrite: false });
+/** Heartbeat: always on in Scenes 1-2; paused by default in Scenes 3-5 ("Beating heart" toggle); on during a cine injection. */
+let beatOn = false;
+let cathAccess: Access = "femoral_right";
+let cathTarget: Target = "left";
+let operatorAccess: "femoral" | "radial" = "femoral";
 
 function branchColor(name: string): string {
   const m = /^(LAD|LCx|RCA)_branch_(\d+)$/.exec(name)!;
@@ -407,8 +438,23 @@ async function load() {
       return out!;
     };
     const bodyBox = new THREE.Box3().setFromObject(skin.scene);
-    lab = new CathLab(renderer, { left: geo(xrGeo[0]), right: geo(xrGeo[1]), bone: geo(xrGeo[2]), heart: geo(xrGeo[3]),
-      isocenter: xrMeta.isocenter_LPS }, bodyBox);
+    // ---- Scene 5 data (D53): catheter routes/shapes and the contrast-fill distances (per vertex, along the tree) ----
+    const cathData = await fetch("/anatomy/atlas_cath.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const fillBuf = await fetch("/anatomy/atlas_fill.bin").then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+    const xl = geo(xrGeo[0]), xr = geo(xrGeo[1]);
+    const fillOf = (key: string, g: THREE.BufferGeometry) => {
+      const e = cathData?.fill_index?.[key];
+      if (!e || !fillBuf) return false;
+      const p = g.getAttribute("position");
+      if (p.count !== e.count || Math.abs(p.getX(0) - e.first_vertex[0]) > 0.01 || Math.abs(p.getZ(0) - e.first_vertex[2]) > 0.01)
+        throw new Error(`fill data does not match ${key} (re-run build_atlas_cath.py)`);
+      g.setAttribute("_s", new THREE.BufferAttribute(new Float32Array(fillBuf, e.offset * 4, e.count), 1));
+      return true;
+    };
+    if (cathData) { fillOf("xray_left", xl); fillOf("xray_right", xr); }
+    lab = new CathLab(renderer, { left: xl, right: xr, bone: geo(xrGeo[2]), heart: geo(xrGeo[3]), isocenter: xrMeta.isocenter_LPS },
+      bodyBox, { glsl: FIELD, uniforms: motion });
+    fillU.uFill = lab.angio.fill;                       // ONE fill window for the 3D glow and the X-ray
     lab.room.visible = lab.rig.visible = false;
     scene.add(lab.room, lab.rig);
     for (const b of branches) (/^RCA_/.test(b.name) ? treeRight : treeLeft).push(b);
@@ -417,6 +463,15 @@ async function load() {
       if (n === "Left coronary artery" || n === "Septal branches of anterior interventricular artery") treeLeft.push(o as THREE.Mesh);
       if (n === "Right inferolateral branch of right coronary artery") treeRight.push(o as THREE.Mesh);
     });
+    if (cathData) {
+      for (const m of [...treeLeft, ...treeRight]) if (fillOf(`node:${nameOf(m)}`, m.geometry)) fillable.add(m);
+      cath = new CathSim(cathData, lab.angio, catheterMat, wireMat, puffMat);
+      lab.angio.fill.value.set(1e9, -1e9);              // the sim starts with "no contrast"; outside Scene 5 the trees are full
+      lab.angio.setDevices([]);
+      cath.group.visible = false;
+      scene.add(cath.group);
+      cath.onPhase = (p) => cathCaption(p);
+    }
   }
 
   // compile every program now (body included) so the pull-out never stalls on a first-use shader compile
@@ -532,6 +587,9 @@ function setRootFade(v: number) {
   setOpacity(pulmonaryMat, v);
   setOpacity(atriumMat, v);
   setOpacity(ventricleMat, 0.22 + 0.78 * v);
+  // Scene 5: the catheter lies INSIDE the aorta, so the root close-up turns the aortic wall to glass
+  // (and the access routes share this material: the catheter must be seen advancing inside them)
+  setOpacity(aortaMat, sceneNo === 5 ? 0.3 : 1);
   atriaMeshes.forEach((m) => (m.visible = v > 0.02));
   const veinsOn = $("bVeins").classList.contains("on") && !labelMode;
   veins.forEach((m) => (m.visible = veinsOn && v > 0.5));
@@ -557,26 +615,33 @@ const CARM_VIEWS: Record<string, { a: number; b: number; caption: string }> = {
   raocaud: { a: -30, b: -25, caption: "Right oblique, tilted toward the feet: the circumflex and its branches open up." },
   spider: { a: 40, b: -30, caption: "The spider view: left oblique and toward the feet; the left main splits like a spider's legs." },
 };
-type LabCam = "room" | "operator" | "beam" | "split";
+type LabCam = "room" | "operator" | "beam" | "split" | "root";
 let labCam: LabCam = "room";
 let carmView = "ap";
 function labPose(cam: LabCam): Pose {
-  if (cam === "operator") return lab!.operatorPose(heartC);
+  if (cam === "operator") return lab!.operatorPose(heartC, sceneNo === 5 ? (cathAccess === "radial_right" ? "radial" : "femoral") : operatorAccess);
   if (cam === "beam") return lab!.beamPose();
   if (cam === "split") return lab!.detectorSidePose(heartC);
+  if (cam === "root") return poseFor("root", HEART_DIST);
   return lab!.roomPose(heartC);
 }
 function syncLabButtons() {
-  document.querySelectorAll<HTMLButtonElement>("#carmViews button").forEach((b) => b.classList.toggle("on", b.dataset.v === carmView));
-  document.querySelectorAll<HTMLButtonElement>("#labCams button, #xrCams button").forEach((b) => b.classList.toggle("on", b.dataset.v === labCam));
-  document.querySelectorAll<HTMLButtonElement>("#inject button").forEach((b) => b.classList.toggle("on", b.dataset.v === lab?.injected));
+  const on = (sel: string, v: string | undefined) =>
+    document.querySelectorAll<HTMLButtonElement>(sel).forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+  on("#carmViews button", carmView);
+  on("#labCams button, #xrCams button, #cathCams button", labCam === "operator" && sceneNo === 3 ? `operator-${operatorAccess}` : labCam);
+  on("#inject button", lab?.injected);
+  on("#cathAccess button", cathAccess);
+  on("#cathTarget button", cathTarget);
+  $("bBeat").classList.toggle("on", beatOn);
 }
-/** The side-by-side shows only the heart (turned to the detector's view) next to the image: no room, no body. */
+/** Side-by-side (Scene 4) shows only the heart next to the image; the aortic-root close-up (Scene 5) hides the room and body. */
 function applySplit() {
   const split = sceneNo === 4 && labCam === "split";
-  if (lab) { lab.room.visible = !split; lab.rig.visible = !split; }
-  bodyGroup.visible = !split;
-  $("monitor").style.display = sceneNo === 4 && !split ? "block" : "none";
+  const root = sceneNo === 5 && labCam === "root";
+  if (lab) { lab.room.visible = !split && !root; lab.rig.visible = !split && !root; }
+  bodyGroup.visible = !split && !root;
+  $("monitor").style.display = (sceneNo === 4 || sceneNo === 5) && !split ? "block" : "none";
   $("splitLabel").style.display = split ? "block" : "none";
 }
 function setLabCam(cam: LabCam, ms: number) {
@@ -584,8 +649,13 @@ function setLabCam(cam: LabCam, ms: number) {
   labCam = cam;
   applySplit();
   syncLabButtons();
-  moveTo(labPose(cam), ms);
-  caption(cam === "operator" ? "The operator's view: standing at the patient's right side, at the hip."
+  const r0 = rootFade, r1 = cam === "root" ? 0 : 1;
+  if (r1 > 0) setRootFade(Math.max(r0, 0.03));
+  moveTo(labPose(cam), ms, (e) => setRootFade(THREE.MathUtils.lerp(r0, r1, e)));
+  caption(cam === "root" ? "The aortic root, close: the catheter tip sits in the coronary's opening."
+    : cam === "operator" ? ((sceneNo === 5 ? cathAccess === "radial_right" : operatorAccess === "radial")
+      ? "The operator's view: beside the patient's right shoulder, over the arm board (radial access)."
+      : "The operator's view: standing at the patient's right side, at the hip (femoral access).")
     : cam === "beam" ? "Side-on to the beam: tube, heart and detector in one line. Drag to orbit; the projection stays fixed."
     : cam === "split" ? "Left: the heart turned the way the detector sees it. Right: the image it makes."
     : "The cath lab: the C-arm turns around the patient, and the heart stays at its centre.");
@@ -608,44 +678,104 @@ function setInject(t: "left" | "right") {
   caption(t === "left" ? "Contrast in the left coronary artery: only that tree shows on the image."
     : "Contrast in the right coronary artery: only that tree shows on the image.");
 }
-/** Scene 4: the non-injected tree is dimmed in 3D (it does not appear on the image). Everywhere else both trees are full. */
+/** Scene 4: the non-injected tree is dimmed in 3D (it does not appear on the image). Scene 5: the target tree shows the
+ *  contrast fill, the other is dimmed. Everywhere else both trees are full. */
 function applyInjectionLook() {
-  const on = sceneNo === 4 && !!lab;
-  for (const m of treeLeft) m.material = on && lab!.injected === "right" ? coronaryDimMat : coronaryMat;
-  for (const m of treeRight) m.material = on && lab!.injected === "left" ? coronaryDimMat : coronaryMat;
+  const on = (sceneNo === 4 || sceneNo === 5) && !!lab;
+  const inj = sceneNo === 5 ? cathTarget : lab?.injected;
+  for (const [tree, list] of [["left", treeLeft], ["right", treeRight]] as const)
+    for (const m of list)
+      m.material = !on ? coronaryMat : inj !== tree ? coronaryDimMat : sceneNo === 5 && fillable.has(m) ? coronaryFillMat : coronaryMat;
 }
-function showLab(n: 3 | 4, ms: number) {
+const FOOT_DEFAULT = "Z-Anatomy atlas (CC BY-SA 4.0) · vessel sizes are the atlas's own, not a patient's";
+/** Leaving Scene 5: no catheter, contrast everywhere again (Scene 4 shows whole trees), routes hidden. */
+function leaveCath() {
+  if (!cath) return;
+  cath.reset();
+  cath.group.visible = false;
+  lab?.angio.fill.value.set(1e9, -1e9);
+  lab?.angio.setDevices([]);
+  routesGroup.visible = params.has("routes");
+  $("foot").textContent = FOOT_DEFAULT;
+}
+function showLab(n: 3 | 4 | 5, ms: number) {
   if (!lab) { caption("The cath lab needs the atlas X-ray meshes (build_atlas_xray.py)."); return; }
+  if (n === 5 && !cath) { caption("Scene 5 needs build_atlas_cath.py."); return; }
   const from = sceneNo;
   sceneNo = n;
   if (labelMode) setLabelMode(false);
-  for (const [id, s] of [["bHeart", 1], ["bPatient", 2], ["bLab", 3], ["bXray", 4]] as const) $(id).classList.toggle("on", n === s);
+  for (const [id, s] of [["bHeart", 1], ["bPatient", 2], ["bLab", 3], ["bXray", 4], ["bCath", 5]] as const) $(id).classList.toggle("on", n === s);
   $("views").style.display = "none";
   $("heartViews").style.display = "none";
   $("carmViews").style.display = "contents";
   $("labCams").style.display = n === 3 ? "contents" : "none";
   $("xrCams").style.display = n === 4 ? "contents" : "none";
   $("inject").style.display = n === 4 ? "contents" : "none";
-  if (n === 3 && (labCam === "beam" || labCam === "split")) labCam = "room";
-  if (n === 4 && (labCam === "room" || labCam === "operator")) labCam = from === 3 ? labCam : "room";
+  $("cathCtl").style.display = n === 5 ? "contents" : "none";
+  $("cathCams").style.display = n === 5 ? "contents" : "none";
+  $("bBeat").style.display = "";
+  if (n === 3 && !["room", "operator"].includes(labCam)) labCam = "room";
+  if (n === 4 && !["room", "beam", "split"].includes(labCam)) labCam = "room";
+  if (n === 5 && !["room", "operator", "beam", "root"].includes(labCam)) labCam = "operator";
+  if (n !== 5 && from === 5) leaveCath();
+  if (n === 5) {
+    cath!.access = cathAccess;
+    cath!.target = cathTarget;
+    lab.injected = cathTarget;
+    cath!.group.visible = true;
+    routesGroup.visible = true;
+    $("foot").textContent = "Catheter and contrast are ILLUSTRATIVE, not physics · Z-Anatomy atlas (CC BY-SA 4.0)";
+    if (from !== 5) cath!.reset();
+  }
   lab.room.visible = lab.rig.visible = true;
   bodyGroup.visible = true;
   applySplit();
   applyInjectionLook();
-  lab.setXray(n === 4);
+  lab.setXray(n >= 4);
   syncLabButtons();
-  const f0 = fade, lf0 = limbFade, rf0 = rootFade;
+  const f0 = fade, lf0 = limbFade, rf0 = rootFade, rf1 = n === 5 && labCam === "root" ? 0 : 1;
   setClip("front");
   moveTo(labPose(labCam), ms, (e) => {
     fade = THREE.MathUtils.lerp(f0, 1, THREE.MathUtils.smoothstep(e, 0, 0.6));
     limbFade = THREE.MathUtils.lerp(lf0, 1, e);
-    setRootFade(THREE.MathUtils.lerp(rf0, 1, e));
+    setRootFade(THREE.MathUtils.lerp(rf0, rf1, e));
   });
   caption(n === 3 ? "The cath lab: the C-arm turns around the patient, and the heart stays at its centre."
-    : "X-rays travel from the tube, through the chest, to the detector, where the image forms.");
+    : n === 4 ? "X-rays travel from the tube, through the chest, to the detector, where the image forms."
+    : `Catheter, ${cathAccess === "femoral_right" ? "from the right groin" : "from the right wrist"}: press Run.`);
+}
+
+// ---- Scene 5 controls ----
+function cathCaption(p: string) {
+  const shape = cathTarget === "left" ? "JL4" : "JR4";
+  const art = cathTarget === "left" ? "left main" : "right coronary artery";
+  caption(p === "advance" ? `The J-tipped wire leads; the catheter follows it up ${cathAccess === "femoral_right" ? "the aorta" : "the arm and into the aorta"}.`
+    : p === "withdraw" ? "The wire comes out; the catheter can now take its own shape."
+    : p === "shape" ? `The ${shape} catheter takes its shape in the aortic root and turns toward the ${art}.`
+    : p === "engaged" ? `Engaged: the tip sits in the opening of the ${art}. Press Inject.`
+    : p === "inject" ? "Contrast: it fills the tree from the opening outward, holds, then washes out." : "");
+}
+function setCathAccess(a: Access) {
+  cathAccess = a;
+  if (cath) { cath.access = a; cath.reset(); }
+  syncLabButtons();
+  if (sceneNo === 5) { if (labCam === "operator") moveTo(labPose("operator"), 1800); cathCaption(""); caption(`Access: ${a === "femoral_right" ? "the right femoral artery, in the groin" : "the right radial artery, at the wrist"}. Press Run.`); }
+}
+function setCathTarget(t: Target) {
+  cathTarget = t;
+  if (cath) { cath.target = t; cath.reset(); }
+  if (lab) lab.injected = t;
+  applyInjectionLook();
+  syncLabButtons();
+  caption(t === "left" ? "Target: the left coronary, with a JL4 catheter. Press Run." : "Target: the right coronary, with a JR4 catheter. Press Run.");
+}
+function setBeat(on: boolean) {
+  beatOn = on;
+  syncLabButtons();
 }
 
 function showScene(n: 1 | 2, ms: number) {
+  if (sceneNo === 5) leaveCath();
   sceneNo = n;
   if (lab) {
     lab.setXray(false);
@@ -653,9 +783,9 @@ function showScene(n: 1 | 2, ms: number) {
     applyInjectionLook();
     $("monitor").style.display = "none";
     $("splitLabel").style.display = "none";
-    for (const id of ["carmViews", "labCams", "xrCams", "inject"]) $(id).style.display = "none";
-    $("bLab").classList.remove("on");
-    $("bXray").classList.remove("on");
+    for (const id of ["carmViews", "labCams", "xrCams", "inject", "cathCtl", "cathCams"]) $(id).style.display = "none";
+    $("bBeat").style.display = "none";
+    for (const id of ["bLab", "bXray", "bCath"]) $(id).classList.remove("on");
   }
   $("bHeart").classList.toggle("on", n === 1);
   $("bPatient").classList.toggle("on", n === 2);
@@ -797,7 +927,17 @@ $("bLabel").onclick = () => setLabelMode(!labelMode);
 $("bLab").onclick = () => showLab(3, 3200);
 $("bXray").onclick = () => showLab(4, 2400);
 document.querySelectorAll<HTMLButtonElement>("#carmViews button").forEach((b) => (b.onclick = () => setCArmView(b.dataset.v!, 2600)));
-document.querySelectorAll<HTMLButtonElement>("#labCams button, #xrCams button").forEach((b) => (b.onclick = () => setLabCam(b.dataset.v as LabCam, 2200)));
+document.querySelectorAll<HTMLButtonElement>("#labCams button, #xrCams button, #cathCams button").forEach((b) => (b.onclick = () => {
+  const v = b.dataset.v!;
+  if (v.startsWith("operator-")) operatorAccess = v.slice(9) as "femoral" | "radial";   // Scene 3: femoral / radial position
+  setLabCam((v.startsWith("operator") ? "operator" : v) as LabCam, 2200);
+}));
+$("bCath").onclick = () => showLab(5, 2600);
+$("bBeat").onclick = () => setBeat(!beatOn);
+document.querySelectorAll<HTMLButtonElement>("#cathAccess button").forEach((b) => (b.onclick = () => setCathAccess(b.dataset.v as Access)));
+document.querySelectorAll<HTMLButtonElement>("#cathTarget button").forEach((b) => (b.onclick = () => setCathTarget(b.dataset.v as Target)));
+$("bRun").onclick = () => { if (cath && sceneNo === 5) { cath.access = cathAccess; cath.target = cathTarget; cath.run(); } };
+$("bInject").onclick = () => cath?.inject();
 document.querySelectorAll<HTMLButtonElement>("#inject button").forEach((b) => (b.onclick = () => setInject(b.dataset.v as "left" | "right")));
 
 // ---------------- the image: monitor inset and side-by-side (raw blit of the angiogram render target, no flips) ----------------
@@ -832,9 +972,15 @@ const still = params.has("still");          // screenshots: freeze motion at end
 function tick(now: number) {
   const t = still ? 0 : (now - t0) / 1000;
   const ph = (t / 0.94) % 1;                                          // ~64 beats per minute
-  motion.uVent.value = ph < 0.42 ? Math.pow(Math.sin((Math.PI * ph) / 0.42), 1.6) : 0;
-  motion.uAtr.value = ph > 0.8 ? Math.pow(Math.sin((Math.PI * (ph - 0.8)) / 0.2), 2) : 0;
-  motion.uBreath.value = sceneNo === 2 || fade > 0 ? 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / 4.6) : 0;
+  // Scenes 1-2: always beating and breathing. Scenes 3-5 (the lab): breath held (as for an acquisition); the heartbeat is
+  // paused unless "Beating heart" is on, or a cine injection runs (then the X-ray beats with the same field, angio.fieldOn).
+  const inLab = sceneNo >= 3;
+  const cine = !!cath?.cine && sceneNo === 5;
+  const beating = !inLab || beatOn || cine;
+  motion.uVent.value = beating && ph < 0.42 ? Math.pow(Math.sin((Math.PI * ph) / 0.42), 1.6) : 0;
+  motion.uAtr.value = beating && ph > 0.8 ? Math.pow(Math.sin((Math.PI * (ph - 0.8)) / 0.2), 2) : 0;
+  motion.uBreath.value = !inLab && (sceneNo === 2 || fade > 0) ? 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / 4.6) : 0;
+  if (lab) lab.angio.fieldOn.value = inLab && beating ? 1 : 0;
   skinMat.uniforms.uFade.value = fade;
   skinMat.uniforms.uLimbFade.value = limbFade;
   boneTrunk.opacity = 0.13 * fade;
@@ -853,6 +999,9 @@ function tick(now: number) {
   if (lab && sceneNo >= 3) {
     const swinging = lab.swinging;
     lab.update(now, dt);
+    // live fluoroscopy: re-render the image whenever the catheter moves, the contrast changes, or the heart beats
+    const moved = sceneNo === 5 && cath ? cath.update(dt) : false;
+    if (sceneNo >= 4 && !swinging && (moved || lab.angio.fieldOn.value > 0)) lab.renderImage();
     if (swinging && !tween && (labCam === "beam" || labCam === "split")) {   // these cameras ride with the C-arm
       const p = labPose(labCam);
       camera.up.copy(p.up); camera.position.copy(p.pos); controls.target.copy(p.target); camera.lookAt(p.target);
@@ -876,7 +1025,7 @@ function tick(now: number) {
     blitInto($("splitImage"));
   } else {
     renderer.render(scene, camera);
-    if (lab && sceneNo === 4) blitInto($("monitorImage"));
+    if (lab && (sceneNo === 4 || sceneNo === 5)) blitInto($("monitorImage"));
   }
   requestAnimationFrame(tick);
 }
@@ -884,22 +1033,40 @@ function tick(now: number) {
 caption("Loading the atlas…");
 load().then(() => {
   const sp = Number(params.get("scene") ?? 1);
-  if ((sp === 3 || sp === 4) && lab) {
-    // ?scene=3|4&carm=ap|rao30|lao45|raocaud|spider&cam=room|operator|beam|split&inject=left|right (review and recording)
+  /** Review hook: freeze the contrast at a fraction of the fill (Scene 5), with the reflux puff at its peak if early. */
+  const cathFill = (frac: number) => {
+    if (!cath || !lab) return;
+    const max = (cath as unknown as { data: { trees: Record<string, { max_distance_mm: number }> } }).data.trees[cathTarget].max_distance_mm;
+    lab.angio.fill.value.set(-8 + (max + 8) * frac, -1e9);
+    lab.renderImage();
+  };
+  const hooks = () => ((window as unknown as Record<string, unknown>).atlas = { showScene, setView, setHeartView, setRoutes, showLab,
+    setCArmView, setLabCam, setInject, lab, cath, setCathAccess, setCathTarget, setBeat, cathFill });
+  if ((sp === 3 || sp === 4 || sp === 5) && lab) {
+    // ?scene=3|4|5&carm=ap|rao30|lao45|raocaud|spider&cam=room|operator|beam|split|root&inject=left|right
+    //  Scene 3: &op=femoral|radial.  Scene 5: &access=femoral|radial&target=left|right&engaged&fill=0..1 (review, recording)
     const cv = params.get("carm") ?? "ap";
     const V = CARM_VIEWS[cv] ?? CARM_VIEWS.ap;
     carmView = CARM_VIEWS[cv] ? cv : "ap";
     lab.setPose(V.a, V.b);
     if (params.get("inject") === "right") lab.injected = "right";
-    labCam = (params.get("cam") as LabCam) ?? "room";
+    if (params.get("op") === "radial") operatorAccess = "radial";
+    if (params.get("access") === "radial") cathAccess = "radial_right";
+    if (params.get("target") === "right") cathTarget = "right";
+    labCam = (params.get("cam") as LabCam) ?? (sp === 5 ? "operator" : "room");
     bodyGroup.visible = true;
     fade = 1;
-    showLab(sp, 0);
+    showLab(sp as 3 | 4 | 5, 0);
     if (sp === 4 && labCam !== "split") caption(V.caption);
-    if (sp === 4) { lab.setXray(true, false); }
+    if (sp >= 4) { lab.setXray(true, false); }
+    if (sp === 5 && params.has("engaged")) {
+      cath!.engageNow();
+      if (params.has("fill")) cathFill(Number(params.get("fill")));
+      else lab.renderImage();
+    }
     requestAnimationFrame(tick);
     requestAnimationFrame(() => requestAnimationFrame(() => (document.body.dataset.ready = "1")));
-    (window as unknown as Record<string, unknown>).atlas = { showScene, setView, setHeartView, setRoutes, showLab, setCArmView, setLabCam, setInject, lab };
+    hooks();
     return;
   }
   const s = sp === 2 ? 2 : 1;
@@ -916,5 +1083,5 @@ load().then(() => {
   requestAnimationFrame(tick);
   requestAnimationFrame(() => requestAnimationFrame(() => (document.body.dataset.ready = "1")));
   // automation hooks for the review recording (same code paths as the buttons)
-  (window as unknown as Record<string, unknown>).atlas = { showScene, setView, setHeartView, setRoutes, showLab, setCArmView, setLabCam, setInject, lab };
+  hooks();
 }).catch((e) => { caption(String(e)); throw e; });

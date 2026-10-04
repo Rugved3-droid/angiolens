@@ -20,8 +20,15 @@ metrics live behind "Advanced". There are two apps on one validated geometry eng
 - **Scene 4, X-ray pass:** the validated engine on the atlas coronaries (D49-D50). Selective LCA/RCA injection with a faint skeleton
   and heart silhouette; beam cone; the image builds on the detector; Beam (free orbit) and Side-by-side views.
 
-Next (not started): Scene 5 (catheter up the aorta to the effective ostium, contrast filling), Scene 6 (cross-section), the
-phone-as-detector controller, relative-move Predict questions, Mission/Guess. The TotalSegmentator heart (section "Simple view" below) is **no longer the hero heart**: Z-Anatomy is (D43). The
+- **Scene 5, catheter + contrast (illustrative, not physics):**
+  - Access: right femoral or right radial. A J-wire leads the 6F catheter up the route, then withdraws.
+  - The catheter takes its JL4 (left) or JR4 (right) shape and engages the effective ostium.
+  - Contrast fills the tree in 3D and on the X-ray together, with a cine beat during the injection.
+  - Cameras: Room, Operator, Beam, Aortic root (D52-D54).
+- In Scenes 3-5 the heartbeat is paused unless "Beating heart" is on, and the X-ray trees are one unioned solid each (D52).
+
+Next (not started): Scene 6 (cross-section), the phone-as-detector controller, relative-move Predict questions, Mission/Guess.
+The TotalSegmentator heart (section "Simple view" below) is **no longer the hero heart**: Z-Anatomy is (D43). The
 TotalSegmentator pipeline is kept only for the ASOCA case's own anatomy.
 
 ## Atlas scenes (Z-Anatomy)
@@ -41,9 +48,13 @@ foreach ($f in "heart","heart_illustrative","access_routes","skeleton","skin") {
 .\.venv\Scripts\python preprocess\scripts\build_atlas_xray.py
 .\.venv\Scripts\python preprocess\scripts\phase0_atlas.py
 .\.venv\Scripts\python preprocess\scripts\atlas_xray_fixtures.py
-cd web; node e2e/atlas_xray.e2e.mjs        # GPU angiogram == CPU reference on the atlas; mirrored images must fail
+.\.venv\Scripts\python preprocess\scripts\junction_before_after.py   # D52 figure -> out/review/lab/
+# 5. Scene 5 data: routes, JL4/JR4 shapes, contrast-fill distances (needs the probe: run_blender.ps1 -Script probe_great_vessels.py)
+.\.venv\Scripts\python preprocess\scripts\build_atlas_cath.py
+cd web; node e2e/atlas_xray.e2e.mjs        # GPU == CPU on the atlas (mirrors fail) + cine field moves / static frame unchanged
 node e2e/atlas_shots.mjs shots              # review screenshots -> out/review/atlas/
 node e2e/lab_shots.mjs all                  # cath lab / X-ray screenshots + swing recording -> out/review/lab/
+node e2e/cath_shots.mjs all                 # Scene 5 screenshots + full-sequence recording -> out/review/cath/
 ```
 
 Files: `z_anatomy_heart.glb` (atlas radii, THE geometry), `z_anatomy_heart_illustrative.glb` (illustrative taper, comparison only),
@@ -51,7 +62,8 @@ Files: `z_anatomy_heart.glb` (atlas radii, THE geometry), `z_anatomy_heart_illus
 `manifest.json` (per-object provenance, calibre, effective ostia, access-route continuity, weld statistics).
 
 The URL accepts `atlas.html?scene=1|2&view=front|lao|root|left|right|feet|head|body&routes&still`, and for the lab
-`atlas.html?scene=3|4&carm=ap|rao30|lao45|raocaud|spider&cam=room|operator|beam|split&inject=left|right`.
+`atlas.html?scene=3|4&carm=ap|rao30|lao45|raocaud|spider&cam=room|operator|beam|split&inject=left|right&op=femoral|radial`, and
+for the catheter `atlas.html?scene=5&access=femoral|radial&target=left|right&cam=room|operator|beam|root&engaged&fill=0..1`.
 
 ## Data
 

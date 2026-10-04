@@ -6,7 +6,7 @@
 // Nothing is ever mirrored or rotated for display: the detector shows the image on its OUTER face, u right / v up, exactly as
 // in the hero scene, and the monitor inset blits the render target unchanged (texture (0,0) = the (-u,-v) corner).
 import * as THREE from "three";
-import { AngioRenderer } from "./angio";
+import { AngioRenderer, type AngioOptions } from "./angio";
 import { CArm, type Vec3 } from "./geometry";
 
 export const ROOM_UP = new THREE.Vector3(0, -1, 0);
@@ -73,11 +73,14 @@ export class CathLab {
   private reveal = 1;
   private swing: { from: [number, number]; to: [number, number]; t0: number; ms: number; done?: () => void } | null = null;
 
-  constructor(renderer: THREE.WebGLRenderer, xr: AtlasXray, body: THREE.Box3) {
+  constructor(renderer: THREE.WebGLRenderer, xr: AtlasXray, body: THREE.Box3, field?: AngioOptions["field"]) {
     this.iso = v3(xr.isocenter);
-    this.angio = new AngioRenderer(renderer, { left: xr.left, right: xr.right, bone: xr.bone, extension: null, soft: xr.heart }, 512);
+    // field: the 3D heart's motion field (same GLSL, same uniforms), applied to the X-ray only during cine (angio.fieldOn)
+    this.angio = new AngioRenderer(renderer, { left: xr.left, right: xr.right, bone: xr.bone, extension: null, soft: xr.heart }, 512,
+      { field });
     this.angio.params.kSoft = 0.0035;       // the heart: a faint silhouette (~0.3 attenuation through its full depth)
     this.angio.params.kBone = 0.01;         // the skeleton: faint
+    this.angio.params.kDevice = 0.3;        // catheter wall (weight 1) and guidewire (weight 5): radiopaque, not contrast
     this.carm = new CArm(0, 0, xr.isocenter);
 
     // ---- table and floor (the patient lies on the table: its top touches the body's most posterior point) ----
@@ -225,8 +228,13 @@ export class CathLab {
     return { pos: heartC.clone().add(new THREE.Vector3(-1900, -1350, -1450)), target: heartC.clone().add(new THREE.Vector3(0, 60, 80)), up: ROOM_UP.clone() };
   }
 
-  operatorPose(heartC: THREE.Vector3) {
-    // standing at the patient's right side, level with the hip (femoral access), eyes ~1.65 m above the floor
+  operatorPose(heartC: THREE.Vector3, access: "femoral" | "radial" = "femoral") {
+    // eyes ~1.65 m above the floor, at the patient's RIGHT side:
+    //  femoral: level with the hip;  radial: beside the right shoulder, over the arm board, looking down the arm to the chest
+    if (access === "radial") {
+      const eye = new THREE.Vector3(-880, this.floorY - 1650, heartC.z + 120);
+      return { pos: eye, target: heartC.clone().add(new THREE.Vector3(-170, 90, -170)), up: ROOM_UP.clone() };
+    }
     const eye = new THREE.Vector3(-760, this.floorY - 1650, heartC.z - 620);
     return { pos: eye, target: heartC.clone().add(new THREE.Vector3(0, 80, 40)), up: ROOM_UP.clone() };
   }

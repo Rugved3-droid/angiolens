@@ -42,13 +42,21 @@
     <canvas id="c"></canvas>
     <div id="bar" class="panel">
       <button id="bHeart" class="on">Heart</button><button id="bPatient">Heart in the patient</button>
-      <button id="bLab">Cath lab</button><button id="bXray">X-ray</button>
+      <button id="bLab">Cath lab</button><button id="bXray">X-ray</button><button id="bCath">Catheter</button>
       <span class="sep"></span>
+      <span id="cathCtl" style="display:none">
+        <span id="cathAccess" style="display:contents"><button data-v="femoral_right">Femoral</button><button data-v="radial_right">Radial</button></span>
+        <span id="cathTarget" style="display:contents"><button data-v="left">Left (JL4)</button><button data-v="right">Right (JR4)</button></span>
+        <button id="bRun">Run</button><button id="bInject">Inject</button>
+      </span>
+      <span id="cathCams" style="display:none">
+        <button data-v="room">Room</button><button data-v="operator">Operator</button><button data-v="beam">Beam</button><button data-v="root">Aortic root</button>
+      </span>
       <span id="carmViews" style="display:none">
         <button data-v="ap">AP</button><button data-v="rao30">RAO 30</button><button data-v="lao45">LAO 45</button>
         <button data-v="raocaud">RAO caudal</button><button data-v="spider">Spider</button>
       </span>
-      <span id="labCams" style="display:none"><button data-v="room">Room</button><button data-v="operator">Operator</button></span>
+      <span id="labCams" style="display:none"><button data-v="room">Room</button><button data-v="operator-femoral">Operator (femoral)</button><button data-v="operator-radial">Operator (radial)</button></span>
       <span id="xrCams" style="display:none">
         <button data-v="room">Room</button><button data-v="beam">Beam</button><button data-v="split">Side by side</button>
       </span>
@@ -61,7 +69,7 @@
         <button data-v="feet">From the feet</button><button data-v="head">From the head</button>
       </span>
       <span class="sep"></span>
-      <button id="bVeins" class="on">Cardiac veins</button><button id="bLabel">Label branches</button>
+      <button id="bBeat" style="display:none">Beating heart</button><button id="bVeins" class="on">Cardiac veins</button><button id="bLabel">Label branches</button>
     </div>
     <div id="caption" class="panel"></div>
     <!-- the image (Scene 4): the canvas draws the angiogram into these rectangles; the frames are HTML only -->

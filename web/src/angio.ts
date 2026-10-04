@@ -11,23 +11,38 @@
 import * as THREE from "three";
 import type { CArm } from "./geometry";
 
-const THICKNESS_VERT = /* glsl */ `
+// Optional variants (atlas Scene 5, D53); with neither, the shaders are exactly the validated Phase 1 ones:
+//  * field: the atlas's position-only heartbeat field (the SAME GLSL and uniforms as the 3D heart), applied to the rest
+//    positions while uFieldOn = 1 (cine). Facing still uses the rest face normals (the field is a small, smooth deformation).
+//  * fill: a per-vertex distance along the coronary tree (_s, mm from the effective ostium); fragments outside
+//    [uFill.y, uFill.x] are dropped. The entry and exit of one thin-tube crossing share nearly the same _s, so they are kept
+//    or dropped together; a split pair at the front is handled by the usual count repair. Illustrative, not physics.
+//  * uWeight scales a mesh's path length (the catheter vs the guidewire in the device channel).
+const THICKNESS_VERT = (field: string, fill: boolean) => /* glsl */ `
+  ${field ? field + "\n  uniform float uFieldOn;" : ""}
+  ${fill ? "attribute float _s; varying float vS;" : ""}
   varying vec3 vWorld;
   varying vec3 vNormal;
   void main() {
-    vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+    vec3 p = position;
+    ${field ? "if (uFieldOn > 0.5) p = cptBeat(p);" : ""}
+    ${fill ? "vS = _s;" : ""}
+    vWorld = (modelMatrix * vec4(p, 1.0)).xyz;
     vNormal = normal;               // face normal (geometry is non-indexed), world == model
     gl_Position = projectionMatrix * viewMatrix * vec4(vWorld, 1.0);
   }`;
 
-const THICKNESS_FRAG = /* glsl */ `
+const THICKNESS_FRAG = (fill: boolean) => /* glsl */ `
   uniform vec3 uSource;
   uniform float uSod;
+  uniform float uWeight;
+  ${fill ? "uniform vec2 uFill; varying float vS;" : ""}
   varying vec3 vWorld;
   varying vec3 vNormal;
   void main() {
+    ${fill ? "if (vS > uFill.x || vS < uFill.y) discard;" : ""}
     vec3 ray = vWorld - uSource;
-    float L = length(ray) - uSod;
+    float L = (length(ray) - uSod) * uWeight;
     gl_FragColor = dot(vNormal, ray) > 0.0 ? vec4(L, 0.0, 1.0, 0.0) : vec4(0.0, L, 0.0, 1.0);
   }`;
 
@@ -59,10 +74,12 @@ const COMPOSITE_FRAG = /* glsl */ `
   uniform sampler2D uVessel;
   uniform sampler2D uBone;
   uniform sampler2D uSoft;
+  uniform sampler2D uDevice;
   uniform vec2 uTexel;
   uniform float uKVessel;
   uniform float uKBone;
   uniform float uKSoft;
+  uniform float uKDevice;
   uniform float uBackground;
   uniform float uNoise;
   uniform float uSeed;
@@ -80,7 +97,8 @@ const COMPOSITE_FRAG = /* glsl */ `
       }
     t /= 16.0;
     float s = uKSoft > 0.0 ? max(pathLength(uSoft, vUv, uTexel), 0.0) : 0.0;
-    float I = uBackground * exp(-uKVessel * max(t.x, 0.0) - uKBone * max(t.y, 0.0) - uKSoft * s);
+    float dv = uKDevice > 0.0 ? max(pathLength(uDevice, vUv, uTexel), 0.0) : 0.0;
+    float I = uBackground * exp(-uKVessel * max(t.x, 0.0) - uKBone * max(t.y, 0.0) - uKSoft * s - uKDevice * dv);
     I += uNoise * (hash(gl_FragCoord.xy) - 0.5);
     gl_FragColor = vec4(vec3(clamp(I, 0.0, 1.0)), 1.0);
   }`;
@@ -95,24 +113,36 @@ export interface AngioMeshes {
   soft?: THREE.BufferGeometry | null;
 }
 
+export interface AngioOptions {
+  /** GLSL defining vec3 cptBeat(vec3) + its uniforms: the 3D heart's motion field, applied to vessel/soft/device while on */
+  field?: { glsl: string; uniforms: Record<string, THREE.IUniform> };
+}
+
 export class AngioRenderer {
   readonly px: number;
   readonly vesselRT: THREE.WebGLRenderTarget;
   readonly boneRT: THREE.WebGLRenderTarget;
   readonly softRT: THREE.WebGLRenderTarget;
+  readonly deviceRT: THREE.WebGLRenderTarget;
   readonly angioRT: THREE.WebGLRenderTarget;
   readonly floatPrecision: "float" | "half";
+  /** contrast fill window (mm along the tree): fragments with _s outside [y, x] are dropped; default: everything */
+  readonly fill = { value: new THREE.Vector2(1e9, -1e9) };
+  /** 1 = apply the motion field (cine); 0 = rest geometry (the validated static frame) */
+  readonly fieldOn = { value: 0 };
   private readonly vesselScene = new THREE.Scene();
   private readonly boneScene = new THREE.Scene();
   private readonly softScene = new THREE.Scene();
+  private readonly deviceScene = new THREE.Scene();
+  private puff: THREE.Mesh | null = null;
   private readonly camera = new THREE.Camera();
   private readonly meshes: Record<"left" | "right" | "bone" | "extension" | "soft", THREE.Mesh | null>;
   private readonly composite: THREE.ShaderMaterial;
   private readonly compositeScene = new THREE.Scene();
   private readonly quadCamera = new THREE.Camera();
-  params = { kVessel: 0.35, kBone: 0.012, kSoft: 0, background: 0.78, noise: 0.035, showBone: true, showExtension: false };
+  params = { kVessel: 0.35, kBone: 0.012, kSoft: 0, kDevice: 0, background: 0.78, noise: 0.035, showBone: true, showExtension: false };
 
-  constructor(private readonly renderer: THREE.WebGLRenderer, geoms: AngioMeshes, px = 512) {
+  constructor(private readonly renderer: THREE.WebGLRenderer, geoms: AngioMeshes, px = 512, private readonly opts: AngioOptions = {}) {
     this.px = px;
     const gl = renderer.getContext() as WebGL2RenderingContext;
     const floatBlend = !!gl.getExtension("EXT_float_blend") && !!gl.getExtension("EXT_color_buffer_float");
@@ -125,48 +155,76 @@ export class AngioRenderer {
     this.vesselRT = accum();
     this.boneRT = accum();
     this.softRT = accum();
+    this.deviceRT = accum();
     this.angioRT = new THREE.WebGLRenderTarget(px, px, {
       minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false,
     });
     this.camera.matrixAutoUpdate = false;
     this.camera.matrixWorldAutoUpdate = false;
-
-    const mk = (g: THREE.BufferGeometry | null, scene: THREE.Scene) => {
-      if (!g) return null;
-      const flat = g.index ? g.toNonIndexed() : g.clone();
-      flat.deleteAttribute("normal");
-      flat.computeVertexNormals(); // non-indexed -> per-face normals from (outward) winding
-      const m = new THREE.Mesh(flat, new THREE.ShaderMaterial({
-        vertexShader: THICKNESS_VERT, fragmentShader: THICKNESS_FRAG,
-        uniforms: { uSource: { value: new THREE.Vector3() }, uSod: { value: 750 } },
-        side: THREE.DoubleSide, depthTest: false, depthWrite: false, transparent: true,
-        blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
-        blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
-        blendEquationAlpha: THREE.AddEquation, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneFactor,
-      }));
-      m.frustumCulled = false;
-      scene.add(m);
-      return m;
-    };
     this.meshes = {
-      left: mk(geoms.left, this.vesselScene),
-      right: mk(geoms.right, this.vesselScene),
-      bone: mk(geoms.bone, this.boneScene),
-      extension: mk(geoms.extension, this.vesselScene),
-      soft: mk(geoms.soft ?? null, this.softScene),
+      left: this.mk(geoms.left, this.vesselScene, true),
+      right: this.mk(geoms.right, this.vesselScene, true),
+      bone: this.mk(geoms.bone, this.boneScene, false),
+      extension: this.mk(geoms.extension, this.vesselScene, true),
+      soft: this.mk(geoms.soft ?? null, this.softScene, true),
     };
 
     this.composite = new THREE.ShaderMaterial({
       vertexShader: QUAD_VERT, fragmentShader: COMPOSITE_FRAG, depthTest: false, depthWrite: false,
       uniforms: {
         uVessel: { value: this.vesselRT.texture }, uBone: { value: this.boneRT.texture }, uSoft: { value: this.softRT.texture },
+        uDevice: { value: this.deviceRT.texture },
         uTexel: { value: new THREE.Vector2(1 / px, 1 / px) },
-        uKVessel: { value: 0 }, uKBone: { value: 0 }, uKSoft: { value: 0 }, uBackground: { value: 0 }, uNoise: { value: 0 }, uSeed: { value: 0 },
+        uKVessel: { value: 0 }, uKBone: { value: 0 }, uKSoft: { value: 0 }, uKDevice: { value: 0 },
+        uBackground: { value: 0 }, uNoise: { value: 0 }, uSeed: { value: 0 },
       },
     });
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.composite);
     quad.frustumCulled = false;
     this.compositeScene.add(quad);
+  }
+
+  /** A path-length mesh: non-indexed with per-face normals from the (outward) winding. `field`: may follow the motion field. */
+  private mk(g: THREE.BufferGeometry | null, scene: THREE.Scene, field: boolean, weight = 1): THREE.Mesh | null {
+    if (!g) return null;
+    const flat = g.index ? g.toNonIndexed() : g.clone();
+    flat.deleteAttribute("normal");
+    flat.computeVertexNormals(); // non-indexed -> per-face normals from (outward) winding
+    const f = field && this.opts.field ? this.opts.field : null;
+    const fill = !!flat.getAttribute("_s");
+    const m = new THREE.Mesh(flat, new THREE.ShaderMaterial({
+      vertexShader: THICKNESS_VERT(f ? f.glsl : "", fill), fragmentShader: THICKNESS_FRAG(fill),
+      uniforms: { uSource: { value: new THREE.Vector3() }, uSod: { value: 750 }, uWeight: { value: weight }, uFill: this.fill,
+        uFieldOn: this.fieldOn, ...(f ? f.uniforms : {}) },
+      side: THREE.DoubleSide, depthTest: false, depthWrite: false, transparent: true,
+      blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+      blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+      blendEquationAlpha: THREE.AddEquation, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneFactor,
+    }));
+    m.frustumCulled = false;
+    scene.add(m);
+    return m;
+  }
+
+  /** Replace the radiopaque devices (catheter, guidewire): closed meshes, each with its own weight on params.kDevice. */
+  setDevices(list: { geometry: THREE.BufferGeometry; weight: number }[]) {
+    for (const c of [...this.deviceScene.children]) {
+      const m = c as THREE.Mesh;
+      m.geometry.dispose(); (m.material as THREE.Material).dispose();
+      this.deviceScene.remove(m);
+    }
+    for (const d of list) this.mk(d.geometry, this.deviceScene, true, d.weight);
+  }
+
+  /** Contrast reflux puff: a closed sphere in the VESSEL channel (same contrast), at `center`, radius r (0 = none). */
+  setPuff(center: THREE.Vector3 | null, r: number) {
+    if (!this.puff) {
+      this.puff = this.mk(new THREE.IcosahedronGeometry(1, 3), this.vesselScene, true);
+      this.puff!.matrixAutoUpdate = false;
+    }
+    const on = !!center && r > 0.05;
+    this.puff!.userData.on = on;
+    if (on) { this.puff!.matrix.makeScale(r, r, r).setPosition(center!); this.puff!.matrixWorld.copy(this.puff!.matrix); }
   }
 
   render(carm: CArm, detectorMm: number, injected: "left" | "right", seed = 0) {
@@ -184,6 +242,13 @@ export class AngioRenderer {
       u.uSource.value.set(...carm.source);
       u.uSod.value = carm.sod;
     }
+    const extra = [...this.deviceScene.children, ...(this.puff ? [this.puff] : [])] as THREE.Mesh[];
+    for (const m of extra) {
+      const u = (m.material as THREE.ShaderMaterial).uniforms;
+      u.uSource.value.set(...carm.source);
+      u.uSod.value = carm.sod;
+    }
+    if (this.puff) this.puff.visible = !!this.puff.userData.on;
     const r = this.renderer;
     const prevTarget = r.getRenderTarget();
     const prevClear = r.getClearColor(new THREE.Color());
@@ -191,6 +256,8 @@ export class AngioRenderer {
     r.setClearColor(0x000000, 0);
     const passes = [[this.vesselRT, this.vesselScene], [this.boneRT, this.boneScene]] as [THREE.WebGLRenderTarget, THREE.Scene][];
     if (this.meshes.soft && this.params.kSoft > 0) passes.push([this.softRT, this.softScene]);
+    const devices = this.deviceScene.children.length > 0 && this.params.kDevice > 0;
+    if (devices) passes.push([this.deviceRT, this.deviceScene]);
     for (const [rt, scene] of passes) {
       r.setRenderTarget(rt);
       r.clear();
@@ -201,6 +268,7 @@ export class AngioRenderer {
     u.uKVessel.value = this.params.kVessel;
     u.uKBone.value = this.params.showBone ? this.params.kBone : 0;
     u.uKSoft.value = this.meshes.soft ? this.params.kSoft : 0;
+    u.uKDevice.value = devices ? this.params.kDevice : 0;
     u.uBackground.value = this.params.background;
     u.uNoise.value = this.params.noise;
     u.uSeed.value = seed;

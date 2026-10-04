@@ -602,3 +602,73 @@ comparison file z_anatomy_heart_illustrative.glb; z_anatomy_heart_tapered.glb is
 - **Chest view:** a soft warm rim light on the heart, driven by the body fade (0 in the close-up, 1 in the chest view and the lab).
   - A first version washed the whole heart pink: the rim term had the view vector's sign inverted (vViewPosition already points
     surface -> camera). Fixed, together with the same slip in the back-scatter term.
+
+## 2026-10-02 (review of D49-D51; Scene 5)
+
+**D52 Junctions counted once: each tree is one boolean-unioned solid for the X-ray.** DECIDED (Rugved), method DEFAULT.
+- `build_atlas_xray.py` unions each tree's closed branch meshes with manifold3d 3.5.4 (pinned in requirements.txt).
+  - Result: left 1329.2 -> 1279.3 mm3, right 1585.7 -> 1556.2 mm3 (50 and 30 mm3 of double path removed).
+  - The per-branch meshes for selection, labels and hover are unchanged (z_anatomy_heart.glb). The pre-union trees are kept in
+    assets only, for the before/after figure.
+- **Isocenter** is now the union's volume centroid: (25.27, -45.48, 1291.25). It was (25.37, -45.54, 1291.50), a 0.3 mm shift.
+- **Bodies:** the union has 5 (left) and 8 (right) bodies.
+  - The LM meets the LAD/LCx starts flush at a cap plane (gap 0.00003 mm, zero overlap), so it stays a separate body.
+  - The others (5-12 mm3) are septal and right-inferolateral side-branch tubes that the atlas draws free-floating, not reaching
+    their parent. Reported, not bridged.
+- **Tested** (tests/test_atlas_union.py) at the LAD_branch_02, LCx_branch_04 and RCA_branch_02 junctions.
+  - A ray through the junction sees through the union exactly the union of the per-branch intervals (no double count); the
+    summed tree saw more. The test fails if no overlap exists, so it cannot pass vacuously.
+  - The ray passes 0.04 mm beside the junction point, which is exactly a cap-centre vertex shared by every fan triangle.
+- **Re-verified on the unioned trees:** GPU = CPU r = 1.0000 at all six poses, mirrors fail, sanity sheet passes.
+- **Figure:** out/review/lab/junction_fix_before_after.png. Up to 3.6 mm of double path at the LM bifurcation; the union never adds
+  path anywhere (max +0.0005 mm).
+
+**D53 Scene 5: catheter + contrast (ILLUSTRATIVE, not physics; the footer says so).** DECIDED (Rugved: spec), details DEFAULT.
+- **Data:** `preprocess/scripts/build_atlas_cath.py`, from the Blender probe and the manifest. The probe now covers every coronary
+  spline; peak 4.7 GB.
+  - Routes, resampled at 1 mm on the vessel centrelines:
+    - Right femoral: puncture 40 mm down the femoral artery (its common femoral part), up the iliacs and the aorta to the top of
+      the ascending aorta. 637 mm.
+    - Right radial: puncture 30 mm above the radial artery's distal end, then the brachial, axillary, subclavian and
+      brachiocephalic arteries into the arch. 753 mm.
+  - Shapes: JL4 -> LM and JR4 -> RCA, each a centripetal Catmull-Rom from the top of the ascending aorta to the EFFECTIVE OSTIUM in
+    the manifest. The last ~5 mm run coaxial with the coronary's initial direction, and the tip sits 3 mm inside.
+    - JL4: its primary curve rests on the contralateral wall, 9 mm below the ostium and at least 5 mm above the valve; the
+      approach comes from inside the lumen.
+    - Checks: tip tangent 0.0 deg for both. Minimum clearance of the catheter surface to the aortic wall, outside the 4 mm
+      engagement zone: JL4 0.25 mm, JR4 2.85 mm.
+    - A first JL4 came within -0.73 mm of the wall (0.73 mm outside the lumen): the LM leaves the aorta almost tangentially (75 deg
+      from the wall normal). Fixed by approaching from inside the lumen. The coronaries and the aorta were never moved.
+  - Contrast fill distances: a tree graph of every spline, grown from the ostial spline outward (Prim-like). The first version
+    let two splines pick each other and form an island.
+    - Distance 0 = the effective ostium; the buried trunk is negative.
+    - Every spline joins within 0.5 mm. Max 150 mm (left), 254 mm (right).
+    - Per-vertex values for the X-ray solids and every 3D branch node, each node from its own spline (no bleeding across a
+      junction): atlas_fill.bin.
+- **Sequence** (web/src/cath.ts):
+  - The J-wire leads the 6F catheter (2 mm OD) up the route (6.5 s); the wire withdraws (1.6 s).
+  - The catheter morphs from straight in the ascending aorta to its JL4/JR4 shape and engages (2.2 s).
+  - Inject: contrast fills by tree distance in 1.0 s, holds 1.3 s, washes out proximal-first in 1.6 s, with a small reflux puff
+    at the ostium.
+- **One geometry, two views.**
+  - The same closed tube meshes are drawn in 3D and given to the X-ray's new device channel: k 0.3/mm; the catheter wall weighs
+    1, the metal wire 5.
+  - The 3D glow (fill front band) and the X-ray fill read the SAME uniform, so they fill at the same moment.
+- **Renderer** (angio.ts): optional per-mesh weight, an optional fill window by per-vertex distance, the device channel, and an
+  optional motion-field hook. With none in use the shaders are the validated ones: phantom e2e and GPU = CPU still pass.
+- **Cine:** during the injection only, the heart beats. The 3D heart and the X-ray geometry use the same field GLSL and the same
+  uniforms. e2e: with the beat on, the X-ray changes (r falls to 0.51); off again, it equals the static CPU frame (r = 1.00000).
+- **Cameras:** Room, Operator (femoral or radial, following the access), Beam, Aortic root.
+  - The root close-up hides the atria, pulmonary arteries and veins and ghosts the ventricles (as in Scene 1).
+  - In Scene 5 the aortic wall and access vessels are glass-red, so the catheter is seen inside them.
+- **Regression caught by e2e:** creating the sim reset the shared fill window to "no contrast", which emptied Scene 4's X-ray.
+  Fixed: outside Scene 5 the window is "everything".
+- **Recording at the spider view:** at RAO caudal the detector sits on the operator's side and blocks the operator camera, which
+  is correct geometry but a poor recording. The RAO 30 / CAUD 25 mid-injection image is delivered separately.
+
+**D54 Review decisions on Scenes 3-4.** DECIDED (Rugved).
+- **Heartbeat** paused by default in Scenes 3-5, with a "Beating heart" toggle; always on in Scenes 1-2. Breathing is held in the lab
+  (DEFAULT: as during an acquisition), so the 3D heart and the static X-ray agree.
+- **Operator camera:** Scene 3 offers femoral (at the hip) or radial (beside the right shoulder, over the arm; no arm board is
+  modelled). Scene 5's operator position follows the chosen access.
+- **Room camera:** approved as is.

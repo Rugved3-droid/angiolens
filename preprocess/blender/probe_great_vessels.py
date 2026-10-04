@@ -20,6 +20,9 @@ CURVES = ["Ascending aorta", "Aortic arch", "Thoracic aorta", "Abdominal aorta",
           "Left pulmonary artery", "Right pulmonary artery", "Brachiocephalic trunk", "Left common carotid artery", "Left subclavian artery",
           "Inferior vena cava (thoracic part)", "Left brachiocephalic vein", "Right brachiocephalic vein",
           "Left coronary artery", "Right coronary artery",
+          # every coronary spline (D53: contrast fill by centreline distance from the effective ostium)
+          "Anterior interventricular artery", "Circumflex artery of heart", "Septal branches of anterior interventricular artery",
+          "Right inferolateral branch of right coronary artery",
           # catheter access routes (D47): femoral both sides, radial on the right
           "Common iliac artery.r", "Common iliac artery.l", "External iliac artery.r", "External iliac artery.l",
           "Femoral artery.r", "Femoral artery.l", "Right subclavian artery", "Axillary artery.r", "Brachial artery.r", "Radial artery.r"]

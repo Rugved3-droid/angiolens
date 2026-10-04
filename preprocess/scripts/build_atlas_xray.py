@@ -42,8 +42,30 @@ def nodes(path):
     return out
 
 
-def closed_union(meshes, label, strict=True):
-    """strict: any mesh that stays open stops the build; otherwise it is skipped and listed."""
+def boolean_union(parts, label):
+    """One closed solid from overlapping closed parts (manifold3d). Each part must be a valid manifold; the union removes the
+    double path where a branch starts inside its parent (D52)."""
+    import manifold3d as mf
+    solids = []
+    for name, V, F in parts:
+        m = mf.Manifold(mf.Mesh(vert_properties=np.asarray(V, np.float32), tri_verts=np.asarray(F, np.uint32)))
+        if m.status() != mf.Error.NoError:
+            raise SystemExit(f"{label}: {name} is not a valid manifold for the union ({m.status()})")
+        solids.append(m)
+    u = mf.Manifold.batch_boolean(solids, mf.OpType.Add)
+    if u.status() != mf.Error.NoError:
+        raise SystemExit(f"{label}: union failed ({u.status()})")
+    mesh = u.to_mesh()
+    V = np.asarray(mesh.vert_properties, float)[:, :3]
+    F = np.asarray(mesh.tri_verts, np.int64)
+    return V, F, {"parts": len(parts), "union_volume_mm3": round(float(u.volume()), 1),
+                  "summed_volume_mm3": round(float(sum(s.volume() for s in solids)), 1), "genus": int(u.genus()),
+                  "union_bodies": len(u.decompose())}
+
+
+def closed_union(meshes, label, strict=True, parts_out=None):
+    """Concatenate closed parts. strict: any mesh that stays open stops the build; otherwise it is skipped and listed.
+    parts_out (list): receives (name, V, F) of every closed part, for the boolean union."""
     Vs, Fs, stats, off = [], [], [], 0
     for name, m in meshes:
         V, F = merge_close(m.vertices, m.faces)
@@ -57,6 +79,8 @@ def closed_union(meshes, label, strict=True):
             stats.append({"name": name, "skipped": True, **st})
             continue
         stats.append({"name": name, **st})
+        if parts_out is not None:
+            parts_out.append((name, V, F))
         Vs.append(V)
         Fs.append(F + off)
         off += len(V)
@@ -67,11 +91,19 @@ def main():
     heart = nodes(A / "z_anatomy_heart.glb")
     left = [(n, heart[n]) for n in LEFT_WHOLE] + [(n, m) for n, m in sorted(heart.items()) if n.startswith(("LAD_branch_", "LCx_branch_"))]
     right = [(n, heart[n]) for n in RIGHT_WHOLE] + [(n, m) for n, m in sorted(heart.items()) if n.startswith("RCA_branch_")]
-    VL, FL, sl = closed_union(left, "left tree")
-    VR, FR, sr = closed_union(right, "right tree")
+    pl, pr = [], []
+    VLs, FLs, sl = closed_union(left, "left tree", parts_out=pl)        # summed parts: kept only for the before/after (D52)
+    VRs, FRs, sr = closed_union(right, "right tree", parts_out=pr)
+    VL, FL, ul = boolean_union(pl, "left tree")
+    VR, FR, ur = boolean_union(pr, "right tree")
     cl, vl = volume_centroid(VL, FL)
     cr, vr = volume_centroid(VR, FR)
     iso = (cl * vl + cr * vr) / (vl + vr)
+    cls_, vls = volume_centroid(VLs, FLs)
+    crs, vrs = volume_centroid(VRs, FRs)
+    iso_summed = (cls_ * vls + crs * vrs) / (vls + vrs)
+    for name, V, F in (("left_summed", VLs, FLs), ("right_summed", VRs, FRs)):
+        write_glb(A / f"atlas_xray_{name}.glb", V, F, name=f"atlas_xray_{name}", extras={"source": "Z-Anatomy", "note": "pre-union, D52"})
     VH, FH, sh = closed_union([(n, heart[n]) for n in CHAMBERS], "heart")
     skel = nodes(A / "z_anatomy_skeleton.glb")
     bones = []
@@ -86,9 +118,10 @@ def main():
         "source": "Z-Anatomy Startup.blend via z_anatomy_heart.glb (atlas radii, D46) and z_anatomy_skeleton.glb",
         "frame": "LPS mm (atlas frame, identity transform)",
         "isocenter_LPS": [round(float(x), 3) for x in iso],
-        "isocenter_rule": "volume centroid of both closed coronary trees (fixed; never moves with the injected tree)",
-        "trees": {"left": {"meshes": [s["name"] for s in sl], "volume_mm3": round(vl, 1), "centroid_LPS": cl.round(2).tolist()},
-                  "right": {"meshes": [s["name"] for s in sr], "volume_mm3": round(vr, 1), "centroid_LPS": cr.round(2).tolist()}},
+        "isocenter_rule": "volume centroid of both UNIONED coronary trees (fixed; never moves with the injected tree)",
+        "isocenter_before_union_LPS": [round(float(x), 3) for x in iso_summed],
+        "trees": {"left": {"meshes": [s["name"] for s in sl], "volume_mm3": round(vl, 1), "centroid_LPS": cl.round(2).tolist(), "union": ul},
+                  "right": {"meshes": [s["name"] for s in sr], "volume_mm3": round(vr, 1), "centroid_LPS": cr.round(2).tolist(), "union": ur}},
         "caps": {"left": sl, "right": sr, "heart": sh},
         "bones": {"radius_mm": BONE_RADIUS_MM, "used": [x["name"] for x in sb if not x.get("skipped")],
                   "skipped_not_closable": [x["name"] for x in sb if x.get("skipped")]},
@@ -101,7 +134,8 @@ def main():
         shutil.copy(p, WEB / p.name)
     (A / "atlas_xray.json").write_text(json.dumps(meta, indent=1))
     shutil.copy(A / "atlas_xray.json", WEB / "atlas_xray.json")
-    print(json.dumps({"isocenter_LPS": meta["isocenter_LPS"], "left_mm3": meta["trees"]["left"]["volume_mm3"],
+    print(json.dumps({"isocenter_LPS": meta["isocenter_LPS"], "isocenter_before_union_LPS": meta["isocenter_before_union_LPS"],
+                      "union_left": ul, "union_right": ur, "left_mm3": meta["trees"]["left"]["volume_mm3"],
                       "right_mm3": meta["trees"]["right"]["volume_mm3"], "bones_used": sum(not x.get("skipped") for x in sb), "bones_skipped": [x["name"] for x in sb if x.get("skipped")],
                       "left_meshes": len(sl), "right_meshes": len(sr)}, indent=1))
 

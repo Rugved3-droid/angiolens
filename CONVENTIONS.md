@@ -235,3 +235,11 @@ projection engine's convention: +X patient left, +Y posterior, +Z superior, mill
   and the monitor inset show the render target unchanged (texture (0,0) = the (-u, -v) corner). No display flips (section 6).
 - The Phase 0 sanity sheet (`preprocess/scripts/phase0_atlas.py`) must pass before any change to the atlas X-ray. It fails the run if
   the spine does not flip sides between RAO 30 and LAO 45, or superior does not project up.
+- **One solid per tree** (D52). The X-ray uses each tree's boolean UNION, so overlapping branch starts are not counted twice
+  [`tests/test_atlas_union.py`]. Per-branch meshes stay for selection, labels and hover.
+- **Static frame = validated frame** (D53). The optional renderer features (contrast fill window, device channel, cine field) leave the
+  static image identical. With the beat off, GPU = CPU (r = 1.0000); with it on, the X-ray follows the 3D heart's SAME field
+  [`web/e2e/atlas_xray.e2e.mjs`].
+- **Scene 5 is illustrative.** The catheter is shaped to the anatomy (tip at the manifest's effective ostium, tangent to the
+  coronary), never the reverse. Contrast fills by distance along the tree. The UI footer says "illustrative, not physics"
+  [`tests/test_atlas_cath.py`].
