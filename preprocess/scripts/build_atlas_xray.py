@@ -44,14 +44,16 @@ def nodes(path):
 
 def boolean_union(parts, label):
     """One closed solid from overlapping closed parts (manifold3d). Each part must be a valid manifold; the union removes the
-    double path where a branch starts inside its parent (D52)."""
+    double path where a branch starts inside its parent (D52).
+    D55: multi-spline parts (septal branches, right inferolateral branch) hold several tubes in ONE mesh; fed as one input, their
+    overlaps with the parent were not merged. Every part is therefore split into its connected tubes before the union."""
     import manifold3d as mf
     solids = []
     for name, V, F in parts:
         m = mf.Manifold(mf.Mesh(vert_properties=np.asarray(V, np.float32), tri_verts=np.asarray(F, np.uint32)))
         if m.status() != mf.Error.NoError:
             raise SystemExit(f"{label}: {name} is not a valid manifold for the union ({m.status()})")
-        solids.append(m)
+        solids.extend(m.decompose())
     u = mf.Manifold.batch_boolean(solids, mf.OpType.Add)
     if u.status() != mf.Error.NoError:
         raise SystemExit(f"{label}: union failed ({u.status()})")
@@ -94,6 +96,22 @@ def main():
     pl, pr = [], []
     VLs, FLs, sl = closed_union(left, "left tree", parts_out=pl)        # summed parts: kept only for the before/after (D52)
     VRs, FRs, sr = closed_union(right, "right tree", parts_out=pr)
+    # D55: floating branch tubes (separate from the ostial trunk's component) and illustrative bridges for gaps <= 3 mm
+    from cpt.bridges import analyse
+    probe = json.loads((A / "inspect" / "great_vessels_probe.json").read_text())
+    floating = {}
+    for tree, parts, root in (("left", pl, "Left coronary artery#0"), ("right", pr, "Right coronary artery#0")):
+        rep, br, ntubes = analyse(parts, probe, root)
+        floating[tree] = {"tubes": ntubes, "floating_components": rep}
+        parts.extend(br)                                      # bridges join the union (and are drawn in 3D, see below)
+        if br:
+            Vb = np.vstack([V for _, V, _ in br])
+            Fb = np.vstack([F + sum(len(v) for _, v, _ in br[:k]) for k, (_, _, F) in enumerate(br)])
+            write_glb(A / f"atlas_bridges_{tree}.glb", Vb, Fb, name=f"atlas_bridges_{tree}", extras={"note": "illustrative bridges, D55"})
+            shutil.copy(A / f"atlas_bridges_{tree}.glb", WEB / f"atlas_bridges_{tree}.glb")
+        else:
+            for d in (A, WEB):
+                (d / f"atlas_bridges_{tree}.glb").unlink(missing_ok=True)
     VL, FL, ul = boolean_union(pl, "left tree")
     VR, FR, ur = boolean_union(pr, "right tree")
     cl, vl = volume_centroid(VL, FL)
@@ -123,6 +141,7 @@ def main():
         "trees": {"left": {"meshes": [s["name"] for s in sl], "volume_mm3": round(vl, 1), "centroid_LPS": cl.round(2).tolist(), "union": ul},
                   "right": {"meshes": [s["name"] for s in sr], "volume_mm3": round(vr, 1), "centroid_LPS": cr.round(2).tolist(), "union": ur}},
         "caps": {"left": sl, "right": sr, "heart": sh},
+        "floating_branches": floating,
         "bones": {"radius_mm": BONE_RADIUS_MM, "used": [x["name"] for x in sb if not x.get("skipped")],
                   "skipped_not_closable": [x["name"] for x in sb if x.get("skipped")]},
         "note": "tube ends and valve rings are fan-capped from their own rim centroid; no vertex is moved (D49)",
@@ -133,6 +152,13 @@ def main():
         write_glb(p, V, F, name=f"atlas_xray_{name}", extras={"source": "Z-Anatomy", "closed": True})
         shutil.copy(p, WEB / p.name)
     (A / "atlas_xray.json").write_text(json.dumps(meta, indent=1))
+    man_p = A / "manifest.json"
+    man = json.loads(man_p.read_text())
+    man["illustrative_bridges"] = [{"tree": t, **c} for t, f in floating.items() for c in f["floating_components"] if c["bridge"]]
+    man["floating_branches"] = floating
+    man_p.write_text(json.dumps(man, indent=1))
+    print("floating components:", {t: len(f["floating_components"]) for t, f in floating.items()},
+          "bridges:", len(man["illustrative_bridges"]))
     shutil.copy(A / "atlas_xray.json", WEB / "atlas_xray.json")
     print(json.dumps({"isocenter_LPS": meta["isocenter_LPS"], "isocenter_before_union_LPS": meta["isocenter_before_union_LPS"],
                       "union_left": ul, "union_right": ur, "left_mm3": meta["trees"]["left"]["volume_mm3"],

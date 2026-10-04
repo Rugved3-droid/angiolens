@@ -3,79 +3,162 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Heart Atlas Scenes</title>
+    <title>Coronary Atlas</title>
     <style>
-      :root { --ink: #e9edf2; --muted: #9aa6b4; --panel: rgba(14, 18, 25, 0.72); --line: rgba(255, 255, 255, 0.12); --accent: #ff4a4a; }
-      html, body { margin: 0; height: 100%; background: #0b0e13; color: var(--ink); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+      :root {
+        --ink: #e9edf2; --muted: #9aa6b4; --panel: rgba(13, 17, 24, 0.78); --panel-solid: #0f141c; --line: rgba(255, 255, 255, 0.12);
+        --hover: rgba(255, 255, 255, 0.07); --on: rgba(255, 255, 255, 0.14); --accent: #e8383d; --accent-ink: #fff; --ok: #4fd18b; --bad: #ff6b6b;
+        --gold: #ffd24a; --radius: 10px; --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      html, body { margin: 0; height: 100%; background: #0b0e13; color: var(--ink); font: 14px/1.4 var(--font); overflow: hidden; }
       #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
-      .panel { position: fixed; background: var(--panel); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 10px; }
-      #bar { top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; flex-wrap: wrap; justify-content: center; max-width: calc(100% - 32px); box-sizing: border-box; }
-      #bar button { background: transparent; color: var(--ink); border: 1px solid transparent; border-radius: 7px; padding: 6px 12px; cursor: pointer; font: inherit; }
-      #bar button:hover { border-color: var(--line); }
-      #bar button.on { background: rgba(255, 255, 255, 0.12); border-color: var(--line); }
-      #bar .sep { width: 1px; background: var(--line); margin: 4px 2px; }
-      #caption { bottom: 22px; left: 50%; transform: translateX(-50%); padding: 10px 18px; font-size: 16px; max-width: calc(100% - 32px); box-sizing: border-box; text-align: center; transition: opacity 0.5s; }
-      #hover { position: fixed; pointer-events: none; padding: 5px 10px; border-radius: 6px; background: rgba(10, 12, 16, 0.85); border: 1px solid var(--line); font-size: 13px; white-space: nowrap; display: none; z-index: 5; }
-      #foot { position: fixed; bottom: 8px; right: 12px; color: var(--muted); font-size: 11px; }
-      #labelPanel { top: 70px; right: 14px; width: 250px; padding: 12px; display: none; max-height: calc(100% - 140px); overflow: auto; }
+      .panel { position: fixed; background: var(--panel); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: var(--radius); }
+      button { font: inherit; color: var(--ink); }
+      #fader { position: fixed; inset: 0; background: #0b0e13; opacity: 0; pointer-events: none; transition: opacity 0.22s ease; z-index: 2; }
+
+      /* ---- one-row toolbar ---- */
+      #bar { top: 12px; left: 12px; right: 12px; display: flex; align-items: center; gap: 4px; padding: 5px 6px;
+        white-space: nowrap; box-sizing: border-box; z-index: 10; }
+      #bar .sep.push { margin-left: auto; }
+      #bar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 3px; flex: none; }
+      .btn, .step, .seg button, .menulist button { background: transparent; border: 1px solid transparent; border-radius: 7px;
+        padding: 5px 10px; cursor: pointer; font-size: 13px; transition: background 0.15s, border-color 0.15s, opacity 0.15s; }
+      .btn:hover:not(:disabled), .step:hover:not(:disabled), .seg button:hover, .menulist button:hover { background: var(--hover); }
+      .btn:disabled, .step:disabled { opacity: 0.35; cursor: default; }
+      .btn.on, .seg button.on, .menulist button.on { background: var(--on); border-color: var(--line); }
+      .btn.accent { background: var(--accent); color: var(--accent-ink); }
+      .btn.accent:hover:not(:disabled) { background: #f14a4f; }
+      .btn.accent.on { background: #7a2326; }
+      .btn.icon { padding: 3px 9px; font-size: 18px; line-height: 1; }
+      .btn.toggle::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px;
+        background: var(--muted); opacity: 0.5; vertical-align: 1px; }
+      .btn.toggle.on::before { background: var(--gold); opacity: 1; }
+      .btn.menu .mt { color: var(--muted); }
+      .btn.menu .caret { color: var(--muted); font-size: 10px; }
+      .steps { display: flex; gap: 2px; }
+      .step { color: var(--muted); }
+      .step.done { color: #c3cbd5; }
+      .step.on { color: var(--ink); background: var(--on); border-color: var(--line); }
+      .ess { display: flex; align-items: center; gap: 4px; }
+      .seg { display: inline-flex; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: 8px; padding: 1px; }
+      .seg button { padding: 4px 9px; }
+      .menulist { position: fixed; display: flex; flex-direction: column; padding: 4px; min-width: 170px; z-index: 30; }
+      .menulist button { text-align: left; }
+
+      /* ---- More drawer ---- */
+      #drawer { top: 62px; right: 14px; width: 270px; padding: 10px 12px; display: none; z-index: 20; max-height: calc(100% - 150px); overflow: auto; }
+      #drawer.open { display: block; }
+      .dsec { margin-bottom: 10px; }
+      .dsec:last-child { margin-bottom: 0; }
+      .dtitle { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin: 2px 0 6px; }
+      #drawer .seg { flex-wrap: wrap; }
+      #drawer .btn { display: block; width: 100%; text-align: left; margin-bottom: 2px; }
+
+      /* ---- caption, hover, footer ---- */
+      #caption { bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 18px; font-size: 15px; max-width: min(760px, calc(100% - 32px));
+        box-sizing: border-box; text-align: center; transition: opacity 0.4s; z-index: 5; }
+      #hover { position: fixed; pointer-events: none; padding: 5px 10px; border-radius: 6px; background: rgba(10, 12, 16, 0.88); border: 1px solid var(--line);
+        font-size: 13px; white-space: nowrap; display: none; z-index: 40; }
+      #foot { position: fixed; bottom: 4px; right: 10px; color: #b3bdc9; font-size: 11px; z-index: 4; pointer-events: none;
+        white-space: nowrap; background: rgba(13, 17, 24, 0.72); padding: 2px 8px; border-radius: 6px; }
+
+      /* ---- the image: monitor inset (no backdrop blur: the canvas draws the image under this frame) ---- */
+      #monitor { position: fixed; left: 16px; bottom: 86px; padding: 8px; display: none; pointer-events: none; border: 1px solid var(--line);
+        border-radius: var(--radius); background: transparent; z-index: 3; }
+      #monitor .lbl, #splitLabel .lbl { color: #c3cbd5; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+      #monitorImage { position: relative; width: min(24vw, 300px); aspect-ratio: 1; border-radius: 4px; outline: 1px solid var(--line); }
+      #xrayDot { position: absolute; width: 14px; height: 14px; box-sizing: border-box; transform: translate(-50%, -50%); border-radius: 50%; border: 2px solid var(--gold);
+        box-shadow: 0 0 10px var(--gold); display: none; }
+      #splitLabel { position: fixed; left: 50%; top: 0; bottom: 0; right: 0; display: none; pointer-events: none; flex-direction: column;
+        align-items: center; justify-content: center; }
+      #splitLabel[style*="block"] { display: flex !important; }
+      #splitLabel::before { content: ""; position: absolute; left: -70px; top: 0; bottom: 0; width: 70px; pointer-events: none;
+        background: linear-gradient(to right, rgba(11, 14, 19, 0), rgba(11, 14, 19, 1)); }
+      #splitImage { width: min(42vw, 70vh); aspect-ratio: 1; border-radius: 4px; outline: 1px solid var(--line); margin-bottom: 10px; }
+
+      /* ---- Scene 6: the slice ---- */
+      #slicePanel { top: 66px; right: 16px; width: min(44vw, 640px); padding: 12px 14px 12px; display: none; flex-direction: column; gap: 8px; z-index: 3; }
+      #slicePanel .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+      #slicePanel .ttl { font-size: 15px; font-weight: 600; }
+      #slicePanel .tag { color: #c3cbd5; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+      #sliceCanvas { width: 100%; aspect-ratio: 1.25; display: block; }
+      #sliceName { color: var(--muted); }
+      .slider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+      .slider input { flex: 1; accent-color: var(--gold); }
+
+      /* ---- Predict ---- */
+      #predictPanel { left: 50%; bottom: 26px;   /* clears the licence footer line */ transform: translateX(-50%); padding: 12px 14px; display: none; flex-direction: column; gap: 8px;
+        width: min(1100px, calc(100% - 28px)); box-sizing: border-box; z-index: 6; }
+      body.predict #caption { display: none; }
+      #pr-prompt { font-size: 15px; }
+      #pr-prompt .hint, .hint { color: var(--muted); font-size: 12px; }
+      #pr-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+      .pr-tile { position: relative; cursor: pointer; border-radius: 8px; overflow: hidden; outline: 2px solid transparent; transition: outline-color 0.2s, transform 0.2s; }
+      .pr-tile:hover { outline-color: rgba(255, 255, 255, 0.35); }
+      .pr-tile canvas { width: 100%; display: block; aspect-ratio: 1; }
+      .pr-letter { position: absolute; left: 8px; top: 6px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px #000; }
+      .pr-tag { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 8px; font-size: 12px; background: rgba(0, 0, 0, 0.6); }
+      .pr-tag:empty { display: none; }
+      .pr-tile.pr-correct { outline-color: var(--ok); }
+      .pr-tile.pr-wrong { outline-color: var(--bad); }
+      .pr-tile.pr-done { cursor: default; }
+      .pr-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+      #pr-result .ok { color: var(--ok); } #pr-result .bad { color: var(--bad); }
+      #pr-next { flex: none; }
+      details.record summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+      .pr-conf td { padding: 1px 8px 1px 0; font-size: 12px; }
+
+      /* ---- tour ---- */
+      #tourBar { bottom: 78px; left: 50%; transform: translateX(-50%); padding: 5px 8px; display: none; align-items: center; gap: 6px; z-index: 7; }
+      #tDots { display: flex; gap: 6px; margin: 0 6px; }
+      #tDots .dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); transition: background 0.3s, transform 0.3s; }
+      #tDots .dot.done { background: rgba(255, 255, 255, 0.55); }
+      #tDots .dot.on { background: var(--gold); transform: scale(1.3); }
+
+      /* ---- label mode (Scene 1 tool) ---- */
+      #labelPanel { top: 66px; right: 14px; width: 250px; padding: 12px; display: none; max-height: calc(100% - 150px); overflow: auto; z-index: 8; }
       #labelPanel h3 { margin: 0 0 6px; font-size: 14px; }
-      #labelPanel .hint { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
       #labelPanel .grp { margin: 8px 0 4px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
       #labelPanel .names { display: flex; flex-wrap: wrap; gap: 4px; }
-      #labelPanel .names button, #labelPanel .row button { background: rgba(255,255,255,0.06); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 3px 7px; cursor: pointer; font: 12px system-ui; }
-      #labelPanel .names button.cur { background: #ffd24a; color: #111; }
+      #labelPanel .names button, #labelPanel .row button { background: rgba(255,255,255,0.06); border: 1px solid var(--line); border-radius: 5px;
+        padding: 3px 7px; cursor: pointer; font-size: 12px; }
+      #labelPanel .names button.cur { background: var(--gold); color: #111; }
       #labelPanel .row { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
       #sel { font-weight: 600; margin-bottom: 4px; }
-      /* no backdrop blur here: the canvas draws the image underneath this frame */
-      #monitor { position: fixed; right: 16px; bottom: 90px; padding: 8px; display: none; pointer-events: none;
-        border: 1px solid var(--line); border-radius: 10px; background: transparent; }
-      #monitor .lbl, #splitLabel .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
-      #monitorImage { width: min(30vw, 300px); aspect-ratio: 1; border-radius: 4px; outline: 1px solid var(--line); }
-      #splitLabel { position: fixed; left: 50%; top: 0; bottom: 0; right: 0; display: none; pointer-events: none;
-        flex-direction: column; align-items: center; justify-content: center; }
-      #splitLabel[style*="block"] { display: flex !important; }
-      #splitImage { width: min(42vw, 72vh); aspect-ratio: 1; border-radius: 4px; outline: 1px solid var(--line); margin-bottom: 10px; }
-      @media (max-width: 640px) { #labelPanel { width: auto; left: 14px; } #caption { font-size: 14px; } #monitorImage { width: 38vw; } }
+
+      @media (max-width: 1100px) { .btn.menu .mt { display: none; } }
+      @media (max-width: 760px) { #bar { flex-wrap: wrap; justify-content: center; } #slicePanel { width: calc(100% - 32px); } #caption { font-size: 14px; } }
     </style>
   </head>
   <body>
     <canvas id="c"></canvas>
-    <div id="bar" class="panel">
-      <button id="bHeart" class="on">Heart</button><button id="bPatient">Heart in the patient</button>
-      <button id="bLab">Cath lab</button><button id="bXray">X-ray</button><button id="bCath">Catheter</button>
-      <span class="sep"></span>
-      <span id="cathCtl" style="display:none">
-        <span id="cathAccess" style="display:contents"><button data-v="femoral_right">Femoral</button><button data-v="radial_right">Radial</button></span>
-        <span id="cathTarget" style="display:contents"><button data-v="left">Left (JL4)</button><button data-v="right">Right (JR4)</button></span>
-        <button id="bRun">Run</button><button id="bInject">Inject</button>
-      </span>
-      <span id="cathCams" style="display:none">
-        <button data-v="room">Room</button><button data-v="operator">Operator</button><button data-v="beam">Beam</button><button data-v="root">Aortic root</button>
-      </span>
-      <span id="carmViews" style="display:none">
-        <button data-v="ap">AP</button><button data-v="rao30">RAO 30</button><button data-v="lao45">LAO 45</button>
-        <button data-v="raocaud">RAO caudal</button><button data-v="spider">Spider</button>
-      </span>
-      <span id="labCams" style="display:none"><button data-v="room">Room</button><button data-v="operator-femoral">Operator (femoral)</button><button data-v="operator-radial">Operator (radial)</button></span>
-      <span id="xrCams" style="display:none">
-        <button data-v="room">Room</button><button data-v="beam">Beam</button><button data-v="split">Side by side</button>
-      </span>
-      <span id="inject" style="display:none"><button data-v="left">Left coronary</button><button data-v="right">Right coronary</button></span>
-      <span id="heartViews" style="display:contents">
-        <button data-v="front" class="on">Whole heart</button><button data-v="root">Aortic root</button>
-      </span>
-      <span id="views" style="display:contents">
-        <button data-v="front">Front</button><button data-v="left">Left side</button><button data-v="right">Right side</button>
-        <button data-v="feet">From the feet</button><button data-v="head">From the head</button>
-      </span>
-      <span class="sep"></span>
-      <button id="bBeat" style="display:none">Beating heart</button><button id="bVeins" class="on">Cardiac veins</button><button id="bLabel">Label branches</button>
-    </div>
-    <div id="caption" class="panel"></div>
-    <!-- the image (Scene 4): the canvas draws the angiogram into these rectangles; the frames are HTML only -->
-    <div id="monitor"><div class="lbl">Image</div><div id="monitorImage"></div></div>
-    <div id="splitLabel"><div id="splitImage"></div><div class="lbl">The image on the detector</div></div>
+    <div id="fader" aria-hidden="true"></div>
+    <nav id="bar" class="panel" aria-label="Scenes and controls"></nav>
+    <div id="drawer" class="panel" aria-label="More controls"></div>
+    <div id="caption" class="panel" role="status" aria-live="polite"></div>
     <div id="hover"></div>
+    <div id="monitor"><div class="lbl">Image</div><div id="monitorImage"><div id="xrayDot"></div></div></div>
+    <div id="splitLabel"><div id="splitImage"></div><div class="lbl">The image on the detector</div></div>
+    <section id="slicePanel" class="panel" aria-label="Cross-section">
+      <div class="head"><span class="ttl">Cross-section</span><span class="tag">illustrative</span></div>
+      <div id="sliceName"></div>
+      <canvas id="sliceCanvas"></canvas>
+      <div class="slider"><span>Proximal</span><input id="sliceSlider" type="range" min="0" max="1000" value="0" aria-label="Slide along the vessel" /><span>Distal</span></div>
+    </section>
+    <section id="predictPanel" class="panel" aria-label="Predict">
+      <div class="pr-row"><div id="pr-prompt"></div><button id="pr-next" class="btn accent">Next</button></div>
+      <div id="pr-tiles"></div>
+      <div class="pr-row"><div id="pr-result"></div>
+        <details class="record"><summary>Your record</summary><div id="pr-summary"></div></details></div>
+      <input id="pr-mirror" type="checkbox" hidden /><button id="pr-reset" hidden></button>
+    </section>
+    <div id="tourBar" class="panel" aria-label="Tour">
+      <button id="tPrev" class="btn icon" title="Previous step">‹</button>
+      <button id="tPause" class="btn icon" title="Pause">❚❚</button>
+      <button id="tNext" class="btn icon" title="Next step">›</button>
+      <div id="tDots"></div>
+      <button id="tStop" class="btn" title="End the tour">End tour</button>
+    </div>
     <div id="labelPanel" class="panel">
       <h3>Label mode</h3>
       <div class="hint">Click a coloured branch, then pick its name. Saved in this browser; export to keep a file.</div>
@@ -83,7 +166,7 @@
       <div id="names"></div>
       <div class="row"><button id="lExport">Export labels</button><label><input id="lImport" type="file" accept=".json" hidden /><button id="lImportBtn">Import</button></label></div>
     </div>
-    <div id="foot">Z-Anatomy atlas (CC BY-SA 4.0) · vessel sizes are the atlas's own, not a patient's</div>
+    <div id="foot">Z-Anatomy atlas · CC BY-SA 4.0 · atlas anatomy, not a patient</div>
     <script type="module" src="/src/atlasHero.ts"></script>
   </body>
 </html>

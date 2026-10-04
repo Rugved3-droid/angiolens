@@ -62,6 +62,95 @@ export function closedTube(pts: THREE.Vector3[], r: number, sides = 12): THREE.B
   return g;
 }
 
+/** A closed tube in a PREALLOCATED, non-indexed buffer, rewritten in place every frame (D60: recreating vertex buffers each
+ *  frame stalled the GPU pipeline for hundreds of ms on ANGLE/D3D11). Normals are the outward radial / cap directions, which is
+ *  what both the 3D shading and the X-ray's entry/exit test need. One geometry is shared by the 3D mesh and the X-ray. */
+export class FlatTube {
+  readonly geometry = new THREE.BufferGeometry();
+  private readonly pos: Float32Array;
+  private readonly nrm: Float32Array;
+  constructor(private readonly maxPts: number, private readonly sides: number) {
+    const maxVerts = ((maxPts - 1) * sides * 6 + 2 * sides * 3);
+    this.pos = new Float32Array(maxVerts * 3);
+    this.nrm = new Float32Array(maxVerts * 3);
+    const pa = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
+    const na = new THREE.BufferAttribute(this.nrm, 3).setUsage(THREE.DynamicDrawUsage);
+    this.geometry.setAttribute("position", pa);
+    this.geometry.setAttribute("normal", na);
+    this.geometry.setDrawRange(0, 0);
+    this.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);   // never culled; the bounds change every frame
+  }
+  /** Returns false (and draws nothing) for fewer than two points. */
+  update(pts: THREE.Vector3[], r: number): boolean {
+    const n = Math.min(pts.length, this.maxPts), S = this.sides;
+    if (n < 2) { this.geometry.setDrawRange(0, 0); return false; }
+    const ring = new Float32Array(n * S * 3), rn = new Float32Array(n * S * 3);
+    const T = new THREE.Vector3(), N = new THREE.Vector3(), B = new THREE.Vector3(), Tp = new THREE.Vector3(), ax = new THREE.Vector3();
+    for (let i = 0; i < n; i++) {
+      T.copy(pts[Math.min(i + 1, n - 1)]).sub(pts[Math.max(i - 1, 0)]).normalize();
+      if (i === 0) {
+        N.set(0, 0, 1).cross(T);
+        if (N.lengthSq() < 1e-6) N.set(1, 0, 0).cross(T);
+        N.normalize();
+      } else {
+        ax.copy(Tp).cross(T);
+        const sn = ax.length();
+        if (sn > 1e-9) N.applyAxisAngle(ax.normalize(), Math.asin(Math.min(1, sn)) * (Tp.dot(T) < 0 ? -1 : 1));
+        N.addScaledVector(T, -N.dot(T)).normalize();
+      }
+      Tp.copy(T);
+      B.copy(T).cross(N);
+      for (let k = 0; k < S; k++) {
+        const a = (2 * Math.PI * k) / S, c = Math.cos(a), s = Math.sin(a);
+        const dx = N.x * c + B.x * s, dy = N.y * c + B.y * s, dz = N.z * c + B.z * s;
+        const o = (i * S + k) * 3;
+        ring[o] = pts[i].x + r * dx; ring[o + 1] = pts[i].y + r * dy; ring[o + 2] = pts[i].z + r * dz;
+        rn[o] = dx; rn[o + 1] = dy; rn[o + 2] = dz;
+      }
+    }
+    let v = 0;
+    const put = (src: Float32Array, nsrc: Float32Array | null, idx: number, nx = 0, ny = 0, nz = 0) => {
+      this.pos[v * 3] = src[idx * 3]; this.pos[v * 3 + 1] = src[idx * 3 + 1]; this.pos[v * 3 + 2] = src[idx * 3 + 2];
+      if (nsrc) { this.nrm[v * 3] = nsrc[idx * 3]; this.nrm[v * 3 + 1] = nsrc[idx * 3 + 1]; this.nrm[v * 3 + 2] = nsrc[idx * 3 + 2]; }
+      else { this.nrm[v * 3] = nx; this.nrm[v * 3 + 1] = ny; this.nrm[v * 3 + 2] = nz; }
+      v++;
+    };
+    for (let i = 0; i < n - 1; i++)
+      for (let k = 0; k < S; k++) {
+        const a = i * S + k, b = i * S + ((k + 1) % S), c = a + S, d = b + S;
+        put(ring, rn, a); put(ring, rn, b); put(ring, rn, d);
+        put(ring, rn, a); put(ring, rn, d); put(ring, rn, c);
+      }
+    // caps: fan around the end points, normals along -T (proximal) and +T (distal)
+    const caps: [number, number][] = [[0, -1], [n - 1, 1]];
+    const ctr = new Float32Array(3);
+    for (const [i, sg] of caps) {
+      const t = pts[Math.min(i + 1, n - 1)].clone().sub(pts[Math.max(i - 1, 0)]).normalize().multiplyScalar(sg);
+      ctr[0] = pts[i].x; ctr[1] = pts[i].y; ctr[2] = pts[i].z;
+      for (let k = 0; k < S; k++) {
+        const k2 = (k + 1) % S;
+        const [p1, p2] = sg < 0 ? [k2, k] : [k, k2];
+        put(ctr, null, 0, t.x, t.y, t.z); put(ring, null, i * S + p1, t.x, t.y, t.z); put(ring, null, i * S + p2, t.x, t.y, t.z);
+      }
+    }
+    this.geometry.setDrawRange(0, v);
+    const pa = this.geometry.getAttribute("position") as THREE.BufferAttribute, na = this.geometry.getAttribute("normal") as THREE.BufferAttribute;
+    pa.clearUpdateRanges(); pa.addUpdateRange(0, v * 3); pa.needsUpdate = true;
+    na.clearUpdateRanges(); na.addUpdateRange(0, v * 3); na.needsUpdate = true;
+    return true;
+  }
+}
+
+/** Display/X-ray resampling (D60): every 3rd point along the route, full detail over the last 70 points (the shaped tip and
+ *  the J). The route is a 1 mm polyline, so the tube stays smooth; the per-frame upload is ~3x smaller. */
+function thin(P: THREE.Vector3[]): THREE.Vector3[] {
+  const keepFrom = Math.max(0, P.length - 70);
+  const out: THREE.Vector3[] = [];
+  for (let i = 0; i < P.length; i++) if (i % 3 === 0 || i >= keepFrom) out.push(P[i]);
+  if (out[out.length - 1] !== P[P.length - 1]) out.push(P[P.length - 1]);
+  return out;
+}
+
 /** Points of a polyline up to arc length s (interpolated end point). */
 function cut(path: THREE.Vector3[], cum: number[], s: number): THREE.Vector3[] {
   if (s <= 0) return [path[0].clone()];
@@ -93,14 +182,21 @@ export class CathSim {
   private readonly cathMesh: THREE.Mesh;
   private readonly wireMesh: THREE.Mesh;
   private readonly puff3d: THREE.Mesh;
-  private cathGeo: THREE.BufferGeometry | null = null;
-  private wireGeo: THREE.BufferGeometry | null = null;
+  private readonly cathTube = new FlatTube(1400, 12);
+  private readonly wireTube = new FlatTube(1400, 8);
   onPhase: (p: Phase) => void = () => {};
+  /** the catheter as drawn now (puncture -> tip), for the cross-section */
+  visiblePath: THREE.Vector3[] | null = null;
+  get engaged() { return this.phase === "engaged" || this.phase === "inject"; }
+  /** where the engaged tip ends (3 mm inside the effective ostium) */
+  tipPoint() { const p = this.data.shapes[this.shapeName].polyline; return V(p[p.length - 1]); }
 
   constructor(private readonly data: CathData, private readonly angio: AngioRenderer,
     cathMat: THREE.Material, wireMat: THREE.Material, puffMat: THREE.Material) {
-    this.cathMesh = new THREE.Mesh(new THREE.BufferGeometry(), cathMat);
-    this.wireMesh = new THREE.Mesh(new THREE.BufferGeometry(), wireMat);
+    this.cathMesh = new THREE.Mesh(this.cathTube.geometry, cathMat);
+    this.wireMesh = new THREE.Mesh(this.wireTube.geometry, wireMat);
+    this.cathMesh.frustumCulled = this.wireMesh.frustumCulled = false;
+    angio.setDeviceGeometries([{ geometry: this.cathTube.geometry, weight: 1 }, { geometry: this.wireTube.geometry, weight: 5 }]);
     this.puff3d = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 3), puffMat);
     this.puff3d.visible = false;
     this.cathMesh.renderOrder = 3; this.wireMesh.renderOrder = 3; this.puff3d.renderOrder = 4;
@@ -147,14 +243,10 @@ export class CathSim {
     const cum = cumOf(P);
     const L = cum[cum.length - 1];
     const cath = cut(P, cum, Math.min(tipS, L));
-    this.cathGeo?.dispose();
-    this.cathGeo = cath.length > 1 ? closedTube(cath, this.data.catheter_outer_radius_mm, 12) : new THREE.BufferGeometry();
-    this.cathMesh.geometry = this.cathGeo;
-    this.cathMesh.visible = cath.length > 1;
-    const devices: { geometry: THREE.BufferGeometry; weight: number }[] = [];
-    if (cath.length > 1) devices.push({ geometry: this.cathGeo, weight: 1 });
-    this.wireGeo?.dispose();
-    this.wireGeo = null;
+    this.visiblePath = cath.length > 1 ? cath : null;
+    const cOn = this.cathTube.update(thin(cath), this.data.catheter_outer_radius_mm);
+    this.cathMesh.visible = cOn;
+    let wOn = false;
     if (wireTipS > 0) {
       // the wire runs inside the catheter and leads it; its last few mm curl into a J (soft, atraumatic tip)
       const W = cut(P, cum, Math.min(wireTipS, L));
@@ -167,12 +259,10 @@ export class CathSim {
         const th = (k / 14) * Math.PI * 1.1;
         W.push(end.clone().addScaledVector(t, J_R * Math.sin(th)).addScaledVector(n, J_R * (1 - Math.cos(th))));
       }
-      this.wireGeo = closedTube(W, WIRE_R, 8);
-      devices.push({ geometry: this.wireGeo, weight: 5 });     // metal: far denser than the catheter wall
-    }
-    this.wireMesh.geometry = this.wireGeo ?? new THREE.BufferGeometry();
-    this.wireMesh.visible = !!this.wireGeo;
-    this.angio.setDevices(devices);
+      wOn = this.wireTube.update(thin(W), WIRE_R);                     // metal: weight 5, far denser than the catheter wall
+    } else this.wireTube.update([], WIRE_R);
+    this.wireMesh.visible = wOn;
+    this.angio.setDeviceVisible([cOn, wOn]);
   }
 
   /** Advance the timeline; returns true while something moves (the caller re-renders the X-ray). */

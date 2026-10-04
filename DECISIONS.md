@@ -672,3 +672,116 @@ comparison file z_anatomy_heart_illustrative.glb; z_anatomy_heart_tapered.glb is
 - **Operator camera:** Scene 3 offers femoral (at the hip) or radial (beside the right shoulder, over the arm; no arm board is
   modelled). Scene 5's operator position follows the chosen access.
 - **Room camera:** approved as is.
+
+## 2026-10-04 (v1.0)
+
+**D55 Floating branches: none. A union input fix instead of bridges.** DECIDED (Rugved: report, bridge <= 3 mm), outcome measured.
+- **Report** (`cpt/bridges.py`, in `build_atlas_xray.py`; atlas_xray.json and manifest `floating_branches`):
+  - The trees are split into single-spline tubes (19 left, 22 right) and grouped by contact.
+  - Every tube touches or overlaps its tree: surface gap <= 0.01 mm. There are 0 floating components, 0 bridges and 0 gaps > 3 mm.
+  - The LM meets the LAD/LCx flush at a cap plane (gap 0.00003 mm); it is connected and needs no bridge.
+  - The bridge machinery stays in the build (closed tube from the branch's proximal centreline end to the parent centreline, origin
+    radius, flagged "illustrative bridge" in the manifest) and acts if a gap ever appears.
+- **Correction of D52:** the 5 and 8 "bodies" were not floating branches. Multi-spline objects (the septal branches, the right
+  inferolateral branch) went into the union as ONE mesh each, so their overlaps with the parent were not merged.
+  - The union now splits every part into its tubes first: left 1279.3 -> 1277.8 mm3, right 1556.2 -> 1553.5 mm3. Bodies: left 2
+    (main + the flush LM), right 1. Isocenter (25.23, -45.51, 1291.30).
+  - Figure out/review/lab/septal_before_after.png: up to 0.97 mm of double path removed at a septal origin; nothing added (max
+    +0.0001 mm). Junction tests, GPU = CPU and the sanity sheet all re-pass.
+
+**D56 Scene 6: cross-section (illustrative; the panel says so).** DECIDED (Rugved: spec), details DEFAULT.
+- **Data:** every spline's centreline, authored radius and fill distance (build_atlas_cath.py, trees.*.centrelines).
+- **Slice:** perpendicular to the centreline, with parallel-transport frames so it never spins.
+  - It shows the lumen at the atlas radius and an illustrative wall: intima 0.12, media 0.30, adventitia 0.38 mm (0.8 mm in all,
+    labelled).
+  - Epicardial fat is a soft 2.6 mm halo.
+  - The lumen shows contrast from the SAME fill window as the 3D glow and the X-ray.
+  - The catheter tip appears where the engaged catheter crosses the plane (blue-grey wall with an outline, so it reads against
+    contrast).
+- **Controls:** pick any coronary point (click), or follow the catheter tip; a slider scrubs along the vessel.
+- **Synced markers:** a gold ring on the 3D vessel and a gold dot on the X-ray. The dot is CArm.project of the slice point mapped
+  to the monitor (u right, v up); e2e agrees within 0.02 px.
+- **Layout:** the 3D view is shifted left of the slice panel by a projection view offset (no camera trick).
+
+**D57 One-row toolbar.** DECIDED (Rugved: spec).
+- [Tour] | < Heart / In the chest / Cath lab / X-ray / Catheter / Cross-section > | 2-4 essentials | [More].
+- Controls are declared per scene and rendered by web/src/toolbar.ts; everything secondary is in the More drawer.
+- Measured at 1280 px: one row in every scene, widest 1245 px (X-ray), no overflow.
+
+**D58 Predict on the atlas.** DECIDED (Rugved).
+- The SAME PredictMode (predict.ts logic: candidates, flips, mirror distractors, degenerate-pose rule, error tracking) runs on this
+  app's X-ray, with the new look. The record is kept per viewer, under its own key.
+- Presets: RAO 30, LAO 45, RAO caudal, spider (left tree), RAO 30, LAO 45 (right). AP is excluded, because both flips reproduce
+  it.
+- Stats are in a collapsed "Your record". The mirror distractor and "clear my record" are in More.
+- e2e: 4 distinct candidates, correct answer recorded, C-arm lands exactly on the target.
+
+**D59 Guided tour ("Tour").** DECIDED (Rugved: 10 steps).
+- Steps: heart beating -> into the chest -> cath lab -> swing to RAO caudal -> X-ray forms -> walk around the beam (side-on, orbit
+  about the beam axis, side by side) -> spider -> catheter up and engaged (root close-up) -> contrast in 3D and X-ray -> the slice
+  at the LM with the catheter tip inside.
+- Pause, back, next, end; step dots, no numbers. Each step's action rebuilds the state it needs, so back and next work from
+  anywhere.
+
+**D60 Performance and quality pass.** DEFAULT (measured on this laptop, headless Chromium on the real GPU, 1600x1000).
+- **Bottlenecks found by profiling** (fill rate and per-frame GPU churn, not JavaScript):
+  - the faint skeleton (702k triangles, 278 draw calls, PBR per transparent layer);
+  - double-sided glass skin;
+  - clearcoat on the C-arm;
+  - per-frame vertex-buffer re-creation for the catheter (frames stalled up to 0.78 s).
+- **Fixes:**
+  - Display skeleton: simplified to 25 % and merged into trunk and limbs; true surface deviation median 0.48 mm, worst bone
+    4.4 mm. Display only; the X-ray keeps full bones.
+  - A light bone shader; front-face glass in the lab scenes; Blinn-Phong hardware materials without an environment lookup
+    (MeshStandard + PMREM on the C-arm cost ~20 fps in the operator view).
+  - Preallocated catheter and wire buffers shared by 3D and the X-ray.
+  - Slice redrawn only when it changes; fibre detail off while the chambers are ghosted.
+  - Every shader variant precompiled at load. The fadeable materials are permanently transparent, so fades never recompile.
+- **Resolution:** a fixed ~1.15 Mpx pixel budget. An adaptive scheme was tried and dropped: every resize reallocated the canvas
+  and stalled a frame by up to 0.6 s (measured).
+- **Pulsed fluoroscopy:** the live X-ray re-renders at most 15 times a second (as real pulsed fluoro and cine do), not every
+  display frame, while the catheter moves or the heart beats.
+- **First-use costs:** the warm-up also DRAWS the scene once (compiling does not upload buffers), the slice ring, the catheter tip
+  ghost and the slice's 2D canvas. Dynamic buffers are re-uploaded only when their content changes: a per-frame partial upload of
+  a buffer the GPU was still reading stalled ~0.5 s on ANGLE/D3D11.
+- **Result** (out/review/v1/fps.json): 45-60 fps in all 14 measured views (also on the built app); the tightest are the heart
+  close-up (45) and the Scene 6 slice during injection (46).
+- **Tour stalls** (tour_stalls.mjs, unrecorded): worst frame 783 ms -> 67 ms; mean 57 fps over the 76 s tour.
+- **Visual fixes:**
+  - the C-arm turns to glass when it hides the heart;
+  - the beam is shown only in Scene 4;
+  - the angiogram texture is mipmapped and anisotropic (no detector moire);
+  - shorter one-line footers;
+  - the room / C-arm can no longer appear in Scenes 1-2 (a regression caught in review shots).
+
+**D61 Fresh-eyes review outcome.** DEFAULT. A reviewer agent that had not seen the build reviewed the screenshots (1280 / 1920),
+the toolbar and the tour recording against the v1.0 checklist. It found 17 problems in round 1 and 12 in round 2 (the single
+re-review). The fixes:
+- **3D coronaries:** drawn as each tree's closed UNION (the X-ray's solid), so the origins show no open tube ends. The branch
+  meshes stay as invisible pick proxies for hover, labels and slice picking. Label mode shows the per-branch colours.
+- **Transitions:** entering the lab from Scenes 1-2, or switching between the room and a heart-only view (side by side, aortic
+  root, slice), is a 0.25 s fade cut. A flight from the chest passed through the detector, and the room popped out mid-move.
+- **C-arm fades:** they use world bounding boxes. The stand arm's scaled bounding sphere had hidden it permanently. In the
+  operator view, parts within 0.9 m of the eye fade out; a part hiding the heart turns to glass.
+- **Detector z-fighting:** both detector faces were coplanar with the housing's bevelled faces and z-fought while the arm moved.
+  They now sit 3 mm clear (display only; the projection geometry is the CArm math).
+- **Scene 6 tip ghost:** the catheter tip sits a few mm inside the left main, hidden by the opaque contrast-filled vessel, so the
+  slice ring looked "past the tip". The catheter's last 40 mm is now drawn faintly where the vessel hides it.
+- **Predict:** each round shows the question's injection in the lab and the toolbar (the pose is unchanged until answered).
+- **Smaller fixes:**
+  - side by side framed to the half panel;
+  - the X-ray inset bottom-left with an opaque frame;
+  - catheter contrast during injection;
+  - rim light in the chest view only;
+  - subtler fibre relief and fat lobules;
+  - wider, darker table;
+  - footer backing;
+  - shorter captions;
+  - the Predict panel clear of the licence footer.
+- **Not changed, with reasons:**
+  - aortic-root seam, crease and left-main origin shape: atlas geometry, approved in review; never edited per structure (D37);
+  - flat-capped great-vessel ends: closed ends were requested;
+  - table seen through the glass patient, and hands past the table edge: the atlas pose and a glass body;
+  - heart tint differs through the glass body and the ghosted root views: a lighting and transparency effect, not a different
+    material;
+  - Predict prompts name angles for random views: same Predict logic as the original app, by request.

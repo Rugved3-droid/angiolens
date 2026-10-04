@@ -1,0 +1,30 @@
+// Times the per-frame work during the catheter advance and the injection (quality pass, D60).   node e2e/cath_timing.mjs
+import { chromium } from "playwright";
+import { createServer } from "vite";
+const server = await createServer({ server: { port: 5188, strictPort: true } });
+await server.listen();
+const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--ignore-gpu-blocklist"] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+page.on("pageerror", (e) => console.log("pageerror", String(e)));
+await page.goto("http://localhost:5188/atlas.html?scene=5&carm=spider&cam=operator");
+await page.waitForSelector("body[data-ready='1']", { timeout: 300000 });
+await page.waitForTimeout(2500);
+const r = await page.evaluate(async () => {
+  const { cath, lab } = window.atlas;
+  const T = { update: [], render: [], frame: [] };
+  const wrap = (obj, name, key) => { const f = obj[name].bind(obj); obj[name] = (...a) => { const t = performance.now(); const v = f(...a); T[key].push(performance.now() - t); return v; }; };
+  wrap(cath, "update", "update");
+  wrap(lab, "renderImage", "render");
+  let last = performance.now(), run = true;
+  const f = (now) => { T.frame.push(now - last); last = now; if (run) requestAnimationFrame(f); };
+  requestAnimationFrame(f);
+  window.atlas.runCath();
+  await new Promise((r) => setTimeout(r, 11500));
+  window.atlas.injectCath();
+  await new Promise((r) => setTimeout(r, 5000));
+  run = false;
+  const st = (a) => { const s = [...a].sort((x, y) => x - y); return { n: s.length, p50: +s[Math.floor(s.length / 2)].toFixed(1), p95: +s[Math.floor(s.length * 0.95)].toFixed(1), max: +s[s.length - 1].toFixed(1) }; };
+  return { update: st(T.update), render: st(T.render), frame: st(T.frame) };
+});
+console.log(JSON.stringify(r));
+await browser.close(); await server.close();

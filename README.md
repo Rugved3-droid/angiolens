@@ -1,39 +1,51 @@
 # Coronary Projection Trainer
 
-Personal learning tool: how a 3D coronary tree becomes a 2D angiogram at a given C-arm angle.
+Personal learning tool: how the 3D heart and its coronary arteries become the 2D angiogram at any C-arm angle.
 Geometry rules: [CONVENTIONS.md](CONVENTIONS.md). Choices and open questions: [DECISIONS.md](DECISIONS.md).
 
-**Status (2026-10-02).** The product is a simple, cinematic, animated explainer, not a dashboard. There are no numbers by default;
-metrics live behind "Advanced". There are two apps on one validated geometry engine:
+## Launch (v1.0)
 
-- **A. Main C-arm app** (`index.html`, ASOCA case Normal_12, a real patient CT):
-  - validated LPS projection and X-ray rendering, with a synchronized 3D panel (C-arm, detector ghost, rays);
-  - metrics and heatmaps, branch labels with derived SCCT segments, and Predict mode;
+```powershell
+cd web
+npm install          # once
+npm run launch       # = npm run build && npm run start: builds the static app, serves dist/ and opens /atlas.html on port 5178
+```
+
+`npm run start` serves an existing build without rebuilding. The app is static (no backend). The anatomy files in
+`web/public/anatomy/` are git-ignored and must be built first (section "Atlas scenes" below).
+
+**Status (2026-10-04): v1.0.** A cinematic, animated explainer, not a dashboard: no numbers in the main experience (view names
+only). Two apps share one validated geometry engine:
+
+- **The atlas app** (`atlas.html`, the v1.0 product): the Z-Anatomy heart, skeleton and skin (CC BY-SA 4.0).
+  - One toolbar row: **Tour**, a scene stepper with Back and Next, 2-4 controls per scene, and **More** for the rest.
+  1. **Heart:** the beating heart; an aortic-root close-up.
+  2. **In the chest:** a glass body with faint bones; five views.
+  3. **Cath lab:** table, patient and C-arm. Smooth swings between AP, RAO 30, LAO 45, RAO caudal and spider; Room and Operator
+     (femoral or radial) cameras.
+  4. **X-ray:** the validated engine on the atlas coronaries, with selective left or right injection and a faint skeleton and heart
+     silhouette.
+     - The image builds on the detector and in the monitor.
+     - Beam view (free orbit) and side-by-side.
+     - **Predict**: which of four images does a named view make? Same distractors and error tracking as the CT app.
+  5. **Catheter** (illustrative): right femoral or radial access.
+     - A J-wire and a 6F catheter go up to the aortic root; JL4 or JR4 engages the effective ostium.
+     - Contrast fills the tree in 3D and on the X-ray together, with a cine heartbeat.
+  6. **Cross-section** (illustrative): a large labelled slice (lumen, three-layer wall, epicardial fat, catheter tip).
+     - It is synced with a ring on the 3D vessel and a dot on the X-ray; pick any coronary or follow the tip, and slide along
+       the vessel.
+  - **Tour:** ten auto-advancing steps from the beating heart to the slice at the left main, with pause, back and next.
+  - Phone controller, Mission/Guess and relative-move questions are v1.1.
+- **The CT app** (`index.html`, ASOCA case Normal_12, a real patient CT):
+  - validated projection with a 3D panel, metrics and heatmaps behind "Advanced", branch labels with SCCT segments, Predict;
   - the distal-RCA extension is off (judged venous-leaning) and dominance is "indeterminate".
-- **B. Atlas scenes** (`atlas.html`, the Z-Anatomy heart, skeleton and skin, CC BY-SA 4.0). Not yet connected to the C-arm.
-  - Scene 1: the beating heart close-up, with an aortic-root close-up.
-  - Scene 2: the heart inside a glass body, with five views.
-  - The vessels have the atlas's own authored sizes (D46), and the great vessels down to the iliac bifurcation are shown.
-  - Catheter access routes are exported but hidden (D47). The skin is one welded surface (D48).
 
-- **Scene 3, cath lab:** table, glass patient, C-arm. Smooth swings between the standard views; Room and Operator cameras.
-- **Scene 4, X-ray pass:** the validated engine on the atlas coronaries (D49-D50). Selective LCA/RCA injection with a faint skeleton
-  and heart silhouette; beam cone; the image builds on the detector; Beam (free orbit) and Side-by-side views.
-
-- **Scene 5, catheter + contrast (illustrative, not physics):**
-  - Access: right femoral or right radial. A J-wire leads the 6F catheter up the route, then withdraws.
-  - The catheter takes its JL4 (left) or JR4 (right) shape and engages the effective ostium.
-  - Contrast fills the tree in 3D and on the X-ray together, with a cine beat during the injection.
-  - Cameras: Room, Operator, Beam, Aortic root (D52-D54).
-- In Scenes 3-5 the heartbeat is paused unless "Beating heart" is on, and the X-ray trees are one unioned solid each (D52).
-
-Next (not started): Scene 6 (cross-section), the phone-as-detector controller, relative-move Predict questions, Mission/Guess.
 The TotalSegmentator heart (section "Simple view" below) is **no longer the hero heart**: Z-Anatomy is (D43). The
-TotalSegmentator pipeline is kept only for the ASOCA case's own anatomy.
+TotalSegmentator pipeline is kept only for the CT case's own anatomy.
 
 ## Atlas scenes (Z-Anatomy)
 
-Source, license and frame: DECISIONS D37-D48 and CONVENTIONS sections 10-11. All exports are git-ignored.
+Source, license and frame: DECISIONS D37-D61 and CONVENTIONS sections 10-12. All exports are git-ignored.
 
 ```powershell
 # 1. export (needs Startup.blend in assets/anatomy/source/; checks free memory first; peak ~6.2 GB)
@@ -46,6 +58,7 @@ foreach ($f in "heart","heart_illustrative","access_routes","skeleton","skin") {
 .\.venv\Scripts\python -m pytest -q tests\test_anatomy_frame.py tests\test_anatomy_export.py tests\test_weld.py
 # 4. atlas X-ray: closed meshes + isocenter, the Phase 0 sanity sheet (out/phase0/atlas/), GPU reference fixtures
 .\.venv\Scripts\python preprocess\scripts\build_atlas_xray.py
+.\.venv\Scripts\python preprocess\scripts\build_display_skeleton.py    # the simplified glass-body bones (D60)
 .\.venv\Scripts\python preprocess\scripts\phase0_atlas.py
 .\.venv\Scripts\python preprocess\scripts\atlas_xray_fixtures.py
 .\.venv\Scripts\python preprocess\scripts\junction_before_after.py   # D52 figure -> out/review/lab/
@@ -55,6 +68,12 @@ cd web; node e2e/atlas_xray.e2e.mjs        # GPU == CPU on the atlas (mirrors fa
 node e2e/atlas_shots.mjs shots              # review screenshots -> out/review/atlas/
 node e2e/lab_shots.mjs all                  # cath lab / X-ray screenshots + swing recording -> out/review/lab/
 node e2e/cath_shots.mjs all                 # Scene 5 screenshots + full-sequence recording -> out/review/cath/
+node e2e/atlas_v1.e2e.mjs                   # Predict on the atlas, Scene 6 sync (dot = engine projection, shared fill), stepper
+node e2e/v1_shots.mjs all                   # every scene at 1280 / 1920 px, toolbar, fps per view, tour recording -> out/review/v1/
+node e2e/tour_stalls.mjs                    # plays the tour and lists every frame slower than 50 ms
+node e2e/inject_stall.mjs                   # frame times + shader-program count around the first injection
+node e2e/scene6_stall.mjs                   # frame times + CPU profile entering Scene 6 and injecting (stall diagnosis)
+node e2e/fade_probe.mjs "scene=5&engaged"   # per C-arm part: distance from the camera and fade alpha
 ```
 
 Files: `z_anatomy_heart.glb` (atlas radii, THE geometry), `z_anatomy_heart_illustrative.glb` (illustrative taper, comparison only),
@@ -63,7 +82,8 @@ Files: `z_anatomy_heart.glb` (atlas radii, THE geometry), `z_anatomy_heart_illus
 
 The URL accepts `atlas.html?scene=1|2&view=front|lao|root|left|right|feet|head|body&routes&still`, and for the lab
 `atlas.html?scene=3|4&carm=ap|rao30|lao45|raocaud|spider&cam=room|operator|beam|split&inject=left|right&op=femoral|radial`, and
-for the catheter `atlas.html?scene=5&access=femoral|radial&target=left|right&cam=room|operator|beam|root&engaged&fill=0..1`.
+for the catheter `atlas.html?scene=5&access=femoral|radial&target=left|right&cam=room|operator|beam|root&engaged&fill=0..1`,
+the slice `atlas.html?scene=6&target=left|right&fill=0..1`, Predict `atlas.html?scene=4&predict` and the tour `atlas.html?tour`.
 
 ## Data
 

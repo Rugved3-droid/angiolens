@@ -77,7 +77,7 @@ if (what === "video" || what === "all") {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     rec.start(250);
     await sleep(2000);                                                     // AP, image on the detector
-    document.querySelector("#carmViews button[data-v='raocaud']").click(); // the swing (same path as the button)
+    window.atlas.setCArmView("raocaud", 2600);                          // the swing (the function the toolbar calls)
     await sleep(6500);                                                     // swing + the new image building
     rec.stop(); run = false;
     await new Promise((r) => (rec.onstop = r));

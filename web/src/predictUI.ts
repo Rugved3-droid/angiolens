@@ -89,7 +89,8 @@ export class PredictMode {
       tile.classList.remove("pr-correct", "pr-wrong", "pr-done");
       (tile.querySelector(".pr-tag") as HTMLElement).textContent = "";
     });
-    this.d.requestRender(); // the shared angiogram target was used for the tiles
+    // the shared angiogram target was used for the tiles; re-render the live image with the question's injection (same pose)
+    this.d.setPose(from.alpha, from.beta, to.tree);
     document.getElementById("pr-prompt")!.innerHTML =
       `Which angiogram is <b>${poseLabel(to)}</b>?<div class="hint">${to.tree === "left" ? "LCA" : "RCA"} injection · ` +
       `${to.source === "random" ? "random view" : to.source} · you are now at ${poseLabel(from)}</div>`;

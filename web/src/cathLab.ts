@@ -35,10 +35,10 @@ function roundedBox(w: number, h: number, d: number, r: number) {
 /** Detector face: dark glass until exposed; the image builds outward from the centre (uReveal 0 -> 1). */
 function detectorMaterial(map: THREE.Texture) {
   return new THREE.ShaderMaterial({
-    uniforms: { uMap: { value: map }, uReveal: { value: 1 }, uOn: { value: 0 } },
+    uniforms: { uMap: { value: map }, uReveal: { value: 1 }, uOn: { value: 0 }, uAlpha: { value: 1 } },
     vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
     fragmentShader: /* glsl */ `
-      uniform sampler2D uMap; uniform float uReveal; uniform float uOn; varying vec2 vUv;
+      uniform sampler2D uMap; uniform float uReveal; uniform float uOn; uniform float uAlpha; varying vec2 vUv;
       void main() {
         vec3 off = vec3(0.06, 0.08, 0.11);
         vec3 img = texture2D(uMap, vUv).rgb;
@@ -46,9 +46,15 @@ function detectorMaterial(map: THREE.Texture) {
         float edge = uReveal * 1.12;
         float m = 1.0 - smoothstep(edge - 0.1, edge, r);
         float glow = exp(-pow((r - edge) / 0.025, 2.0)) * 0.45 * (1.0 - step(0.999, uReveal));
-        gl_FragColor = vec4(mix(off, img, m * uOn) + glow * uOn * vec3(0.55, 0.85, 1.0), 1.0);
+        gl_FragColor = vec4(mix(off, img, m * uOn) + glow * uOn * vec3(0.55, 0.85, 1.0), uAlpha);
       }`,
   });
+}
+
+/** Lab hardware material (D60 quality pass): Blinn-Phong, no environment lookup. The C-arm fills much of the frame in the
+ *  operator views, and MeshStandard + PMREM cost ~20 fps there; the painted-metal look holds with a soft specular. */
+function hw(color: string, shininess: number, spec: number, emissive = "#000000") {
+  return new THREE.MeshPhongMaterial({ color, shininess, specular: new THREE.Color(spec, spec, spec), emissive });
 }
 
 export class CathLab {
@@ -69,6 +75,12 @@ export class CathLab {
   private readonly beamEdgeMat: THREE.LineBasicMaterial;
   private readonly beamGroup = new THREE.Group();
   private xray = 0;                          // 0 = beam off, 1 = on (smoothly)
+  /** the right radial puncture (atlas_cath.json), for the radial operator camera */
+  radialPuncture: THREE.Vector3 | null = null;
+  /** draw the beam pyramid (Scene 4 explains the image with it; elsewhere it is clutter) */
+  showBeam = true;
+  private readonly fadeGroups: { meshes: THREE.Mesh[]; mats: THREE.Material[]; a: number }[] = [];
+  private readonly ray = new THREE.Raycaster();
   private xrayTarget = 0;
   private reveal = 1;
   private swing: { from: [number, number]; to: [number, number]; t0: number; ms: number; done?: () => void } | null = null;
@@ -86,15 +98,15 @@ export class CathLab {
     // ---- table and floor (the patient lies on the table: its top touches the body's most posterior point) ----
     this.tableTopY = body.max.y + 2;
     this.floorY = this.tableTopY + 950;
-    const tableMat = new THREE.MeshPhysicalMaterial({ color: "#d9dde3", roughness: 0.35, metalness: 0.1, clearcoat: 0.6 });
+    const tableMat = hw("#8e96a1", 30, 0.18);
     const len = body.max.z - body.min.z + 500;
     const zc = (body.min.z + body.max.z) / 2 - 150;
-    const top = new THREE.Mesh(roundedBox(520, 50, len, 18), tableMat);
+    const top = new THREE.Mesh(roundedBox(680, 50, len, 18), tableMat);
     top.position.set(0, this.tableTopY + 25, zc);
-    const pad = new THREE.Mesh(roundedBox(480, 30, len - 80, 14), new THREE.MeshPhysicalMaterial({ color: "#2b3442", roughness: 0.8 }));
+    const pad = new THREE.Mesh(roundedBox(640, 30, len - 80, 14), hw("#2b3442", 6, 0.05));
     pad.position.set(0, this.tableTopY + 2, zc);
     const column = new THREE.Mesh(roundedBox(260, this.floorY - this.tableTopY - 50, 360, 30),
-      new THREE.MeshPhysicalMaterial({ color: "#c3c8cf", roughness: 0.4, metalness: 0.3 }));
+      hw("#c3c8cf", 40, 0.3));
     column.position.set(0, (this.tableTopY + 50 + this.floorY) / 2, body.min.z + 350);
     const floor = new THREE.Mesh(new THREE.CircleGeometry(3400, 96), new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
@@ -106,15 +118,15 @@ export class CathLab {
     floor.position.set(this.iso.x, this.floorY, this.iso.z - 300);
     // C-arm stand at the head end: a floor column and an arm to the C-arm hub (updated per pose)
     this.standPivot = new THREE.Vector3(this.iso.x, this.iso.y - 150, body.max.z + 700);
-    const shellSatin = new THREE.MeshPhysicalMaterial({ color: "#eef1f5", roughness: 0.32, metalness: 0.05, clearcoat: 0.7, clearcoatRoughness: 0.25 });
+    const shellSatin = hw("#eef1f5", 60, 0.35);
     const standCol = new THREE.Mesh(roundedBox(220, this.floorY - this.standPivot.y, 220, 30), shellSatin);
     standCol.position.set(this.standPivot.x, (this.standPivot.y + this.floorY) / 2, this.standPivot.z);
     this.standArm = new THREE.Mesh(new THREE.CylinderGeometry(58, 58, 1, 32), shellSatin);
     this.room.add(top, pad, column, floor, standCol, this.standArm);
 
     // ---- C-arm (the hero scene's construction, re-skinned): rig local x = u, y = v, z = d ----
-    const accent = new THREE.MeshPhysicalMaterial({ color: "#2a313c", roughness: 0.45, metalness: 0.35 });
-    const blueTrim = new THREE.MeshPhysicalMaterial({ color: "#3d8bd6", roughness: 0.35, emissive: "#0b2a4a", emissiveIntensity: 0.6 });
+    const accent = hw("#2a313c", 40, 0.35);
+    const blueTrim = hw("#3d8bd6", 50, 0.3, "#0b2a4a");
     const sod = this.carm.sod, sid = this.carm.sid;
     const R = sid / 2 + 90;
     const zMid = (sid - sod) - sid / 2;
@@ -135,9 +147,9 @@ export class CathLab {
     detHouse.position.set(0, 0, sid - sod + DET_DEPTH / 2 + DET_BEVEL);
     this.det = detectorMaterial(this.angio.angioRT.texture);
     const detScreen = new THREE.Mesh(new THREE.PlaneGeometry(W, W), this.det);
-    detScreen.position.set(0, 0, sid - sod + DET_DEPTH + 2 * DET_BEVEL + 1);    // outer face, normal +d; uv: u right, v up
-    const detFace = new THREE.Mesh(new THREE.PlaneGeometry(W, W), new THREE.MeshPhysicalMaterial({ color: "#1b2230", roughness: 0.2, clearcoat: 1 }));
-    detFace.position.set(0, 0, sid - sod - 1);
+    detScreen.position.set(0, 0, sid - sod + DET_DEPTH + 2 * DET_BEVEL + 4);    // 3 mm proud of the housing (was coplanar: z-fight); uv: u right, v up
+    const detFace = new THREE.Mesh(new THREE.PlaneGeometry(W, W), hw("#1b2230", 90, 0.5));
+    detFace.position.set(0, 0, sid - sod - 4);                                       // 3 mm clear of the housing face (z-fight)
     detFace.rotation.y = Math.PI;                                               // faces the patient
     const tube = new THREE.Mesh(new THREE.CylinderGeometry(125, 145, 270, 40), shellSatin);
     tube.rotation.x = Math.PI / 2;
@@ -158,6 +170,17 @@ export class CathLab {
     this.beamGroup.add(beam, edges);
     this.rig.add(arc, trim, this.hub, detHouse, detScreen, detFace, tube, collimator, this.beamGroup);
     this.rig.matrixAutoUpdate = false;
+    // the hardware can fade to glass when it hides the heart (always "transparent", so fading never recompiles a shader)
+    const groups: THREE.Mesh[][] = [[arc, trim], [this.hub], [detHouse, detScreen, detFace], [tube, collimator], [this.standArm], [standCol]];
+    for (const g of groups) {
+      const mats: THREE.Material[] = [];
+      for (const m of g) {
+        if (!(m.material instanceof THREE.ShaderMaterial)) m.material = (m.material as THREE.Material).clone();
+        (m.material as THREE.Material).transparent = true;
+        mats.push(m.material as THREE.Material);
+      }
+      this.fadeGroups.push({ meshes: g, mats, a: 1 });
+    }
     this.setPose(0, 0);
   }
 
@@ -215,11 +238,40 @@ export class CathLab {
     this.xray += (this.xrayTarget - this.xray) * Math.min(1, dt * 6);
     if (this.reveal < 1) this.reveal = Math.min(1, this.reveal + dt / 1.3);
     const pulse = this.reveal < 1 ? 1 : 0.55;
-    this.beamGroup.visible = this.xray > 0.01;
+    this.beamGroup.visible = this.showBeam && this.xray > 0.01;
     this.beamMat.opacity = 0.12 * this.xray * pulse;
     this.beamEdgeMat.opacity = 0.4 * this.xray;
     this.det.uniforms.uOn.value = this.xray;
     this.det.uniforms.uReveal.value = this.swing ? 1 : this.reveal;
+  }
+
+  /** Each C-arm part fades (smoothly, to 35 %) only while IT stands between the camera and `target` (the heart), or sits
+   *  within 650 mm of the camera; everything else stays solid. */
+  occlusionFade(camera: THREE.Camera, target: THREE.Vector3, dt: number, nearMm = 650) {
+    if (!this.rig.visible) return;
+    const from = camera.getWorldPosition(new THREE.Vector3());
+    const dir = target.clone().sub(from);
+    const dist = dir.length();
+    this.ray.set(from, dir.normalize());
+    this.ray.far = dist - 20;
+    const box = new THREE.Box3();
+    for (const g of this.fadeGroups) {
+      const blocking = this.ray.intersectObjects(g.meshes, false).length > 0;
+      // world bounding BOX (a bounding sphere of the non-uniformly scaled stand arm covered the whole room)
+      const near = g.meshes.some((m) => {
+        if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+        box.copy(m.geometry.boundingBox!).applyMatrix4(m.matrixWorld);
+        return box.distanceToPoint(from) < nearMm;
+      });
+      // a part right at the camera fades OUT (no big transparent surface to shade); one hiding the heart fades to glass
+      g.a += ((near ? 0 : blocking ? 0.35 : 1) - g.a) * Math.min(1, dt * 4);
+      for (const m of g.mats) {
+        if (m instanceof THREE.ShaderMaterial) m.uniforms.uAlpha.value = g.a;
+        else m.opacity = g.a;
+        m.depthWrite = g.a > 0.95;
+      }
+      for (const m of g.meshes) m.visible = g.a > 0.02;
+    }
   }
 
   /** Camera poses in the room (room up = -y). */
@@ -232,8 +284,10 @@ export class CathLab {
     // eyes ~1.65 m above the floor, at the patient's RIGHT side:
     //  femoral: level with the hip;  radial: beside the right shoulder, over the arm board, looking down the arm to the chest
     if (access === "radial") {
-      const eye = new THREE.Vector3(-880, this.floorY - 1650, heartC.z + 120);
-      return { pos: eye, target: heartC.clone().add(new THREE.Vector3(-170, 90, -170)), up: ROOM_UP.clone() };
+      const wrist = this.radialPuncture ?? heartC.clone().add(new THREE.Vector3(-300, 0, -440));
+      const target = wrist.clone().lerp(heartC, 0.55).add(new THREE.Vector3(0, 60, 0));
+      const eye = new THREE.Vector3(-1250, this.floorY - 1750, target.z - 120);
+      return { pos: eye, target, up: ROOM_UP.clone() };
     }
     const eye = new THREE.Vector3(-760, this.floorY - 1650, heartC.z - 620);
     return { pos: eye, target: heartC.clone().add(new THREE.Vector3(0, 80, 40)), up: ROOM_UP.clone() };
@@ -244,11 +298,15 @@ export class CathLab {
     let n = v3(this.carm.d).cross(new THREE.Vector3(0, 0, 1)).normalize();
     if (n.dot(ROOM_UP) < 0) n.negate();
     const mid = v3(this.carm.source).add(v3(this.carm.detectorCenter)).multiplyScalar(0.5);
-    return { pos: mid.clone().addScaledVector(n, 2000).addScaledVector(ROOM_UP, 450).add(new THREE.Vector3(0, 0, 350)), target: mid, up: ROOM_UP.clone() };
+    return { pos: mid.clone().addScaledVector(n, 2400).addScaledVector(ROOM_UP, 520).add(new THREE.Vector3(0, 0, 350)),
+      target: mid.clone().addScaledVector(ROOM_UP, 150), up: ROOM_UP.clone() };
   }
 
   /** The heart seen from the DETECTOR side with screen-up = v: laid out like the angiogram (screen right = u). */
-  detectorSidePose(heartC: THREE.Vector3) {
-    return { pos: heartC.clone().addScaledVector(v3(this.carm.d), 560), target: heartC.clone(), up: v3(this.carm.v) };
+  detectorSidePose(heartC: THREE.Vector3, aspect = 0.8, fovDeg = 30) {
+    const v = THREE.MathUtils.degToRad(fovDeg) / 2;
+    const half = Math.min(v, Math.atan(Math.tan(v) * aspect));
+    const d = 88 / Math.sin(half) * 1.08;
+    return { pos: heartC.clone().addScaledVector(v3(this.carm.d), d), target: heartC.clone(), up: v3(this.carm.v) };
   }
 }

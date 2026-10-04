@@ -157,7 +157,8 @@ export class AngioRenderer {
     this.softRT = accum();
     this.deviceRT = accum();
     this.angioRT = new THREE.WebGLRenderTarget(px, px, {
-      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false,
+      minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, generateMipmaps: true,
+      anisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
     });
     this.camera.matrixAutoUpdate = false;
     this.camera.matrixWorldAutoUpdate = false;
@@ -188,8 +189,10 @@ export class AngioRenderer {
   private mk(g: THREE.BufferGeometry | null, scene: THREE.Scene, field: boolean, weight = 1): THREE.Mesh | null {
     if (!g) return null;
     const flat = g.index ? g.toNonIndexed() : g.clone();
-    flat.deleteAttribute("normal");
-    flat.computeVertexNormals(); // non-indexed -> per-face normals from (outward) winding
+    if (flat.getAttribute("position")) {
+      flat.deleteAttribute("normal");
+      flat.computeVertexNormals(); // non-indexed -> per-face normals from (outward) winding
+    }
     const f = field && this.opts.field ? this.opts.field : null;
     const fill = !!flat.getAttribute("_s");
     const m = new THREE.Mesh(flat, new THREE.ShaderMaterial({
@@ -206,14 +209,37 @@ export class AngioRenderer {
     return m;
   }
 
-  /** Replace the radiopaque devices (catheter, guidewire): closed meshes, each with its own weight on params.kDevice. */
+  /** Replace the radiopaque devices (catheter, guidewire): closed meshes, each with its own weight on params.kDevice.
+   *  Called every frame while the catheter moves: the meshes and their shader materials are REUSED, only geometry is swapped. */
   setDevices(list: { geometry: THREE.BufferGeometry; weight: number }[]) {
-    for (const c of [...this.deviceScene.children]) {
-      const m = c as THREE.Mesh;
-      m.geometry.dispose(); (m.material as THREE.Material).dispose();
-      this.deviceScene.remove(m);
+    const ms = this.deviceScene.children as THREE.Mesh[];
+    list.forEach((d, i) => {
+      if (i >= ms.length) { this.mk(d.geometry, this.deviceScene, true, d.weight); return; }
+      const m = ms[i];
+      m.geometry.dispose();
+      const flat = d.geometry.index ? d.geometry.toNonIndexed() : d.geometry.clone();
+      flat.deleteAttribute("normal");
+      flat.computeVertexNormals();
+      m.geometry = flat;
+      (m.material as THREE.ShaderMaterial).uniforms.uWeight.value = d.weight;
+      m.visible = true;
+    });
+    for (let i = list.length; i < ms.length; i++) ms[i].visible = false;
+  }
+
+  /** Devices whose geometry the CALLER owns and rewrites in place (non-indexed, outward normals): no clone, no per-frame
+   *  allocation (D60). Visibility per device with setDeviceVisible. */
+  setDeviceGeometries(list: { geometry: THREE.BufferGeometry; weight: number }[]) {
+    for (const c of [...this.deviceScene.children]) this.deviceScene.remove(c);
+    for (const d of list) {
+      const m = this.mk(new THREE.BufferGeometry(), this.deviceScene, true, d.weight)!;
+      m.geometry.dispose();
+      m.geometry = d.geometry;
+      m.visible = false;
     }
-    for (const d of list) this.mk(d.geometry, this.deviceScene, true, d.weight);
+  }
+  setDeviceVisible(on: boolean[]) {
+    (this.deviceScene.children as THREE.Mesh[]).forEach((m, i) => (m.visible = !!on[i]));
   }
 
   /** Contrast reflux puff: a closed sphere in the VESSEL channel (same contrast), at `center`, radius r (0 = none). */
@@ -256,7 +282,7 @@ export class AngioRenderer {
     r.setClearColor(0x000000, 0);
     const passes = [[this.vesselRT, this.vesselScene], [this.boneRT, this.boneScene]] as [THREE.WebGLRenderTarget, THREE.Scene][];
     if (this.meshes.soft && this.params.kSoft > 0) passes.push([this.softRT, this.softScene]);
-    const devices = this.deviceScene.children.length > 0 && this.params.kDevice > 0;
+    const devices = this.deviceScene.children.some((c) => c.visible) && this.params.kDevice > 0;
     if (devices) passes.push([this.deviceRT, this.deviceScene]);
     for (const [rt, scene] of passes) {
       r.setRenderTarget(rt);

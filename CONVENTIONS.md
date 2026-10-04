@@ -243,3 +243,8 @@ projection engine's convention: +X patient left, +Y posterior, +Z superior, mill
 - **Scene 5 is illustrative.** The catheter is shaped to the anatomy (tip at the manifest's effective ostium, tangent to the
   coronary), never the reverse. Contrast fills by distance along the tree. The UI footer says "illustrative, not physics"
   [`tests/test_atlas_cath.py`].
+- **Display meshes never define the image** (D61):
+  - the 3D coronaries are drawn as the same unions;
+  - the detector faces sit 3 mm clear of the housing, to avoid z-fighting;
+  - the live image refreshes at 15 frames/s (pulsed fluoroscopy).
+  None of these changes the CArm math or the pixels rendered at a given pose.

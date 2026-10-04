@@ -156,7 +156,18 @@ def tree_distances(probe, man, tree):
     dist -= buried                                  # 0 at the effective ostium
     assert np.isfinite(dist).all(), f"{tree}: unreachable spline samples"
     keyed = {f"{s['obj']}#{s['i']}": (off[k], off[k + 1]) for k, s in enumerate(splines)}
-    return X, dist, keyed, joins, o
+    # Scene 6 (D56): every spline's centreline with its authored radius and its fill distance, ordered proximal -> distal
+    lines = {}
+    for k, s in enumerate(splines):
+        a, b = off[k], off[k + 1]
+        c = probe["curves"][s["obj"]]
+        r = np.array(c["splines"][s["i"]]["radii"], float) * c["bevel_depth"] * 1000.0
+        rr = np.interp(np.linspace(0, len(r) - 1, b - a), np.arange(len(r)), r)
+        Pk, d = X[a:b], dist[a:b]
+        if d[0] > d[-1]:
+            Pk, d, rr = Pk[::-1], d[::-1], rr[::-1]
+        lines[f"{s['obj']}#{s['i']}"] = {"points": Pk.round(3).tolist(), "radius_mm": rr.round(3).tolist(), "s_mm": d.round(2).tolist()}
+    return X, dist, keyed, joins, o, lines
 
 
 def main():
@@ -176,12 +187,12 @@ def main():
 
     trees_out = {}
     for tree in ("left", "right"):
-        X, dist, keyed, joins, o = tree_distances(probe, man, tree)
+        X, dist, keyed, joins, o, lines = tree_distances(probe, man, tree)
         kd = cKDTree(X)
         g = read_glb(WEB / f"atlas_xray_{tree}.glb")
         V = g["POSITION"].astype(float)
         add(f"xray_{tree}", dist[kd.query(V)[1]], V[0])
-        trees_out[tree] = {"joins": joins, "max_distance_mm": round(float(dist.max()), 1)}
+        trees_out[tree] = {"joins": joins, "max_distance_mm": round(float(dist.max()), 1), "centrelines": lines}
         # 3D nodes: each branch node takes its distances from its OWN spline (no bleeding across a junction)
         for node, Vn in heart.items():
             tag = None
