@@ -77,7 +77,8 @@
       #splitImage { width: min(42vw, 70vh); aspect-ratio: 1; border-radius: 4px; outline: 1px solid var(--line); margin-bottom: 10px; }
 
       /* ---- Scene 6: the slice ---- */
-      #slicePanel { top: 66px; right: 16px; width: min(44vw, 640px); padding: 12px 14px 12px; display: none; flex-direction: column; gap: 8px; z-index: 3; }
+      #slicePanel { top: 66px; right: 16px; width: min(44vw, 640px); padding: 12px 14px 12px; display: none; flex-direction: column; gap: 8px; z-index: 3;
+        background: var(--panel-solid); backdrop-filter: none; }   /* opaque: the 3D ghosted through it */
       #slicePanel .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
       #slicePanel .ttl { font-size: 15px; font-weight: 600; }
       #slicePanel .tag { color: #c3cbd5; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }

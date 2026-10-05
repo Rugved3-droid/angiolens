@@ -105,7 +105,7 @@ export class Toolbar {
     this.closeMenu();
     const bar = this.bar;
     bar.innerHTML = "";
-    const play = el("button", `btn accent${opts.tour ? " on" : ""}`, opts.tour ? "Tour playing" : "▶ Tour");
+    const play = el("button", `btn accent${opts.tour ? " on" : ""}`, opts.tour ? "● Tour" : "▶ Tour");   // same width: no reflow
     play.id = "bPlay";
     play.title = "Play the guided tour";
     play.onclick = () => this.onPlay();

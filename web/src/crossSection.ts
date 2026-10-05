@@ -143,23 +143,15 @@ export class CrossSection {
     const r = this.radius();
     const cx = W * 0.4, cy = H * 0.52;
     const k = (Math.min(W, H) * 0.34) / (r + WALL_T + FAT_T);           // px per mm, fitted to the panel
-    // epicardial fat: a band of fat lobules, densest next to the vessel and thinning outward (illustrative)
+    // epicardial fat: one smooth, soft ring, densest next to the vessel and fading outward (illustrative; v1.0 polish: no lobules)
     const outer = (r + WALL_T + FAT_T) * k, inner = (r + WALL_T) * k;
     const fat = g.createRadialGradient(cx, cy, inner, cx, cy, outer);
-    fat.addColorStop(0, "rgba(226,198,128,0.62)");
-    fat.addColorStop(0.65, "rgba(220,192,124,0.38)");
+    fat.addColorStop(0, "rgba(224,196,128,0.58)");
+    fat.addColorStop(0.35, "rgba(221,193,126,0.46)");
+    fat.addColorStop(0.7, "rgba(217,189,122,0.22)");
     fat.addColorStop(1, "rgba(214,186,120,0)");
     g.fillStyle = fat;
     g.beginPath(); g.arc(cx, cy, outer, 0, 2 * Math.PI); g.fill();
-    const rnd = (i: number) => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
-    for (let i = 0; i < 70; i++) {
-      const t = Math.pow(rnd(i), 1.4), ang = 2 * Math.PI * rnd(i + 100);
-      const rr = inner + (outer - inner) * (0.08 + 0.7 * t), lr = (0.22 + 0.2 * rnd(i + 200)) * k;
-      g.fillStyle = `rgba(236,212,146,${(0.14 * (1 - t)).toFixed(3)})`;
-      g.strokeStyle = `rgba(186,156,92,${(0.22 * (1 - t)).toFixed(3)})`;
-      g.lineWidth = Math.max(1, 0.03 * k);
-      g.beginPath(); g.arc(cx + rr * Math.cos(ang), cy + rr * Math.sin(ang), lr, 0, 2 * Math.PI); g.fill(); g.stroke();
-    }
     // wall: adventitia (outer) -> media -> intima (inner)
     let rad = r + WALL_T;
     for (const w of [...WALL].reverse()) {

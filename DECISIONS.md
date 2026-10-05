@@ -785,3 +785,86 @@ re-review). The fixes:
   - heart tint differs through the glass body and the ghosted root views: a lighting and transparency effect, not a different
     material;
   - Predict prompts name angles for random views: same Predict logic as the original app, by request.
+
+**D62 Final polish: display aorta, vessel-end fade, arm boards.** DECIDED (Rugved: v1.0 polish list), details DEFAULT.
+- **Display aorta** (`build_aorta_display.py` -> `z_anatomy_aorta_display.glb`). Display only, the same precedent as the pulmonary
+  trunk (D46). It replaces the four end-to-end aortic segments in the 3D scenes; `?aorta=atlas` shows the originals. The X-ray
+  never used the aorta, and the coronary solids are unchanged, so the validated projection is untouched (GPU = CPU r = 1.0000,
+  re-run).
+  - **Method:** a signed-distance field on a 0.4 mm grid.
+    - A: the boolean union of the segments, which removes the seams. The union keeps the coplanar end caps as an internal double
+      wall, so only true boundary samples feed the field.
+    - Gaussian smoothing (0.8 mm), clamped to +-1 mm: removes the root crease.
+    - A smooth union (polynomial smin, k = 4 mm) with the coronary solids: fillets the LM and RCA origins.
+    - The field is clamped to +-0.65 mm of the original union; then marching cubes, decimation (35 k faces), Taubin smoothing.
+      A per-vertex clamp at 0.95 mm moved no vertex.
+  - **The buried trunk** behind the effective-ostium plane (within 9 mm) is part of the wall-coloured solid, built 0.4 mm fatter
+    than the tube. The 3D coronary drops the triangles wholly 2 mm behind that plane (a separate index on the X-ray's buffers),
+    so its start ring hides inside the stub.
+    - The pointed LM tip (the LM leaves the wall 15 degrees from tangent) now reads as wall, rising into the coronary.
+    - A shader discard was tried first: it disabled early depth rejection for every coronary pixel (-8 fps).
+    - The hidden distal tube inside the solid is shrunk 0.6 mm, so the fillet dives under the drawn coronary at a steep angle
+      (at 0.25 mm the grazing crossing made a sawtooth on the tube's facets).
+  - **Measured** (sample-based, assets/anatomy/aorta_display.json):
+    - new surface -> original surfaces: max 0.82 mm, median 0.07 mm;
+    - original aorta -> the displayed surface (display aorta plus the coronary as drawn): max 0.98 mm;
+    - the strict original aorta -> display aorta alone is 1.28 mm at 58 wall samples around the ostia, where the nearest drawn
+      surface is the unchanged coronary tube.
+    - Nothing was moved, rotated or scaled (the smoothing is local and clamped).
+  - **Effective ostia re-measured** where each trunk centreline leaves the smoothed wall:
+    - LM moved 0.06 mm along the trunk (buried 7.51 -> 7.45 mm); RCA moved 0.03 mm (2.25 -> 2.22 mm);
+    - the manifest keeps the atlas-wall values under `atlas_wall_original`.
+    - `build_atlas_cath.py` re-run: JL4 / JR4 tip tangent 0 degrees; clearance on the tube model 0.24 / 2.86 mm; clearance on
+      the smoothed wall 0.16 / 2.81 mm; both tips inside the coronary lumen.
+  - **Pitfalls hit:**
+    - decimating after Taubin smoothing produced stretched fold-over faces;
+    - the decimator leaves orphan vertices and 4-8-face fragments far away (now removed: one body);
+    - the 264 k-face first version cost ~5 fps (every vertex runs the beat field).
+- **Vessel ends** (`build_vessel_ends.py` -> `vessel_ends.json`). A flat cap is a cut end unless it lies inside, or within 3 mm
+  of, another heart or vessel solid.
+  - Both ends of both venae cavae always fade: the root and slice views hide the right atrium, which exposed the IVC's atrial
+    cap. The SVC also stops 10.7 mm short of the atrium in the atlas.
+  - Faded over 18 mm in the shader (per-vertex `_end`): the three arch branches, both pulmonary arteries, the lower abdominal
+    aorta, and the cavae.
+  - The abdominal end is not faded while the access routes are shown.
+- **Arm supports:** clear acrylic wedges under both arms, from below the shoulder to past the hand. Their top follows each
+  arm's underside; their base sits on the table pad.
+  - The atlas arms lie within the table's half-width, but the forearms are raised 100-240 mm off it.
+  - Tried and dropped:
+    - boards at the arm's height on struts: looked like floating platforms;
+    - flat table-level boards: the reviewer saw empty slabs that held no arm;
+    - opaque wedges: bulky blocks in the operator views.
+  - The pose is unchanged.
+- **Framing and the slice:**
+  - beam view: aimed toward the tube and pulled back to 3 m, so the tour bar and caption no longer cover the tube;
+  - side by side: framed to the projected extent of the chambers plus the ascending aorta and arch for the current C-arm pose
+    (80 % of the height). A fixed circle fitted the spider view but cut the heart and arch at RAO caudal (the tour's angle);
+  - operator views: C-arm parts within 2 m of the eye fade out (the stand, hub and tube framed the edges);
+  - slice: the fat is one smooth soft-gradient ring (no lobules); the panel is opaque.
+- **Toolbar:**
+  - the injection toggle reads LCA / RCA (full wording in the tooltip);
+  - the Predict button is left out during the tour;
+  - the tour button keeps one width ("● Tour").
+  - The tour's side-by-side state overflowed 1280 px and clipped "More".
+- **Glass aorta (Scenes 5-6):** the full coronary is drawn, so its closed proximal end shows through the glass, not the cut
+  start ring.
+- **Final fresh-eyes review** (a new reviewer agent, focused on the root and the engagement; report in the v1.0 STOP):
+  - Confirmed: the seam is gone, the LM spike is gone, the fat ring is right, and the root and engagement sequence is much
+    better.
+  - Fixed after it: the arm supports, both cava caps, the tour's beam and side-by-side frames, the toolbar overflow, the
+    operator-view clutter, the short vessel-end fades, and the see-through slice panel.
+  - Not changed (atlas geometry, approved earlier or outside the rules):
+    - the tongue-shaped ventricular-outflow lobe seen through the ghosted root, and the straight valve-plane edge of the root;
+    - the ring creases where the coronary solids branch: the validated X-ray union, drawn as-is (D61);
+    - the faceted coronary tubes in extreme close-ups;
+    - the boxy right atrium;
+    - the JL4's hooked primary curve in the slice view: it is the catheter;
+    - the C-arm arc visible inside the glass detector;
+    - fine distal vessels breaking into dots in the large split image (the 512 px angiogram, magnified).
+
+**D63 Accepted as-is for v1.0.** DECIDED (Rugved).
+- The table is visible through the glass body.
+- The heart's tint differs between scenes (lighting through the glass body and the ghosted chambers; one material).
+- C-arm angles appear in Predict prompts (the original Predict logic, unchanged).
+- The tour has residual single frames of 50-67 ms (mean 57 fps over the 76 s tour).
+

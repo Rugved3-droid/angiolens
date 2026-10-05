@@ -38,7 +38,7 @@ const open = async (q) => {
   else fail(`Predict candidates ${JSON.stringify(r)}`);
   if (r.n >= 1 && r.correct >= 1 && r.correctTileGreen) ok("Predict: the correct answer is recorded and shown");
   else fail(`Predict record ${JSON.stringify(r)}`);
-  const barOk = r.barTree.includes(r.tree === "left" ? "Left" : "Right");
+  const barOk = r.barTree.includes(r.tree === "left" ? "LCA" : "RCA");
   if (r.injAtQuestion === r.tree && barOk) ok(`Predict: the lab and toolbar show the question's ${r.tree} injection`);
   else fail(`Predict tree sync: question ${r.tree}, lab ${r.injAtQuestion}, toolbar ${r.barTree}`);
   if (Math.abs(r.pose[0] - r.target[0]) < 1e-6 && Math.abs(r.pose[1] - r.target[1]) < 1e-6) ok(`Predict: the C-arm moved to the target ${r.target}`);

@@ -187,6 +187,46 @@ export class CathLab {
   get pose(): [number, number] { return [this.carm.alphaDeg, this.carm.betaDeg]; }
 
   /** Place the C-arm (and, when the X-ray is on, render the angiogram) for a pose. */
+  /** Arm supports (v1.0 polish): a foam wedge under each arm, from the shoulder to beyond the hand. Its top follows the arm's
+   *  underside (the atlas forearms are raised 100-240 mm off the table) and its base sits on the table pad, so the arm visibly
+   *  rests on it. The atlas pose is never changed: the supports are fitted to it.
+   *  bands: per side, along z (feet -> head), the arm's lateral extent |x| and its most posterior y. */
+  addArmSupports(sides: { side: number; z: number[]; x0: number[]; x1: number[]; yPost: number[] }[]) {
+    // clear acrylic (a real kind of arm support): reads as a support under the arm without adding a solid block to the views
+    const mat = new THREE.MeshPhongMaterial({ color: "#b4c6da", shininess: 60, specular: new THREE.Color(0.35, 0.35, 0.35),
+      transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+    const yBase = this.tableTopY - 13;                     // the pad's upper face (room up = -y)
+    for (const sd of sides) {
+      const n = sd.z.length;
+      if (n < 2) continue;
+      const pos: number[] = [];
+      const sec = (k: number) => {                         // section corners: top-inner, top-outer, base-outer, base-inner
+        const yt = Math.min(sd.yPost[k] + 1.5, yBase - 6), xs = sd.side;
+        return [[xs * sd.x0[k], yt], [xs * sd.x1[k], yt], [xs * sd.x1[k], yBase], [xs * sd.x0[k], yBase]];
+      };
+      const quad = (a: number[], b: number[], c: number[], d: number[]) => pos.push(...a, ...b, ...c, ...a, ...c, ...d);
+      for (let k = 0; k < n - 1; k++) {
+        const A = sec(k), B = sec(k + 1), za = sd.z[k], zb = sd.z[k + 1];
+        for (let e = 0; e < 4; e++) {
+          const e2 = (e + 1) % 4;
+          quad([A[e][0], A[e][1], za], [B[e][0], B[e][1], zb], [B[e2][0], B[e2][1], zb], [A[e2][0], A[e2][1], za]);
+        }
+      }
+      for (const [k, flip] of [[0, true], [n - 1, false]] as const) {   // end caps
+        const C = sec(k), z = sd.z[k];
+        const v = C.map(([x, y]) => [x, y, z]);
+        if (flip) quad(v[3], v[2], v[1], v[0]); else quad(v[0], v[1], v[2], v[3]);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.computeVertexNormals();
+      // consistent outward winding: flip if the normals point inward (side-dependent mirror)
+      const mesh = new THREE.Mesh(g, mat);
+      mesh.name = "arm support";
+      this.room.add(mesh);
+    }
+  }
+
   setPose(alpha: number, beta: number) {
     this.carm = new CArm(alpha, beta, [this.iso.x, this.iso.y, this.iso.z]);
     const m = new THREE.Matrix4().makeBasis(v3(this.carm.u), v3(this.carm.v), v3(this.carm.d));
@@ -298,15 +338,37 @@ export class CathLab {
     let n = v3(this.carm.d).cross(new THREE.Vector3(0, 0, 1)).normalize();
     if (n.dot(ROOM_UP) < 0) n.negate();
     const mid = v3(this.carm.source).add(v3(this.carm.detectorCenter)).multiplyScalar(0.5);
-    return { pos: mid.clone().addScaledVector(n, 2400).addScaledVector(ROOM_UP, 520).add(new THREE.Vector3(0, 0, 350)),
-      target: mid.clone().addScaledVector(ROOM_UP, 150), up: ROOM_UP.clone() };
+    // aimed a little toward the tube and pulled back: tube, heart and detector all sit between the toolbar and the caption
+    return { pos: mid.clone().addScaledVector(n, 3000).addScaledVector(ROOM_UP, 520).add(new THREE.Vector3(0, 0, 350)),
+      target: mid.clone().addScaledVector(ROOM_UP, -95), up: ROOM_UP.clone() };
+  }
+
+  /** Side by side, fitted: the camera on the detector side (screen up = v, right = u, as on the angiogram), framed so that the
+   *  projected extent of `pts` (heart + ascending aorta and arch) fills ~80 % of the height and ~90 % of the width. Fitting
+   *  the real extent for the CURRENT C-arm pose keeps the arch clear of the toolbar at every view (a fixed circle did not). */
+  detectorSideFit(pts: THREE.Vector3[], aspect: number, fovDeg: number) {
+    const u = v3(this.carm.u), v = v3(this.carm.v), d = v3(this.carm.d);
+    const c0 = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).divideScalar(pts.length);
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity, front = -Infinity;
+    const q = new THREE.Vector3();
+    for (const p of pts) {
+      q.copy(p).sub(c0);
+      const a = q.dot(u), b = q.dot(v);
+      u0 = Math.min(u0, a); u1 = Math.max(u1, a); v0 = Math.min(v0, b); v1 = Math.max(v1, b); front = Math.max(front, q.dot(d));
+    }
+    const tv = Math.tan(THREE.MathUtils.degToRad(fovDeg) / 2);
+    const D = Math.max(((v1 - v0) / 2) / (tv * 0.8), ((u1 - u0) / 2) / (tv * aspect * 0.9)) + front;
+    const target = c0.clone().addScaledVector(u, (u0 + u1) / 2).addScaledVector(v, (v0 + v1) / 2 + 0.02 * D * tv);  // a hair up
+    return { pos: target.clone().addScaledVector(d, D), target, up: v };
   }
 
   /** The heart seen from the DETECTOR side with screen-up = v: laid out like the angiogram (screen right = u). */
   detectorSidePose(heartC: THREE.Vector3, aspect = 0.8, fovDeg = 30) {
     const v = THREE.MathUtils.degToRad(fovDeg) / 2;
     const half = Math.min(v, Math.atan(Math.tan(v) * aspect));
-    const d = 88 / Math.sin(half) * 1.08;
-    return { pos: heartC.clone().addScaledVector(v3(this.carm.d), d), target: heartC.clone(), up: v3(this.carm.v) };
+    // the fitted circle includes the arch above the heart (it ran under the toolbar): centre 14 mm toward screen-up, radius 112 mm
+    const c = heartC.clone().addScaledVector(v3(this.carm.v), 14);
+    const d = 112 / Math.sin(half) * 1.04;
+    return { pos: c.clone().addScaledVector(v3(this.carm.d), d), target: c, up: v3(this.carm.v) };
   }
 }

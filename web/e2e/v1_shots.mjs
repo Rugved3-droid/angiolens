@@ -3,7 +3,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 import { createServer, preview } from "vite";
-const out = new URL("../../out/review/v1/", import.meta.url).pathname.replace(/^\/(\w:)/, "$1");
+const out = new URL(`../../out/review/${process.env.OUT ?? "v1"}/`, import.meta.url).pathname.replace(/^\/(\w:)/, "$1");
 mkdirSync(out, { recursive: true });
 const what = process.argv[2] ?? "all";
 const usePreview = process.env.PREVIEW === "1";           // test the BUILT app (vite preview of dist/) instead of the dev server
@@ -16,18 +16,20 @@ const open = async (q, vp) => {
   const page = await browser.newPage({ viewport: vp });
   page.on("pageerror", (e) => { errors.push(`${q}: ${e}`); console.log("pageerror", q, String(e)); });
   page.on("console", (m) => m.type() === "error" && (errors.push(`${q}: ${m.text()}`), console.log("console", q, m.text())));
-  await page.goto(`http://localhost:${port}/atlas.html?${q}`);
+  await page.goto(`http://localhost:${port}/atlas.html?${q}${process.env.SUFFIX ?? ""}`);
   await page.waitForSelector("body[data-ready='1']", { timeout: 300000 });
   return page;
 };
-const SCENES = [
+const ALL_SCENES = [
   ["s1_heart", "scene=1"], ["s1_root", "scene=1&view=root"], ["s2_chest", "scene=2"], ["s2_left", "scene=2&view=left"],
   ["s3_cathlab", "scene=3&carm=raocaud"], ["s3_operator_radial", "scene=3&cam=operator&op=radial"],
-  ["s4_xray_room", "scene=4&carm=raocaud"], ["s4_beam", "scene=4&carm=raocaud&cam=beam"], ["s4_split", "scene=4&carm=spider&cam=split"],
+  ["s4_xray_room", "scene=4&carm=raocaud"], ["s4_beam", "scene=4&carm=raocaud&cam=beam"], ["s4_split", "scene=4&carm=spider&cam=split"], ["s4_split_raocaud", "scene=4&carm=raocaud&cam=split"],
   ["s4_predict", "scene=4&carm=ap&predict"],
   ["s5_operator", "scene=5&carm=spider&engaged"], ["s5_root", "scene=5&cam=root&engaged"],
   ["s6_slice", "scene=6&carm=raocaud"], ["s6_slice_mid_injection", "scene=6&carm=raocaud&fill=0.5"],
 ];
+// ONLY=s1_root,s5_root: just these views (OUT=v1_1: another folder under out/review/)
+const SCENES = process.env.ONLY ? ALL_SCENES.filter(([n]) => process.env.ONLY.split(",").includes(n)) : ALL_SCENES;
 if (what === "shots" || what === "all") {
   for (const vp of [{ width: 1280, height: 800 }, { width: 1920, height: 1080 }]) {
     for (const [name, q] of SCENES) {
@@ -110,7 +112,7 @@ if (what === "tour" || what === "all") {
       if (run) requestAnimationFrame(draw);
     };
     requestAnimationFrame(draw);
-    const rec = new MediaRecorder(outC.captureStream(30), { mimeType: "video/webm;codecs=vp9", videoBitsPerSecond: 10e6 });
+    const rec = new MediaRecorder(outC.captureStream(30), { mimeType: "video/webm;codecs=vp9", videoBitsPerSecond: 6e6 });   // under 30 MB for the 80 s tour
     const chunks = [];
     rec.ondataavailable = (e) => chunks.push(e.data);
     rec.start(500);

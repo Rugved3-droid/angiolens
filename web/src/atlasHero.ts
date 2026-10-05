@@ -120,20 +120,57 @@ const FILL_LIGHT = /* glsl */ `
   float band = uFill.x < 1e8 ? exp(-pow((vS - uFill.x) / 4.0, 2.0)) : 0.0;
   outgoingLight = mix(outgoingLight, vec3(1.0, 0.93, 0.82), 0.55 * filled) + vec3(1.0, 0.75, 0.45) * 1.6 * band;
 }`;
-function withBeat<T extends THREE.Material>(m: T, opts: { tissue?: boolean; fill?: boolean } = {}): T {
+/** D62: with the display aorta loaded, each coronary is drawn from its effective ostium on. The buried trunk behind the ostium
+ *  PLANE (within radius w) is part of the smoothed, filleted aortic solid, cut by the same plane at build time
+ *  (aorta_display.json). The 3D trees drop those triangles at load (stubCut, a separate index on the X-ray's own buffers):
+ *  a shader discard would have disabled early depth rejection for every coronary pixel (-8 fps measured). */
+type StubCut = { o: THREE.Vector3; n: THREE.Vector3; r: number; from: number };
+let stubCuts: StubCut[] = [];
+function stubCut(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  if (!stubCuts.length) return g;
+  const pos = g.getAttribute("position");
+  const idx = g.getIndex();
+  const n = idx ? idx.count : pos.count;
+  const keep: number[] = [];
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), m = new THREE.Vector3();
+  for (let t = 0; t < n; t += 3) {
+    const i0 = idx ? idx.getX(t) : t, i1 = idx ? idx.getX(t + 1) : t + 1, i2 = idx ? idx.getX(t + 2) : t + 2;
+    a.fromBufferAttribute(pos, i0); b.fromBufferAttribute(pos, i1); c.fromBufferAttribute(pos, i2);
+    m.copy(a).add(b).add(c).divideScalar(3);
+    // a triangle goes only when it lies wholly behind the start plane (its first ring stays inside the wall-coloured stub)
+    const behind = stubCuts.some((k) => m.distanceTo(k.o) < k.r
+      && [a, b, c].every((v) => v.clone().sub(k.o).dot(k.n) < k.from));
+    if (!behind) keep.push(i0, i1, i2);
+  }
+  const out = new THREE.BufferGeometry();
+  for (const [name, attr] of Object.entries(g.attributes)) out.setAttribute(name, attr);   // shared buffers
+  out.setIndex(keep);
+  return out;
+}
+/** D62: free vessel ends fade to transparent over their last uEndFade mm (per-vertex _end = mm from the cut end). */
+const endsU = { uEndFade: { value: 12 } };
+const END_FADE = /* glsl */ `
+  diffuseColor.a *= smoothstep(0.0, uEndFade, vEnd);
+  if (diffuseColor.a < 0.004) discard;`;
+function withBeat<T extends THREE.Material>(m: T, opts: { tissue?: boolean; fill?: boolean; ends?: boolean } = {}): T {
+  const sAttr = !!opts.fill;
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, motion, rimU, opts.fill ? fillU : {});
-    sh.vertexShader = FIELD + "\nvarying vec3 vRest;\n" + (opts.fill ? "attribute float _s; varying float vS;\n" : "")
+    Object.assign(sh.uniforms, motion, rimU, opts.fill ? fillU : {}, opts.ends ? endsU : {});
+    sh.vertexShader = FIELD + "\nvarying vec3 vRest;\n" + (sAttr ? "attribute float _s; varying float vS;\n" : "")
+      + (opts.ends ? "attribute float _end; varying float vEnd;\n" : "")
       + sh.vertexShader.replace("#include <begin_vertex>",
-        "vec3 transformed = cptBeat(vec3(position));\n  vRest = position;" + (opts.fill ? "\n  vS = _s;" : ""));
+        "vec3 transformed = cptBeat(vec3(position));\n  vRest = position;" + (sAttr ? "\n  vS = _s;" : "")
+        + (opts.ends ? "\n  vEnd = _end;" : ""));
     let f = "uniform float uRim; uniform vec3 uRimColor;\n" + (opts.tissue ? TISSUE_FRAG_HEAD : "varying vec3 vRest;") + "\n"
-      + (opts.fill ? "uniform vec2 uFill; varying float vS;\n" : "") + sh.fragmentShader;
+      + (sAttr ? "varying float vS;\n" : "") + (opts.fill ? "uniform vec2 uFill;\n" : "") 
+      + (opts.ends ? "uniform float uEndFade; varying float vEnd;\n" : "") + sh.fragmentShader;
     if (opts.tissue) f = f.replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n" + TISSUE_NORMAL);
     f = f.replace("#include <opaque_fragment>", (opts.tissue ? TISSUE_LIGHT : "") + (opts.fill ? FILL_LIGHT : "") + RIM_LIGHT
-      + "\n#include <opaque_fragment>");
+      + (opts.ends ? END_FADE : "") + "\n#include <opaque_fragment>");
     sh.fragmentShader = f;
   };
-  m.customProgramCacheKey = () => (opts.tissue ? "cptBeatTissue" : opts.fill ? "cptBeatFill" : "cptBeat");
+  const key = "cptBeat" + (opts.tissue ? "T" : "") + (opts.fill ? "F" : "") + (opts.ends ? "E" : "");
+  m.customProgramCacheKey = () => key;
   return m;
 }
 /** Shared section plane for the body (skin + bones) in the axial views: keep dot(n, p) + w >= 0. */
@@ -161,13 +198,13 @@ const veinMat = withBeat(new THREE.MeshPhysicalMaterial({
 const aortaMat = withBeat(new THREE.MeshPhysicalMaterial({
   color: "#b9473a", roughness: 0.42, sheen: 0.35, sheenColor: new THREE.Color("#f2a08c"), sheenRoughness: 0.5,
   clearcoat: 0.45, clearcoatRoughness: 0.3,
-}));
+}), { ends: true });
 const cavaMat = withBeat(new THREE.MeshPhysicalMaterial({
-  color: "#3552a6", emissive: "#070d26", roughness: 0.4, clearcoat: 0.45, clearcoatRoughness: 0.3,
-}));
+  color: "#3552a6", emissive: "#070d26", roughness: 0.4, clearcoat: 0.45, clearcoatRoughness: 0.3, transparent: true,
+}), { ends: true });
 const pulmonaryMat = withBeat(new THREE.MeshPhysicalMaterial({
   color: "#4f80cc", emissive: "#081428", roughness: 0.5, clearcoat: 0.2, clearcoatRoughness: 0.4,
-}));
+}), { ends: true });
 /** The faint glass-body bones (D60): a light-weight shader (diffuse from the camera-carried key light + a soft rim) instead of
  *  the full PBR material. Close cameras see many transparent rib layers on top of each other; PBR per layer kept the operator
  *  views under 30 fps. Same chest rise and section plane as before (withChestRise's rules, inlined). */
@@ -257,10 +294,24 @@ const FRIENDLY: Record<string, string> = {
   "????????": "Cardiac vein (unnamed in the atlas)",
   "Bifurcation of pulmonary trunk": "Pulmonary trunk (bifurcation)",
   "Inferior vena cava (thoracic part)": "Inferior vena cava",
+  Aorta: "Aorta",
 };
 const AORTA = new Set(["Ascending aorta", "Aortic arch", "Thoracic aorta", "Abdominal aorta", "Brachiocephalic trunk",
   "Left common carotid artery", "Left subclavian artery"]);
 const CAVA = new Set(["Superior vena cava", "Inferior vena cava (thoracic part)"]);
+const AORTA_SEGMENTS = new Set(["Ascending aorta", "Aortic arch", "Thoracic aorta", "Abdominal aorta"]);
+let aortaDispMesh: THREE.Mesh | null = null;
+let aortaEnd: Float32Array | null = null;           // the display aorta's own _end (its inferior free end)
+let aortaEndOff = false;
+/** The abdominal aorta's end fade is off while the access routes are shown (the iliac routes continue from it). */
+function syncAortaEnd() {
+  const off = routesGroup.visible;
+  if (!aortaDispMesh || !aortaEnd || off === aortaEndOff) return;
+  aortaEndOff = off;
+  const a = aortaDispMesh.geometry.getAttribute("_end") as THREE.BufferAttribute;
+  (a.array as Float32Array).set(off ? new Float32Array(aortaEnd.length).fill(1e4) : aortaEnd);
+  a.needsUpdate = true;
+}
 const PULMONARY = new Set(["Pulmonary trunk", "Bifurcation of pulmonary trunk", "Left pulmonary artery", "Right pulmonary artery"]);
 const SHORT: Record<string, string> = { LAD: "LAD", LCx: "circumflex", RCA: "right coronary" };
 const CORONARY = new Set(Object.keys(FRIENDLY).slice(0, 6));
@@ -312,6 +363,8 @@ const fillable = new Set<THREE.Mesh>();                  // 3D coronary nodes th
 const coronaryFillMat = withBeat(new THREE.MeshPhysicalMaterial({
   color: "#ff1418", emissive: "#a0000a", emissiveIntensity: 0.8, roughness: 0.24, clearcoat: 0.9, clearcoatRoughness: 0.12,
 }), { fill: true });
+// D62: the coronary surface wins where it nearly coincides with the display aorta's wall-coloured stub (no speckled colour edge)
+for (const m of [coronaryMat, coronaryDimMat, coronaryFillMat]) Object.assign(m, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 });
 const catheterMat = withBeat(new THREE.MeshPhysicalMaterial({
   color: "#e8eef6", roughness: 0.32, clearcoat: 0.7, clearcoatRoughness: 0.2, emissive: "#8aa2bf", emissiveIntensity: 0.55,
 }));
@@ -332,6 +385,9 @@ ghostMesh.frustumCulled = false; ghostMesh.renderOrder = 6; ghostMesh.visible = 
 let ghostR = 1, lastGhostSig = "";
 /** the closed, unioned trees drawn in 3D (D61); the branch meshes become invisible pick proxies */
 let unionLeft: THREE.Mesh | null = null, unionRight: THREE.Mesh | null = null;
+const splitPts: THREE.Vector3[] = [];
+/** [cut at the ostium (opaque aorta), whole (glass aorta in Scenes 5-6: the closed proximal end shows, not a cut ring)] */
+let unionGeoms: Record<"left" | "right", [THREE.BufferGeometry, THREE.BufferGeometry]> | null = null;
 const pickMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 let predict: PredictMode | null = null;
 let predictOn = false;
@@ -368,14 +424,17 @@ async function load() {
   const get = (f: string) => loader.loadAsync(`/anatomy/${f}`).catch(() => null);
   // z_anatomy_heart.glb carries the atlas's authored vessel radii (D46); z_anatomy_heart_illustrative.glb is comparison only
   // the glass-body skeleton is the DISPLAY skeleton (D60): simplified and merged into trunk + limbs (the X-ray keeps full bones)
-  const [heart, skelTrunk, skelLimb, skin, routes] = await Promise.all([get("z_anatomy_heart.glb"),
+  // D62: the display aorta (one smoothed solid, coronary origins filleted) and the free vessel ends for the end fade
+  const [heart, skelTrunk, skelLimb, skin, routes, aortaDisp] = await Promise.all([get("z_anatomy_heart.glb"),
     get("z_anatomy_skeleton_display_trunk.glb"), get("z_anatomy_skeleton_display_limb.glb"),
-    get("z_anatomy_skin.glb"), get("z_anatomy_access_routes.glb")]);
+    get("z_anatomy_skin.glb"), get("z_anatomy_access_routes.glb"), get("z_anatomy_aorta_display.glb")]);
+  const vesselEnds = await fetch("/anatomy/vessel_ends.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const aortaMeta = await fetch("/anatomy/aorta_display.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const skel = skelTrunk;
   if (!heart) throw new Error("z_anatomy_heart.glb missing in web/public/anatomy/");
   for (const g of [heart, skelTrunk, skelLimb, skin, routes]) g?.scene.updateMatrixWorld(true);
   const id = new THREE.Matrix4();
-  [heart, skelTrunk, skelLimb, skin, routes].forEach((g) => g?.scene.traverse((o) => {
+  [heart, skelTrunk, skelLimb, skin, routes, aortaDisp].forEach((g) => g?.scene.traverse((o) => {
     if ((o as THREE.Mesh).isMesh && !o.matrixWorld.equals(id)) throw new Error(`node "${nameOf(o)}" has a non-identity transform`);
   }));
 
@@ -414,7 +473,58 @@ async function load() {
     }
   });
   if (!ostia.LM || !ostia.RCA) throw new Error("effective ostia missing from z_anatomy_heart.glb (re-export, D46)");
+  // ---- D62 display aorta: replaces the four end-to-end aortic segments in the 3D scenes (the X-ray never used them) ----
+  if (aortaDisp && params.get("aorta") !== "atlas") {   // ?aorta=atlas: the original segments (review comparison)
+    const segs: THREE.Mesh[] = [];
+    heart.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh && AORTA_SEGMENTS.has(nameOf(o))) segs.push(o as THREE.Mesh); });
+    for (const m of segs) { m.visible = false; const i = pickables.indexOf(m); if (i >= 0) pickables.splice(i, 1); }
+    aortaDisp.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.name = "Aorta";
+      m.userData.anatomical_name = "Aorta";
+      m.material = aortaMat;
+      aortaDispMesh = m;
+      pickables.push(m);
+    });
+    heart.scene.add(aortaDisp.scene);
+    const cut = aortaMeta?.stub_cut as Record<string, { origin_LPS: number[]; normal_LPS: number[]; radius_mm: number;
+      coronary_drawn_from_mm?: number }> | undefined;
+    if (cut) stubCuts = Object.values(cut).map((k) => ({ o: new THREE.Vector3(...k.origin_LPS), n: new THREE.Vector3(...k.normal_LPS),
+      r: k.radius_mm, from: k.coronary_drawn_from_mm ?? -1.2 }));
+    const e = aortaDispMesh?.geometry.getAttribute("_end") as THREE.BufferAttribute | undefined;
+    if (e) aortaEnd = Float32Array.from(e.array as Float32Array);
+  }
+  if (vesselEnds) endsU.uEndFade.value = vesselEnds.fade_mm ?? 12;
+  // every mesh drawn with an end-fading material needs _end (a missing attribute reads 0 = fully faded)
+  const endMats = new Set<THREE.Material>([aortaMat, cavaMat, pulmonaryMat]);
+  const withEnds = (root: THREE.Object3D) => root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || !endMats.has(m.material as THREE.Material) || m.geometry.getAttribute("_end")) return;
+    const pos = m.geometry.getAttribute("position");
+    const out = new Float32Array(pos.count).fill(1e4);
+    const ends = (vesselEnds?.free_ends?.[nameOf(m)] ?? []) as { centre_LPS: number[]; inward_LPS: number[] }[];
+    const v = new THREE.Vector3();
+    for (const end of ends) {
+      const c = new THREE.Vector3(...end.centre_LPS), n = new THREE.Vector3(...end.inward_LPS);
+      for (let i = 0; i < pos.count; i++) out[i] = Math.min(out[i], Math.max(0, v.fromBufferAttribute(pos, i).sub(c).dot(n)));
+    }
+    m.geometry.setAttribute("_end", new THREE.BufferAttribute(out, 1));
+  });
+  withEnds(heart.scene);
   box.getCenter(heartC);
+  // side-by-side framing points: the chambers' box corners + the ascending aorta and arch (aortic vertices above the heart
+  // centre, within 120 mm of it; the descending aorta below may leave the frame)
+  for (let k = 0; k < 8; k++) splitPts.push(new THREE.Vector3(k & 1 ? box.max.x : box.min.x, k & 2 ? box.max.y : box.min.y, k & 4 ? box.max.z : box.min.z));
+  heart.scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || (nameOf(m) !== "Ascending aorta" && nameOf(m) !== "Aortic arch")) return;
+    const pa = m.geometry.getAttribute("position");
+    for (let i = 0; i < pa.count; i += 7) {
+      const p = new THREE.Vector3().fromBufferAttribute(pa, i);
+      if (p.z > heartC.z && p.distanceTo(heartC) < 120) splitPts.push(p);
+    }
+  });
   // beat axis from the geometry itself: LV base (LV vertices nearest the LA) -> LV apex
   const laC = la.reduce((a, b) => a.add(b), new THREE.Vector3()).divideScalar(la.length);
   const d = lv.map((v) => v.distanceTo(laC)).sort((a, b) => a - b);
@@ -443,6 +553,7 @@ async function load() {
       const m = o as THREE.Mesh;
       if (m.isMesh) { m.material = aortaMat; pickables.push(m); }
     });
+    withEnds(routes.scene);
     routesGroup.add(routes.scene);
   }
   scene.add(routesGroup);
@@ -493,12 +604,38 @@ async function load() {
     if (cathData) { fillOf("xray_left", xl); fillOf("xray_right", xr); }
     // D61: the 3D coronaries are the closed unioned trees (smooth shading from shared vertices)
     for (const g of [xl, xr]) if (!g.getAttribute("normal")) g.computeVertexNormals();
-    unionLeft = new THREE.Mesh(xl, coronaryMat);
-    unionRight = new THREE.Mesh(xr, coronaryMat);
+    unionLeft = new THREE.Mesh(stubCut(xl), coronaryMat);       // the X-ray keeps xl / xr whole
+    unionRight = new THREE.Mesh(stubCut(xr), coronaryMat);
+    unionGeoms = { left: [unionLeft.geometry, xl], right: [unionRight.geometry, xr] };
     for (const u of [unionLeft, unionRight]) { u.name = "coronary tree"; scene.add(u); }
     lab = new CathLab(renderer, { left: xl, right: xr, bone: geo(xrGeo[2]), heart: geo(xrGeo[3]), isocenter: xrMeta.isocenter_LPS },
       bodyBox, { glsl: FIELD, uniforms: motion });
     fillU.uFill = lab.angio.fill;                       // ONE fill window for the 3D glow and the X-ray
+    // arm supports fitted under the atlas arms, shoulder to hand (the pose itself is never changed)
+    if (skinMesh) {
+      const pos = skinMesh.geometry.getAttribute("position"), arm = skinMesh.geometry.getAttribute("_arm");
+      const STEP = 25, Z0 = 640, Z1 = 1260;                 // feet -> below the shoulder (above it the arm meets the torso)
+      const nb = Math.ceil((Z1 - Z0) / STEP);
+      const sides = [1, -1].map((side) => {
+        const x0 = new Array(nb).fill(1e9), x1 = new Array(nb).fill(-1e9), y = new Array(nb).fill(-1e9);
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i);
+          if (arm.getX(i) < 0.5 || Math.sign(x) !== side) continue;
+          const b = Math.floor((pos.getZ(i) - Z0) / STEP);
+          if (b < 0 || b >= nb) continue;
+          x0[b] = Math.min(x0[b], Math.abs(x)); x1[b] = Math.max(x1[b], Math.abs(x)); y[b] = Math.max(y[b], pos.getY(i));
+        }
+        const ok = y.map((v) => v > -1e8);
+        const idx = ok.map((o, k) => (o ? k : -1)).filter((k) => k >= 0);
+        const sm = (a: number[], k: number) => {            // a gentle moving average along the arm
+          const w = [k - 2, k - 1, k, k + 1, k + 2].filter((q) => q >= 0 && q < nb && ok[q]);
+          return w.reduce((t, q) => t + a[q], 0) / w.length;
+        };
+        return { side, z: idx.map((k) => Z0 + (k + 0.5) * STEP), x0: idx.map((k) => sm(x0, k) - 6),
+          x1: idx.map((k) => sm(x1, k) + 6), yPost: idx.map((k) => Math.max(...[k - 1, k, k + 1].filter((q) => q >= 0 && q < nb && ok[q]).map((q) => y[q]))) };
+      });
+      lab.addArmSupports(sides);
+    }
     lab.room.visible = lab.rig.visible = false;
     scene.add(lab.room, lab.rig);
     for (const b of branches) (/^RCA_/.test(b.name) ? treeRight : treeLeft).push(b);
@@ -713,7 +850,9 @@ let carmView = "ap";
 function labPose(cam: LabCam): Pose {
   if (cam === "operator") return lab!.operatorPose(heartC, sceneNo === 5 ? (cathAccess === "radial_right" ? "radial" : "femoral") : operatorAccess);
   if (cam === "beam") return lab!.beamPose();
-  if (cam === "split") return lab!.detectorSidePose(heartC, (canvas.clientWidth / 2) / Math.max(1, canvas.clientHeight), camera.fov);
+  if (cam === "split") return splitPts.length
+    ? lab!.detectorSideFit(splitPts, (canvas.clientWidth / 2) / Math.max(1, canvas.clientHeight), camera.fov)
+    : lab!.detectorSidePose(heartC, (canvas.clientWidth / 2) / Math.max(1, canvas.clientHeight), camera.fov);
   if (cam === "root") return poseFor("root", HEART_DIST);
   if (cam === "slice") return slicePose();
   return lab!.roomPose(heartC);
@@ -761,7 +900,7 @@ function setLabCam(cam: LabCam, ms: number) {
   moveTo(labPose(cam), ms, (e) => setRootFade(THREE.MathUtils.lerp(r0, r1, e)));
   caption(cam === "root" ? "The aortic root, close: the catheter tip sits in the coronary's opening."
     : cam === "operator" ? ((sceneNo === 5 ? cathAccess === "radial_right" : operatorAccess === "radial")
-      ? "The operator's view: beside the patient's right shoulder, over the arm board (radial access)."
+      ? "The operator's view: at the right shoulder, by the right arm (radial access)."
       : "The operator's view: standing at the patient's right side, at the hip (femoral access).")
     : cam === "beam" ? "Side-on to the beam: tube, heart and detector in one line. Drag to orbit; the projection stays fixed."
     : cam === "split" ? "Left: the heart turned the way the detector sees it. Right: the image it makes."
@@ -793,6 +932,7 @@ function applyInjectionLook() {
   if (unionLeft && unionRight && !labelMode) {
     for (const [tree, u] of [["left", unionLeft], ["right", unionRight]] as const) {
       u.visible = true;
+      if (unionGeoms) u.geometry = unionGeoms[tree][sceneNo >= 5 ? 1 : 0];
       u.material = !on ? coronaryMat : inj !== tree ? coronaryDimMat : sceneNo >= 5 ? coronaryFillMat : coronaryMat;
     }
     for (const m of [...treeLeft, ...treeRight]) m.material = pickMat;
@@ -1104,12 +1244,13 @@ function renderControls() {
       options: [{ v: "room", label: "Room" }, { v: "operator-femoral", label: "Operator (femoral)" }, { v: "operator-radial", label: "Operator (radial)" }] }];
     more = [{ title: "Show", ctls: [beatToggle(), veinsToggle()] }];
   } else if (s === 4) {
-    ess = [carmMenu(), { kind: "seg", id: "sInject", title: "Contrast in", value: lab?.injected ?? "left", onChange: (v) => setInject(v as "left" | "right"),
-      options: [{ v: "left", label: "Left coronary" }, { v: "right", label: "Right coronary" }] },
+    ess = [carmMenu(), { kind: "seg", id: "sInject", title: "Contrast in the left (LCA) or right (RCA) coronary artery", value: lab?.injected ?? "left", onChange: (v) => setInject(v as "left" | "right"),
+      options: [{ v: "left", label: "LCA" }, { v: "right", label: "RCA" }] },   // short: the row must fit 1280 px in every state
     { kind: "menu", id: "mCam4", title: "Camera", value: labCam, onChange: (v) => setLabCam(v as LabCam, 2200),
       options: [{ v: "room", label: "Room" }, { v: "beam", label: "Beam" }, { v: "split", label: "Side by side" }] },
-    { kind: "button", id: "bPredict", label: predictOn ? "Leave Predict" : "Predict", accent: !predictOn, onClick: () => setPredict(!predictOn),
-      title: "Which image does this view make?" }];
+    // Predict cannot run during the tour: its button is left out then (the tour's toolbar overflowed at 1280 px)
+    ...(tourOn ? [] : [{ kind: "button" as const, id: "bPredict", label: predictOn ? "Leave Predict" : "Predict", accent: !predictOn,
+      onClick: () => setPredict(!predictOn), title: "Which image does this view make?" }])];
     more = [{ title: "Show", ctls: [beatToggle(), veinsToggle()] }];
     if (predictOn) more.push({ title: "Predict", ctls: [
       { kind: "toggle", id: "tMirror", label: "Mirror-image distractor", value: !!predict?.useMirror, onChange: (on) => {
@@ -1441,6 +1582,7 @@ function tick(now: number) {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
+  syncAortaEnd();
   const dt = Math.min(0.1, (now - lastNow) / 1000);
   if (now > lastNow) fpsNow = 0.9 * fpsNow + 0.1 * (1000 / (now - lastNow));
   lastNow = now;
@@ -1454,8 +1596,8 @@ function tick(now: number) {
     if (sceneNo >= 4 && !swinging && xrayPending && now - lastXray >= 1000 / 15 - 2) {
       lab.renderImage(); lastXray = now; xrayPending = false;
     }
-    // the operator stands among the hardware: parts within ~0.9 m of the eye fade out there (they framed the view's edges)
-    lab.occlusionFade(camera, sceneNo === 6 && cross ? cross.point() : heartC, dt, labCam === "operator" ? 900 : 650);
+    // the operator stands among the hardware: parts within ~2 m of the eye fade out there (stand, hub and tube framed its edges)
+    lab.occlusionFade(camera, sceneNo === 6 && cross ? cross.point() : heartC, dt, labCam === "operator" ? 2000 : 650);
     if (swinging && !tween && (labCam === "beam" || labCam === "split")) {   // these cameras ride with the C-arm
       const p = labPose(labCam);
       camera.up.copy(p.up); camera.position.copy(p.pos); controls.target.copy(p.target); camera.lookAt(p.target);
@@ -1502,7 +1644,7 @@ load().then(() => {
   const hooks = () => ((window as unknown as Record<string, unknown>).atlas = { showScene, setView, setHeartView, setRoutes, showLab,
     setCArmView, setLabCam, setInject, lab, cath, cross, setCathAccess, setCathTarget, setBeat, cathFill, goScene, startTour, stopTour,
     setPredict, get predict() { return predict; }, get fps() { return fpsNow; }, playFrom, injectCath, runCath,
-    dbg: { scene, renderer, camera, bodyGroup, routesGroup, ghostMesh, heartRoot: () => scene.children }, sliceTo: (f: number) => { if (cross) { cross.followTip = false; cross.setFraction(f); syncSlider(); renderControls(); } } });
+    dbg: { scene, renderer, camera, controls, bodyGroup, routesGroup, ghostMesh, heartRoot: () => scene.children }, sliceTo: (f: number) => { if (cross) { cross.followTip = false; cross.setFraction(f); syncSlider(); renderControls(); } } });
   if (sp >= 3 && sp <= 6 && lab) {
     // ?scene=3|4|5&carm=ap|rao30|lao45|raocaud|spider&cam=room|operator|beam|split|root&inject=left|right
     //  Scene 3: &op=femoral|radial.  Scene 5: &access=femoral|radial&target=left|right&engaged&fill=0..1 (review, recording)
@@ -1520,7 +1662,7 @@ load().then(() => {
     showLab(sp as 3 | 4 | 5 | 6, 0);
     if (sp === 4 && labCam !== "split") caption(V.caption);
     if (labCam === "operator" && sp === 3) caption(operatorAccess === "radial"
-      ? "The operator's view: beside the patient's right shoulder, over the arm board (radial access)."
+      ? "The operator's view: at the right shoulder, by the right arm (radial access)."
       : "The operator's view: standing at the patient's right side, at the hip (femoral access).");
     if (sp >= 4) { lab.setXray(true, false); }
     if (sp >= 5 && (params.has("engaged") || sp === 6)) {

@@ -14,7 +14,7 @@ npm run launch       # = npm run build && npm run start: builds the static app, 
 `npm run start` serves an existing build without rebuilding. The app is static (no backend). The anatomy files in
 `web/public/anatomy/` are git-ignored and must be built first (section "Atlas scenes" below).
 
-**Status (2026-10-04): v1.0.** A cinematic, animated explainer, not a dashboard: no numbers in the main experience (view names
+**Status (2026-10-04): v1.0** (tag `v1.0`; release candidate `v1.0-rc1`). A cinematic, animated explainer, not a dashboard: no numbers in the main experience (view names
 only). Two apps share one validated geometry engine:
 
 - **The atlas app** (`atlas.html`, the v1.0 product): the Z-Anatomy heart, skeleton and skin (CC BY-SA 4.0).
@@ -45,7 +45,7 @@ TotalSegmentator pipeline is kept only for the CT case's own anatomy.
 
 ## Atlas scenes (Z-Anatomy)
 
-Source, license and frame: DECISIONS D37-D61 and CONVENTIONS sections 10-12. All exports are git-ignored.
+Source, license and frame: DECISIONS D37-D63 and CONVENTIONS sections 10-12. All exports are git-ignored.
 
 ```powershell
 # 1. export (needs Startup.blend in assets/anatomy/source/; checks free memory first; peak ~6.2 GB)
@@ -64,12 +64,21 @@ foreach ($f in "heart","heart_illustrative","access_routes","skeleton","skin") {
 .\.venv\Scripts\python preprocess\scripts\junction_before_after.py   # D52 figure -> out/review/lab/
 # 5. Scene 5 data: routes, JL4/JR4 shapes, contrast-fill distances (needs the probe: run_blender.ps1 -Script probe_great_vessels.py)
 .\.venv\Scripts\python preprocess\scripts\build_atlas_cath.py
+# 6. display aorta (D62): one smoothed solid, coronary origins filleted, ostia re-measured on it (writes the manifest), then the
+#    catheters / fill distances again from the re-measured ostia; free vessel ends for the end fade
+.\.venv\Scripts\python preprocess\scripts\build_aorta_display.py
+.\.venv\Scripts\python preprocess\scripts\build_atlas_cath.py
+.\.venv\Scripts\python preprocess\scripts\build_vessel_ends.py
 cd web; node e2e/atlas_xray.e2e.mjs        # GPU == CPU on the atlas (mirrors fail) + cine field moves / static frame unchanged
 node e2e/atlas_shots.mjs shots              # review screenshots -> out/review/atlas/
 node e2e/lab_shots.mjs all                  # cath lab / X-ray screenshots + swing recording -> out/review/lab/
 node e2e/cath_shots.mjs all                 # Scene 5 screenshots + full-sequence recording -> out/review/cath/
 node e2e/atlas_v1.e2e.mjs                   # Predict on the atlas, Scene 6 sync (dot = engine projection, shared fill), stepper
 node e2e/v1_shots.mjs all                   # every scene at 1280 / 1920 px, toolbar, fps per view, tour recording -> out/review/v1/
+                                            #   OUT=v1_1 (another folder), ONLY=s1_root,s5_root (some views), SUFFIX="&aorta=atlas"
+node e2e/root_zoom.mjs                      # aortic-root close-ups (PREFIX=before_ SUFFIX="&aorta=atlas": the original segments)
+node e2e/hover_probe.mjs "scene=6" 1280x800 120,280   # names what is under a screen point (identify objects in review shots)
+node e2e/hide_probe.mjs "scene=6" "Superior vena cava"  # hides named meshes one at a time and screenshots
 node e2e/tour_stalls.mjs                    # plays the tour and lists every frame slower than 50 ms
 node e2e/inject_stall.mjs                   # frame times + shader-program count around the first injection
 node e2e/scene6_stall.mjs                   # frame times + CPU profile entering Scene 6 and injecting (stall diagnosis)
