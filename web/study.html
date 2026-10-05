@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Coronary Projection Study</title>
+    <style>
+      :root {
+        --bg: #0d1219; --panel: #141b25; --line: rgba(255, 255, 255, 0.1); --ink: #e9edf2; --muted: #9aa6b4;
+        --accent: #e8414a; --ok: #3fbf7f; --bad: #e8616a; --gold: #f2c14e; --radius: 12px;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+      main { max-width: 1240px; margin: 0 auto; padding: 18px 20px 24px; }
+      h1 { font-size: 24px; font-weight: 600; margin: 4px 0 6px; }
+      h2 { font-size: 19px; font-weight: 600; margin: 0 0 8px; }
+      p { margin: 6px 0; color: #c9d1db; }
+      .muted { color: var(--muted); }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; }
+      .screen { display: none; }
+      .screen.on { display: block; }
+      button { font: inherit; color: var(--ink); background: #232d3b; border: 1px solid var(--line); border-radius: 9px; padding: 9px 16px;
+        cursor: pointer; }
+      button:hover { background: #2c3849; }
+      button.primary { background: var(--accent); border-color: transparent; font-weight: 600; }
+      button.primary:hover { background: #f05058; }
+      button:disabled { opacity: 0.45; cursor: default; }
+      input[type=text] { font: inherit; color: var(--ink); background: #0f151e; border: 1px solid #3a4658; border-radius: 9px; padding: 9px 12px;
+        width: 220px; letter-spacing: 0.06em; }
+      .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0; }
+      .step { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: #111822; }
+      .step b { display: block; margin-bottom: 4px; }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      .err { color: var(--bad); min-height: 1.4em; }
+      /* question screen */
+      #qwrap { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+      #ref { background: #0a0f15; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; position: sticky; top: 16px; }
+      #refCanvas { width: 100%; aspect-ratio: 1; display: block; border-radius: 8px; }
+      #ref .cap { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+      .orient { position: relative; }
+      .orient span { position: absolute; font-size: 11.5px; color: #c3cbd5; background: rgba(10, 15, 21, 0.75); padding: 1px 6px; border-radius: 6px; }
+      #prompt { font-size: 19px; margin: 2px 0 4px; }
+      #prompt b { color: var(--gold); font-weight: 600; }
+      #qcount { color: var(--muted); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+      /* the whole question fits the window (prompt + 2x2 tiles): tile side from the height, never scrolled off */
+      #tiles { display: grid; grid-template-columns: repeat(2, min(calc((100% - 14px) / 2), calc((100vh - 210px) / 2))); gap: 14px;
+        margin-top: 12px; }
+      .tile { position: relative; border: 2px solid transparent; border-radius: 10px; overflow: hidden; cursor: pointer; background: #000; }
+      .tile:hover { border-color: #5a7aa8; }
+      .tile canvas { width: 100%; aspect-ratio: 1; display: block; }
+      .tile .L { position: absolute; left: 10px; top: 8px; font-weight: 700; font-size: 18px; color: #0d1219; background: #e9edf2; border-radius: 6px;
+        padding: 0 8px; }
+      #tiles.wait .tile { pointer-events: none; opacity: 0.35; }
+      .dots { display: flex; gap: 6px; margin-top: 10px; }
+      .dots i { width: 9px; height: 9px; border-radius: 50%; background: #2f3a4a; }
+      .dots i.done { background: #6b7d94; }
+      .dots i.now { background: var(--gold); }
+      /* results */
+      .scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 14px 0 18px; }
+      .score { background: #111822; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+      .score .big { font-size: 34px; font-weight: 600; }
+      table { border-collapse: collapse; width: 100%; margin: 6px 0 14px; }
+      th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+      th { color: var(--muted); font-weight: 500; font-size: 13px; }
+      td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+      .bar { height: 8px; background: #2f3a4a; border-radius: 4px; position: relative; min-width: 120px; }
+      .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; }
+      #past li { margin: 3px 0; }
+      #loading { position: fixed; inset: 0; display: none; place-items: center; background: rgba(13, 18, 25, 0.85); font-size: 16px; z-index: 9; }
+      #loading.on { display: grid; }
+    </style>
+  </head>
+  <body>
+    <div id="loading">Preparing the patient's images…</div>
+    <main>
+      <!-- 1. welcome -->
+      <section class="screen" id="sWelcome">
+        <div class="card">
+          <h1>Coronary projection study session</h1>
+          <p>About 20 minutes, in three parts. Run it on your own; no names are recorded.</p>
+          <div class="steps">
+            <div class="step"><b>1 · Pre-test (≈4 min)</b>10 questions on a real patient's coronary arteries (from CT).</div>
+            <div class="step"><b>2 · Training (≈10 min)</b>The 3D atlas: the guided tour, then practice with Predict.</div>
+            <div class="step"><b>3 · Post-test (≈4 min)</b>10 new questions on the same patient, different views.</div>
+          </div>
+          <p><b>Participant code.</b> Use the code you were given, or keep this generated one. <span class="muted">Do not enter your name.</span></p>
+          <div class="row" style="margin-top: 8px">
+            <input type="text" id="code" maxlength="16" autocomplete="off" spellcheck="false" />
+            <button id="newCode">New code</button>
+            <button class="primary" id="start">Start study session</button>
+          </div>
+          <div class="err" id="codeErr"></div>
+          <div id="resumeBox" style="display: none; margin-top: 6px">
+            <p>A session is in progress on this device: <b id="resumeCode"></b>. <button id="resume">Resume it</button></p>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 16px" id="pastCard">
+          <h2>Finished sessions on this device</h2>
+          <ul id="past" class="muted"></ul>
+        </div>
+      </section>
+
+      <!-- 2. part intro (pre / training / post) -->
+      <section class="screen" id="sIntro">
+        <div class="card">
+          <div id="introHead" class="muted" style="letter-spacing: 0.06em; text-transform: uppercase; font-size: 13px"></div>
+          <h1 id="introTitle"></h1>
+          <div id="introBody"></div>
+          <div class="row" style="margin-top: 16px"><button class="primary" id="introGo"></button></div>
+        </div>
+      </section>
+
+      <!-- 3. question -->
+      <section class="screen" id="sQuestion">
+        <div id="qwrap">
+          <div id="ref">
+            <div class="orient">
+              <canvas id="refCanvas" width="640" height="640"></canvas>
+              <span style="left: 50%; top: 8px; transform: translateX(-50%)">Head ↑</span>
+              <span style="right: 8px; top: 50%; transform: translateY(-50%)">Patient's left →</span>
+            </div>
+            <div class="cap">The patient's coronary arteries, seen from the front (the injected artery is bright). It rocks gently so you can
+              judge depth.</div>
+          </div>
+          <div>
+            <div id="qcount"></div>
+            <div id="prompt"></div>
+            <div class="muted" style="font-size: 13.5px">Pick the angiogram this C-arm view makes. There is no feedback until the end.</div>
+            <div id="tiles"></div>
+            <div class="dots" id="dots"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. results -->
+      <section class="screen" id="sResults">
+        <div class="card">
+          <div class="muted" style="letter-spacing: 0.06em; text-transform: uppercase; font-size: 13px">Results · participant <b id="rCode"></b></div>
+          <h1>Thank you: the session is complete</h1>
+          <div class="scores">
+            <div class="score"><div class="muted">Pre-test</div><div class="big" id="rPre"></div><div class="muted" id="rPreT"></div></div>
+            <div class="score"><div class="muted">Post-test (new views)</div><div class="big" id="rPost"></div><div class="muted" id="rPostT"></div></div>
+            <div class="score"><div class="muted">Change</div><div class="big" id="rDelta"></div><div class="muted" id="rTrain"></div></div>
+          </div>
+          <h2>Errors by type</h2>
+          <table id="rErr"></table>
+          <h2>Time</h2>
+          <table id="rTime"></table>
+          <div class="row">
+            <button class="primary" id="csv">Download results (CSV)</button>
+            <button id="done">Finish: back to the start</button>
+          </div>
+          <p class="muted" style="margin-top: 10px">The CSV holds the anonymous code only. The session is also kept on this device until it is cleared.</p>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/study/studyApp.ts"></script>
+  </body>
+</html>

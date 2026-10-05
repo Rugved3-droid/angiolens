@@ -10,6 +10,8 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { CathLab } from "./cathLab";
 import { CathSim, FlatTube, type Access, type Target } from "./cath";
 import { CrossSection, vesselName } from "./crossSection";
+import { flag } from "./flags";
+import { ShadowMode } from "./shadowMode";
 import { PredictMode } from "./predictUI";
 import { Toolbar, type Ctl, type Section } from "./toolbar";
 import { CArm } from "./geometry";
@@ -385,6 +387,15 @@ ghostMesh.frustumCulled = false; ghostMesh.renderOrder = 6; ghostMesh.visible = 
 let ghostR = 1, lastGhostSig = "";
 /** the closed, unioned trees drawn in 3D (D61); the branch meshes become invisible pick proxies */
 let unionLeft: THREE.Mesh | null = null, unionRight: THREE.Mesh | null = null;
+/** v1.1 X-ray shadow mode (feature flag "shadow"): null when the flag is off */
+let shadow: ShadowMode | null = null;
+function setShadow(on: boolean, rays = shadow?.rays ?? false) {
+  if (!shadow || !lab) return;
+  shadow.on = on;
+  shadow.rays = on && rays;
+  lab.setShadowMode(on);
+  renderControls();
+}
 const splitPts: THREE.Vector3[] = [];
 /** [cut at the ostium (opaque aorta), whole (glass aorta in Scenes 5-6: the closed proximal end shows, not a cut ring)] */
 let unionGeoms: Record<"left" | "right", [THREE.BufferGeometry, THREE.BufferGeometry]> | null = null;
@@ -611,6 +622,7 @@ async function load() {
     lab = new CathLab(renderer, { left: xl, right: xr, bone: geo(xrGeo[2]), heart: geo(xrGeo[3]), isocenter: xrMeta.isocenter_LPS },
       bodyBox, { glsl: FIELD, uniforms: motion });
     fillU.uFill = lab.angio.fill;                       // ONE fill window for the 3D glow and the X-ray
+    if (flag("shadow")) shadow = new ShadowMode(renderer, { left: xl, right: xr }, lab.detectorMm);
     // arm supports fitted under the atlas arms, shoulder to hand (the pose itself is never changed)
     if (skinMesh) {
       const pos = skinMesh.geometry.getAttribute("position"), arm = skinMesh.geometry.getAttribute("_arm");
@@ -703,6 +715,10 @@ async function load() {
     lab.angio.setPuff(null, 0);
     lab.angio.fill.value.set(1e9, -1e9);                // outside Scene 5 the trees are full
     lab.renderImage();
+    if (shadow) {                                       // v1.1 shadow mode: compile + allocate the shadow map now, not on first use
+      for (const t of ["left", "right"] as const) { shadow.update(lab.carm, t); shadow.on = true; shadow.rays = true; shadow.render(camera, 0); }
+      shadow.on = shadow.rays = false;
+    }
     [lab.room.visible, lab.rig.visible] = [!!vis[0], !!vis[1]];
   }
   routesGroup.visible = !!vis[2];
@@ -1218,6 +1234,10 @@ const CARM_OPTS = [{ v: "ap", label: "AP" }, { v: "rao30", label: "RAO 30" }, { 
   { v: "raocaud", label: "RAO caudal" }, { v: "spider", label: "Spider" }];
 const carmMenu = (): Ctl => ({ kind: "menu", id: "mCarm", title: "C-arm", options: CARM_OPTS, value: carmView, onChange: (v) => setCArmView(v, 2600) });
 const beatToggle = (): Ctl => ({ kind: "toggle", id: "tBeat", label: "Beating heart", value: beatOn, onChange: setBeat });
+/** v1.1 shadow-mode controls (the "More" drawer), present only with the feature flag */
+const shadowSection = (): Section[] => (shadow ? [{ title: "X-ray shadow", ctls: [
+  { kind: "toggle", id: "tShadow", label: "Shadow on the detector", value: shadow.on, onChange: (on) => setShadow(on) },
+  { kind: "toggle", id: "tRays", label: "Streaming rays", value: shadow.rays, onChange: (on) => setShadow(true, on) }] }] : []);
 const veinsToggle = (): Ctl => ({ kind: "toggle", id: "tVeins", label: "Cardiac veins", value: veinsOn, onChange: (on) => {
   veinsOn = on; veins.forEach((v) => (v.visible = on && !labelMode && rootFade > 0.5)); renderControls();
 } });
@@ -1242,7 +1262,7 @@ function renderControls() {
     ess = [carmMenu(), { kind: "menu", id: "mCam3", title: "Camera", value: labCam === "operator" ? `operator-${operatorAccess}` : labCam,
       onChange: (v) => { if (v.startsWith("operator-")) operatorAccess = v.slice(9) as "femoral" | "radial"; setLabCam((v.startsWith("operator") ? "operator" : v) as LabCam, 2200); },
       options: [{ v: "room", label: "Room" }, { v: "operator-femoral", label: "Operator (femoral)" }, { v: "operator-radial", label: "Operator (radial)" }] }];
-    more = [{ title: "Show", ctls: [beatToggle(), veinsToggle()] }];
+    more = [{ title: "Show", ctls: [beatToggle(), veinsToggle()] }, ...shadowSection()];
   } else if (s === 4) {
     ess = [carmMenu(), { kind: "seg", id: "sInject", title: "Contrast in the left (LCA) or right (RCA) coronary artery", value: lab?.injected ?? "left", onChange: (v) => setInject(v as "left" | "right"),
       options: [{ v: "left", label: "LCA" }, { v: "right", label: "RCA" }] },   // short: the row must fit 1280 px in every state
@@ -1251,7 +1271,7 @@ function renderControls() {
     // Predict cannot run during the tour: its button is left out then (the tour's toolbar overflowed at 1280 px)
     ...(tourOn ? [] : [{ kind: "button" as const, id: "bPredict", label: predictOn ? "Leave Predict" : "Predict", accent: !predictOn,
       onClick: () => setPredict(!predictOn), title: "Which image does this view make?" }])];
-    more = [{ title: "Show", ctls: [beatToggle(), veinsToggle()] }];
+    more = [{ title: "Show", ctls: [beatToggle(), veinsToggle()] }, ...shadowSection()];
     if (predictOn) more.push({ title: "Predict", ctls: [
       { kind: "toggle", id: "tMirror", label: "Mirror-image distractor", value: !!predict?.useMirror, onChange: (on) => {
         ($("pr-mirror") as HTMLInputElement).checked = on; $("pr-mirror").dispatchEvent(new Event("change")); renderControls();
@@ -1449,6 +1469,7 @@ async function playFrom(i: number) {
     try { await TOUR[s].run(k); } catch { return; }       // cancelled: a newer playFrom owns the tour now
     if (k !== tourToken) return;
   }
+  window.dispatchEvent(new CustomEvent("cpt:tour-complete"));   // v1.1: the study bar records a tour watched to the end
   stopTour();
 }
 function startTour() {
@@ -1625,6 +1646,7 @@ function tick(now: number) {
     blitInto($("splitImage"));
   } else {
     renderer.render(scene, camera);
+    if (shadow?.on && lab && sceneNo >= 3 && sceneNo <= 5) { shadow.update(lab.carm, lab.injected); shadow.render(camera, now / 1000); }
     if (lab && sceneNo >= 4 && !predictOn) { frameBehind($("monitor")); blitInto($("monitorImage")); }
     if (sceneNo === 6) drawSlice();
   }
@@ -1632,6 +1654,7 @@ function tick(now: number) {
 }
 
 caption("Loading the atlas…");
+if (params.has("study")) void import("./study/studyBar").then((m) => m.mountStudyBar(params.get("study")!));
 load().then(() => {
   const sp = Number(params.get("scene") ?? 1);
   /** Review hook: freeze the contrast at a fraction of the fill (Scene 5), with the reflux puff at its peak if early. */
@@ -1644,6 +1667,7 @@ load().then(() => {
   const hooks = () => ((window as unknown as Record<string, unknown>).atlas = { showScene, setView, setHeartView, setRoutes, showLab,
     setCArmView, setLabCam, setInject, lab, cath, cross, setCathAccess, setCathTarget, setBeat, cathFill, goScene, startTour, stopTour,
     setPredict, get predict() { return predict; }, get fps() { return fpsNow; }, playFrom, injectCath, runCath,
+    get shadow() { return shadow; }, setShadow,
     dbg: { scene, renderer, camera, controls, bodyGroup, routesGroup, ghostMesh, heartRoot: () => scene.children }, sliceTo: (f: number) => { if (cross) { cross.followTip = false; cross.setFraction(f); syncSlider(); renderControls(); } } });
   if (sp >= 3 && sp <= 6 && lab) {
     // ?scene=3|4|5&carm=ap|rao30|lao45|raocaud|spider&cam=room|operator|beam|split|root&inject=left|right
@@ -1671,6 +1695,7 @@ load().then(() => {
       else lab.renderImage();
     }
     if (params.has("predict") && sp === 4) setPredict(true);
+    if (params.has("shadow")) setShadow(true, params.has("rays"));       // v1.1 review shots (needs the "shadow" flag)
     requestAnimationFrame(tick);
     requestAnimationFrame(() => requestAnimationFrame(() => (document.body.dataset.ready = "1")));
     hooks();

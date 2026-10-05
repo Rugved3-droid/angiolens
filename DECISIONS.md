@@ -868,3 +868,73 @@ re-review). The fixes:
 - C-arm angles appear in Predict prompts (the original Predict logic, unchanged).
 - The tour has residual single frames of 50-67 ms (mean 57 fps over the 76 s tour).
 
+**D64 v1.1 working rules.** DECIDED (Rugved).
+- **Branches:** v1.0 is a frozen tag. All work happens on branch `v1.1`, created from it.
+- **Frozen unless Rugved approves:**
+  - the projection math (`geometry.ts`, `cpt/geometry.py`);
+  - the X-ray renderer core (`angio.ts`, `cpt/meshrender.py`);
+  - the geometry rules in CONVENTIONS;
+  - the validated test fixtures.
+- **New features:** they go in new modules behind feature flags (`src/flags.ts`: `?ff=shadow`, `?ff=all`, `?ff=none`; remembered
+  per browser). With the flags off, the v1.0 scenes are unchanged.
+- **Commit gate:** `npm run verify` runs pytest, typecheck, vitest, every browser suite and the static build, and stops at the
+  first failure. A git pre-commit hook runs it, so nothing red is committed.
+- **`npm run launch:v1`:** builds and serves the frozen v1.0 on port 5177 from its own git worktree
+  (`../coronary-projection-trainer-v1.0`). It uses a snapshot of the v1.0 anatomy data (`../coronary-projection-trainer-v1.0-data`;
+  the data is git-ignored, so v1.1 rebuilds cannot reach the demo). It refuses to run if the worktree is not at the tag or has
+  local changes.
+
+**D65 Assessment module (study.html).** DECIDED (Rugved: the protocol), details DEFAULT.
+- **Flow:** welcome -> pre-test -> training -> post-test -> results. About 20 minutes, runnable alone.
+  - Pre-test: 10 Predict questions on the ASOCA patient (Normal_12).
+  - Training: the atlas with a study bar (`atlas.html?study=<code>`); the guided tour, then free Predict.
+  - Post-test: 10 new questions on the same patient.
+- **Questions:** two fixed sets of 10 (`src/study/studyCore.ts`), so every participant answers the same 20 poses.
+  - Counterbalanced: the participant code's hash decides A-then-B or B-then-A.
+  - Each set is balanced 5 LAO / 5 RAO, 5 CRAN / 5 CAUD, 5 LCA / 5 RCA. All 20 poses are pairwise >= 11 degrees apart (searched,
+    then unit-tested), so the post-test views are new.
+  - 15 <= |alpha|, |beta| <= 45 and | |alpha| - |beta| | >= 15: every wrong answer is a distinct view.
+- **Answer tiles:** the correct view plus three of the four error types; the one left out rotates (each type offered 7-8 times
+  per set). Tile order is shuffled with the participant seed.
+  - alpha flip: (-a, b);
+  - beta flip: (a, -b);
+  - left-right mirror of the correct image: a deliberate wrong answer only;
+  - axis confusion: the magnitudes exchanged between the axes, each axis keeping its side (LAO 25 / CAUD 40 -> LAO 40 / CAUD 25).
+    This is new in v1.1 and lives only in the study module; Predict's own distractor logic is unchanged.
+- **Rendering:** every tile comes from the validated engine (`AngioRenderer`, the same calls as Predict).
+  - The run-through test checks all 80 shown tiles pixel-exact against the engine, and every mirror tile as the exact flip.
+- **Test conditions:**
+  - no feedback during the tests;
+  - all tiles are rendered before the first question, so rendering never enters the response times;
+  - the response time runs from the tiles appearing to the click.
+- **Reference panel:** the patient's arteries from the front (AP, head up, patient's left on the right), rocking +-22 degrees for
+  depth; the injected tree is bright. It cannot be turned to the asked view.
+- **Record:** per question, the phase, set, pose, tile order, chosen kind (correct or error type) and response time. For the
+  training: its minutes, whether the tour was watched to the end, and the Predict practice (count and correct, from the atlas
+  Predict history).
+- **Anonymity:** the participant code is anonymous. It must contain a digit and be 3-16 characters of letters, digits or hyphens,
+  so a name cannot be entered. No name is stored anywhere.
+- **Storage:** sessions live in this browser (localStorage). Finished sessions can be re-exported from the start screen.
+- **Export:** one CSV per participant, one row per question, fixed columns (`CSV_COLUMNS`).
+- **Results screen:** pre vs post score, errors by type (chosen / offered), median and total response times, training time and
+  practice, and the whole-session time.
+
+**D66 X-ray shadow mode** (feature flag `shadow`; More -> X-ray shadow, in Scenes 3-5). DEFAULT, from Rugved's brief: a point light
+at the source casting the coronary shadow on the detector, optional streaming rays, live with the C-arm, validated against the
+engine at 5 views within 1 px. The original detailed spec was in another chat and was not available.
+- **The light:** a spot light (a point light with a cone) at the source, aimed at the detector centre, its cone just covering the
+  detector. The shadow map is 4096 square (~0.09 mm per texel at the detector; an image pixel is 0.49 mm) and is redrawn only
+  when the pose or tree changes.
+- **Casters:** the injected tree's X-ray solid (the mesh the engine renders), static (the engine's static frame).
+- **Receiver:** a glowing screen in the EXACT detector plane, with a shadow-only overlay visible from both sides (a shadow-puppet
+  screen). In shadow mode the detector housing turns to glass and both of its faces give way. Seen from outside, the screen is
+  oriented like the angiogram.
+- **Separation from the frozen code:** the shadow is a separate scene drawn after the lab, depth-tested against it. The projection
+  math and the renderer are untouched.
+- **Rays:** from the source to 40 points spread over the tree (bright, flowing), then on to the detector plane (faint).
+- **Validation** (`e2e/shadow.e2e.mjs`): the displayed screen, seen from behind (image orientation), against the engine's
+  projection, its vessel path length > 0 (`readThickness`).
+  - The shown image adds a deliberate 3x3 blur that widens vessels by ~1 px, so the blurred image is the wrong reference for the
+    silhouette.
+  - 5 LCA views + 1 RCA view: best shift (0, 0) px at every view, IoU 0.98-0.99, mean boundary distance 0.02-0.04 px.
+- **Frame rate** (shadow and rays on, 1600x1000): 47-52 fps.

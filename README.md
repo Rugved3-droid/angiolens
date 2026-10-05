@@ -3,6 +3,15 @@
 Personal learning tool: how the 3D heart and its coronary arteries become the 2D angiogram at any C-arm angle.
 Geometry rules: [CONVENTIONS.md](CONVENTIONS.md). Choices and open questions: [DECISIONS.md](DECISIONS.md).
 
+## v1.1 (branch `v1.1`, in progress)
+
+- `npm run launch:v1`: the frozen v1.0, built and served on port 5177 (its own worktree and data snapshot; DECISIONS D64).
+- `npm run verify`: every suite plus the static build (the pre-commit hook runs it).
+- **Study session:** `study.html`. Pre-test on the ASOCA patient, atlas training, post-test, results and a CSV per participant
+  (D65).
+- **X-ray shadow mode:** `atlas.html?ff=shadow`, then More -> X-ray shadow (D66). Feature flags: `?ff=shadow`, `?ff=all`,
+  `?ff=none`.
+
 ## Launch (v1.0)
 
 ```powershell

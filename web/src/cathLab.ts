@@ -79,6 +79,14 @@ export class CathLab {
   radialPuncture: THREE.Vector3 | null = null;
   /** draw the beam pyramid (Scene 4 explains the image with it; elsewhere it is clutter) */
   showBeam = true;
+  private detFace: THREE.Mesh | null = null;
+  private detScreenMesh: THREE.Mesh | null = null;
+  private glassDetector = false;
+  /** v1.1 shadow mode: the detector housing turns to glass and both of its faces give way to the shadow screen. */
+  setShadowMode(on: boolean) {
+    this.glassDetector = on;
+    for (const m of [this.detFace, this.detScreenMesh]) if (m) m.userData.forceHidden = on;
+  }
   private readonly fadeGroups: { meshes: THREE.Mesh[]; mats: THREE.Material[]; a: number }[] = [];
   private readonly ray = new THREE.Raycaster();
   private xrayTarget = 0;
@@ -147,8 +155,10 @@ export class CathLab {
     detHouse.position.set(0, 0, sid - sod + DET_DEPTH / 2 + DET_BEVEL);
     this.det = detectorMaterial(this.angio.angioRT.texture);
     const detScreen = new THREE.Mesh(new THREE.PlaneGeometry(W, W), this.det);
+    this.detScreenMesh = detScreen;
     detScreen.position.set(0, 0, sid - sod + DET_DEPTH + 2 * DET_BEVEL + 4);    // 3 mm proud of the housing (was coplanar: z-fight); uv: u right, v up
     const detFace = new THREE.Mesh(new THREE.PlaneGeometry(W, W), hw("#1b2230", 90, 0.5));
+    this.detFace = detFace;
     detFace.position.set(0, 0, sid - sod - 4);                                       // 3 mm clear of the housing face (z-fight)
     detFace.rotation.y = Math.PI;                                               // faces the patient
     const tube = new THREE.Mesh(new THREE.CylinderGeometry(125, 145, 270, 40), shellSatin);
@@ -304,13 +314,15 @@ export class CathLab {
         return box.distanceToPoint(from) < nearMm;
       });
       // a part right at the camera fades OUT (no big transparent surface to shade); one hiding the heart fades to glass
-      g.a += ((near ? 0 : blocking ? 0.35 : 1) - g.a) * Math.min(1, dt * 4);
+      let goal = near ? 0 : blocking ? 0.35 : 1;
+      if (this.glassDetector && this.detScreenMesh && g.meshes.includes(this.detScreenMesh)) goal = Math.min(goal, 0.3);
+      g.a += (goal - g.a) * Math.min(1, dt * 4);
       for (const m of g.mats) {
         if (m instanceof THREE.ShaderMaterial) m.uniforms.uAlpha.value = g.a;
         else m.opacity = g.a;
         m.depthWrite = g.a > 0.95;
       }
-      for (const m of g.meshes) m.visible = g.a > 0.02;
+      for (const m of g.meshes) m.visible = g.a > 0.02 && !m.userData.forceHidden;
     }
   }
 

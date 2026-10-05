@@ -1,7 +1,7 @@
 {
   "name": "coronary-projection-trainer",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0-dev",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,9 @@
     "start": "vite preview --port 5178 --strictPort --open /atlas.html",
     "launch": "npm run build && npm run start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "launch:v1": "node scripts/launch_v1.mjs",
+    "verify": "node scripts/verify_all.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"
