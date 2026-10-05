@@ -1,0 +1,8 @@
+Title: Cardiac Anatomy: External view of human heart
+Author: HannahNewey (https://sketchfab.com/HannahNewey)
+URL: https://sketchfab.com/3d-models/none-a3f0ea2030214a6bbaa97e7357eebd58
+License: CC BY-NC-SA 4.0 (CC Attribution-NonCommercial-ShareAlike)
+License URL: https://creativecommons.org/licenses/by-nc-sa/4.0/
+Attribution: "Cardiac Anatomy: External view of human heart" by HannahNewey (https://sketchfab.com/3d-models/none-a3f0ea2030214a6bbaa97e7357eebd58), licensed under CC BY-NC-SA 4.0.
+Downloaded: 2026-10-05 via the Sketchfab Data API v3 (glb, 121530008 bytes; listed size 121530008).
+Scouting only (v1.1 item 4): not integrated into the app.

@@ -1,0 +1,8 @@
+Title: Realistic Human Heart
+Author: neshallads (https://sketchfab.com/neshallads)
+URL: https://sketchfab.com/3d-models/none-3f8072336ce94d18b3d0d055a1ece089
+License: CC BY 4.0 (CC Attribution)
+License URL: https://creativecommons.org/licenses/by/4.0/
+Attribution: "Realistic Human Heart" by neshallads (https://sketchfab.com/3d-models/none-3f8072336ce94d18b3d0d055a1ece089), licensed under CC BY 4.0.
+Downloaded: 2026-10-05 via the Sketchfab Data API v3 (glb, 3255284 bytes; listed size 3255284).
+Scouting only (v1.1 item 4): not integrated into the app.

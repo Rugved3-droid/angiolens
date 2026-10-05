@@ -19,7 +19,12 @@ const result = await page.evaluate(async () => {
   const outC = Object.assign(document.createElement("canvas"), { width: gl.width, height: gl.height });
   const g = outC.getContext("2d");
   let cap = "", run = true;
+  // the page's background (a radial gradient: the same as the tour recorder)
+  const bg = g.createRadialGradient(outC.width / 2, outC.height * 0.38, 0, outC.width / 2, outC.height * 0.38, outC.width * 0.75);
+  bg.addColorStop(0, "#2a3140"); bg.addColorStop(0.55, "#141820"); bg.addColorStop(1, "#090b0f");
   const draw = () => {
+    // the WebGL canvas is transparent over the page background: paint the background first, or old frames show through
+    g.fillStyle = bg; g.fillRect(0, 0, outC.width, outC.height);
     g.drawImage(gl, 0, 0);
     if (cap) {
       const s = outC.width / 1280;

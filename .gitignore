@@ -19,3 +19,5 @@ assets/anatomy/
 assets/candidates/*/*
 !assets/candidates/*/LICENSE.txt
 web/public/anatomy/
+assets/candidates/*.png
+assets/textures/

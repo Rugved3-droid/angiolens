@@ -938,3 +938,60 @@ engine at 5 views within 1 px. The original detailed spec was in another chat an
     silhouette.
   - 5 LCA views + 1 RCA view: best shift (0, 0) px at every view, IoU 0.98-0.99, mean boundary distance 0.02-0.04 px.
 - **Frame rate** (shadow and rays on, 1600x1000): 47-52 fps.
+
+**D67 Study CSV privacy and the Detector view.** DECIDED (Rugved).
+- **CSV:** no clock times leave the device. Each answer has `answered_s`, the seconds since the session started; the session has
+  only `session_date`. The record kept in the browser is unchanged. Unit-tested: no `T00:00` time pattern appears anywhere in
+  the CSV.
+- **Detector view** (shadow flag): a camera on the patient side of the detector, a little below its centre. It eases to a
+  78-degree lens so the screen and the shadow fill the frame, and switches the shadow on.
+  - Offered in the Camera menu of Scenes 3-5.
+  - In the tour's X-ray step only with the shadow flag: a detector-view beat, then back to the room.
+  - Its caption says that from this side the shadow is mirrored relative to the image, which is read from behind the
+    detector.
+
+**D68 Peel mode and the photoreal tissue** (feature flag `peel`; display only). DECIDED (Rugved: the brief), details DEFAULT.
+- **Epicardial fat** (`build_peel_parts.py` -> `peel_fat.glb`; illustrative, labelled so on hover). A signed-distance field
+  around the heart, a smooth union of round cones, one per coronary centreline sample (radius >= 0.8 mm).
+  - Each cone's top sits on the vessel, 15 % wider than it; its base is on the epicardium below, the radius + 3.5 mm wide.
+  - The fat therefore fills the AV and interventricular grooves under the vessels, which stay partly embedded. Many atlas vessels
+    float slightly above the epicardium, so a fixed thickness left fat beside them, never under them.
+  - 0.3 mm lobule relief; 36 k triangles.
+  - Pitfalls hit: the decimator, then the smoothing, left long spike triangles. Every triangle with an edge > 4 mm is dropped
+    after smoothing.
+- **Atrial appendages:** the atlas has none as separate objects. Each atrium's whole triangles (no vertex moves) are taken
+  within a geodesic distance of the wall over the tree's origin, plus all atrial wall within 16 mm of the tree's first 30 mm.
+  - In this atlas the left atrium wraps over the left main, and that wall is what hides it.
+  - Left: 1055 of 5105 triangles; right: 1663 of 22682.
+  - The cut edges are jagged: the left atrium mesh is coarse, and vertices are never moved.
+- **Tissue textures:** procedural tiles baked in Blender 4.2 (`bake_tissue_textures.py`, empty factory scene, 0.3 GB peak).
+  - Seamless by construction: 4D noise on a torus.
+  - `build_tissue_textures.py` makes normal maps from heights and packs each tissue into ONE RGBA texture: normal xy, roughness,
+    colour variation.
+  - Applied by triplanar mapping in LPS space (no UVs; the meshes are untouched), so 3 texture reads per pixel instead of 9.
+    Nine reads cost up to 16 fps.
+  - The baked relief replaces the procedural fibre shader.
+  - Frame rate with the flag: heart 45, aortic root 49, chest 60.
+- **Peel interaction** (`src/peel.ts`), Scene 1, whole-heart view:
+  - drag a structure to slide it along its anatomical direction (the fat lifts radially from where it was grabbed);
+  - release and an under-damped spring brings it back; double-click keeps it removed; Reset restores everything.
+  - Peelable: epicardial fat, pulmonary trunk, left and right atrial appendages, right atrium (with its appendage), and the
+    aorta with its arch branches.
+  - Only the display meshes' object positions change. The e2e test checks that the X-ray is byte-identical with everything
+    peeled.
+- **Mini-tour "Where do the coronaries come from?"** (the Coronary origins button):
+  1. the pulmonary trunk slides away;
+  2. the left atrial appendage lifts, showing the left main between the PA and the appendage;
+  3. the right appendage lifts, showing the RCA in the right AV groove;
+  4. the fat peels;
+  5. the full tree.
+
+**D69 Sketchfab scouting** (report only). DECIDED (Rugved: the protocol).
+- Official Data API v3 only; the token comes from the environment and is never written.
+- 132 models; 78 pass the licence, keyword and relevance filters. 30 thumbnails were looked at and the top ten ranked by eye.
+- Top 3 downloaded and inspected; the report is `assets/candidates/SCOUTING.md`. No winner is picked and nothing is integrated.
+- Findings:
+  - none has separate chambers, appendages, aorta, PA or fat;
+  - the most photoreal model paints its vessels in its texture;
+  - the 2 M-triangle sculpt has them as fused relief;
+  - only the Dundee model (CC BY-NC-SA) has artery-coloured geometry separate from the muscle.

@@ -1,0 +1,8 @@
+Title: Human Heart
+Author: Rudy (https://sketchfab.com/Rudy27)
+URL: https://sketchfab.com/3d-models/none-2edbedffae6b49ee97f919a8528329ba
+License: CC BY 4.0 (CC Attribution)
+License URL: https://creativecommons.org/licenses/by/4.0/
+Attribution: "Human Heart" by Rudy (https://sketchfab.com/3d-models/none-2edbedffae6b49ee97f919a8528329ba), licensed under CC BY 4.0.
+Downloaded: 2026-10-05 via the Sketchfab Data API v3 (glb, 74861044 bytes; listed size 74861044).
+Scouting only (v1.1 item 4): not integrated into the app.

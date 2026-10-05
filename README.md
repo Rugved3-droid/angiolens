@@ -9,6 +9,13 @@ Geometry rules: [CONVENTIONS.md](CONVENTIONS.md). Choices and open questions: [D
 - `npm run verify`: every suite plus the static build (the pre-commit hook runs it).
 - **Study session:** `study.html`. Pre-test on the ASOCA patient, atlas training, post-test, results and a CSV per participant
   (D65).
+- **Peel mode:** `atlas.html?ff=peel`. Drag a structure on the heart to peel it, double-click to remove it; Reset; and the
+  "Coronary origins" mini-tour. It includes the illustrative epicardial fat and the baked tissue textures (D68). Build the parts
+  with:
+  - `preprocess/blender/run_blender.ps1 -Empty -Script preprocess/blender/bake_tissue_textures.py ...`;
+  - `build_tissue_textures.py`;
+  - `build_peel_parts.py`.
+- **Sketchfab scouting:** the report is `assets/candidates/SCOUTING.md` (D69).
 - **X-ray shadow mode:** `atlas.html?ff=shadow`, then More -> X-ray shadow (D66). Feature flags: `?ff=shadow`, `?ff=all`,
   `?ff=none`.
 

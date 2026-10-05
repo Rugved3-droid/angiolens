@@ -156,9 +156,11 @@ export function summarizePhase(s: Session, phase: Phase): PhaseSummary {
 }
 
 // ---------------- CSV (one file per participant, one row per question) ----------------
+// Privacy (D67): no clock times leave the device. Each answer carries its seconds since the session started (answered_s);
+// the session keeps only its date (session_date).
 export const CSV_COLUMNS = ["participant", "phase", "set", "question", "view", "alpha_deg", "beta_deg", "tree",
-  "tile_A", "tile_B", "tile_C", "tile_D", "chosen", "correct", "error_type", "rt_ms", "answered_at",
-  "training_minutes", "tour_completed", "practice_answers", "practice_correct", "session_started"] as const;
+  "tile_A", "tile_B", "tile_C", "tile_D", "chosen", "correct", "error_type", "rt_ms", "answered_s",
+  "training_minutes", "tour_completed", "practice_answers", "practice_correct", "session_date"] as const;
 const esc = (v: string | number | boolean) => {
   const s = String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -168,7 +170,7 @@ export function sessionCsv(s: Session): string {
   const trainMin = t.started && t.ended ? ((Date.parse(t.ended) - Date.parse(t.started)) / 60000).toFixed(1) : "";
   const rows = s.answers.map((a) => [s.code, a.phase, a.set, a.q + 1, viewLabel(a.pose.alpha, a.pose.beta), a.pose.alpha, a.pose.beta,
     a.pose.tree === "left" ? "LCA" : "RCA", ...a.offered, a.chosen, a.chosen === "correct" ? 1 : 0,
-    a.chosen === "correct" ? "" : a.chosen, Math.round(a.rtMs), a.at, trainMin, t.tourCompleted ? 1 : 0, t.practiceAnswers,
-    t.practiceCorrect, s.started].map(esc).join(","));
+    a.chosen === "correct" ? "" : a.chosen, Math.round(a.rtMs), ((Date.parse(a.at) - Date.parse(s.started)) / 1000).toFixed(1), trainMin,
+    t.tourCompleted ? 1 : 0, t.practiceAnswers, t.practiceCorrect, s.started.slice(0, 10)].map(esc).join(","));
   return [CSV_COLUMNS.join(","), ...rows].join("\r\n") + "\r\n";
 }

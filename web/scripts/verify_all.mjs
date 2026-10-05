@@ -12,7 +12,7 @@ const steps = [
   ["pytest", py, ["-m", "pytest", "-q"], repo],
   ["typecheck", "npx", ["tsc", "--noEmit"], web],
   ["vitest", "npx", ["vitest", "run"], web],
-  ...["phantom", "atlas_xray", "atlas_label", "predict", "atlas_v1", "interaction", "metrics", "segments", "study", "shadow"]
+  ...["phantom", "atlas_xray", "atlas_label", "predict", "atlas_v1", "interaction", "metrics", "segments", "study", "shadow", "peel"]
     .map((s) => [`e2e ${s}`, "node", [`e2e/${s}.e2e.mjs`], web]),
   ["build", "npm", ["run", "build"], web],
 ];

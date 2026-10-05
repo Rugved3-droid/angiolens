@@ -97,5 +97,9 @@ describe("participant and session", () => {
     expect(first[14]).toBe("");
     expect(first[17]).toBe("10.5");
     expect(lines[10].split(",")[13]).toBe("0");
+    // privacy: seconds since the session start, the date only, no clock time anywhere
+    expect(first[16]).toBe("60.0");
+    expect(first[21]).toBe("2026-10-05");
+    expect(/T\d\d:\d\d/.test(sessionCsv(s))).toBe(false);
   });
 });

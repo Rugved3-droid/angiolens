@@ -7,7 +7,8 @@ param(
   [Parameter(Mandatory = $true)][string]$Script,
   [Parameter(Mandatory = $true)][string]$Log,
   [double]$MinFreeGB = 3.0,
-  [string]$ScriptArgs = ""   # script arguments separated by "|"
+  [string]$ScriptArgs = "",  # script arguments separated by "|"
+  [switch]$Empty              # v1.1: an empty factory scene instead of the atlas (texture bakes: no 307 MB file in memory)
 )
 $ErrorActionPreference = "Stop"
 $blender = "D:\tools\blender-4.2.16-windows-x64\blender.exe"
@@ -16,7 +17,8 @@ $freeGB = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSamples[
 Write-Output "available memory: $freeGB GB (minimum $MinFreeGB GB)"
 if ($freeGB -lt $MinFreeGB) { Write-Output "REFUSED: not enough free memory; close applications and retry"; exit 2 }
 $rest = @($ScriptArgs.Split("|") | Where-Object { $_ -ne "" })
-$argList = @("-b", "--disable-autoexec", "--python-exit-code", "1", "`"$blend`"", "--python", "`"$Script`"", "--") + ($rest | ForEach-Object { "`"$_`"" })
+$scene = if ($Empty) { @("--factory-startup") } else { @("`"$blend`"") }
+$argList = @("-b", "--disable-autoexec", "--python-exit-code", "1") + $scene + @("--python", "`"$Script`"", "--") + ($rest | ForEach-Object { "`"$_`"" })
 $p = Start-Process -FilePath $blender -ArgumentList $argList -PassThru -NoNewWindow -RedirectStandardOutput $Log -RedirectStandardError "$Log.err"
 $null = $p.Handle   # cache the handle, otherwise ExitCode is empty after exit (Start-Process quirk)
 $peak = 0

@@ -355,6 +355,15 @@ export class CathLab {
       target: mid.clone().addScaledVector(ROOM_UP, -95), up: ROOM_UP.clone() };
   }
 
+  /** v1.1 Detector view (shadow mode): from the PATIENT side of the detector, a little below its centre, so the screen and its
+   *  shadow fill a wide-angle frame (fovDeg). Seen from this side the shadow is physically mirrored relative to the angiogram
+   *  (the image is read from behind the detector). */
+  detectorViewPose(fovDeg: number) {
+    const C = v3(this.carm.detectorCenter), d = v3(this.carm.d), v = v3(this.carm.v);
+    const dist = (this.detectorMm / 2) / Math.tan(THREE.MathUtils.degToRad(fovDeg) / 2) * 1.02;
+    return { pos: C.clone().addScaledVector(d, -dist).addScaledVector(v, -0.18 * dist), target: C.clone().addScaledVector(v, -4), up: v };
+  }
+
   /** Side by side, fitted: the camera on the detector side (screen up = v, right = u, as on the angiogram), framed so that the
    *  projected extent of `pts` (heart + ascending aorta and arch) fills ~80 % of the height and ~90 % of the width. Fitting
    *  the real extent for the CURRENT C-arm pose keeps the arch clear of the toolbar at every view (a fixed circle did not). */
