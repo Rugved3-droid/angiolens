@@ -219,3 +219,7 @@ $env:TOTALSEG_HOME_DIR = "$PWD\.totalseg"   # with config.json {"send_usage_stat
 .\.venv\Scripts\python preprocess\scripts\build_body.py --case Normal_12      # CC0 body, approximate fit
 cd web; node e2e/hero_shots.mjs                                              # review screenshots + swing recording
 ```
+
+## License
+
+The source code is MIT-licensed (see LICENSE). Third-party anatomy assets are not in this repository and keep their own licenses: the Z-Anatomy atlas is CC BY-SA 4.0, and ASOCA data is licence-gated and must not be redistributed.

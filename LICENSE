@@ -19,10 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-This license covers the source code in this repository only. Third-party
-anatomy assets are not included in the repository and keep their own licenses
-(for example, the Z-Anatomy atlas is CC BY-SA 4.0; ASOCA data is licence-gated
-and must not be redistributed). See DECISIONS.md and CONVENTIONS.md.
