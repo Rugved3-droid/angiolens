@@ -41,7 +41,7 @@ Positions are in millimetres in the LPS patient frame (+x left, +y posterior, +z
 
 @@EQ 1@@
 
-so the detector is anterior at α = β = 0 (anteroposterior, AP). The source lies 750 mm from the isocenter and the detector at a source-to-image distance (SID) of 1000 mm. Screen up v is the patient's superior axis projected onto the detector, and screen right is u = v × d. The image is thus seen from the detector, with the patient's left on the right at AP, and is never flipped for display. A point p projects to
+so the detector is anterior at α = β = 0 (anteroposterior, AP). The source lies 750 mm from the isocenter and the detector at a source-to-image distance (SID) of 1000 mm. Screen up v is the patient's superior axis projected onto the detector, and screen right is u = v × d. AngioLens states its display convention explicitly: the image is drawn as seen from the detector looking towards the source, so at AP the patient's left appears on the image's right and the patient's head at the top, and the image is never flipped for display. E2 tests that the app follows this convention. A point p projects to
 
 @@EQ 2@@
 
@@ -55,7 +55,7 @@ The geometry is implemented twice, in TypeScript for the app and in Python as a 
 Each round names a target view and shows four angiograms (Fig. 5): the correct view, LAO/RAO reversed (−α, β), cranial/caudal reversed (α, −β), and both reversed (−α, −β), which a setting can replace with a left-right mirror image. Targets are standard views or random poses at least 15° from the current one. When |α| or |β| is below 5°, reversing it would reproduce the same image, and the app substitutes a mirror image. Mirrored images occur only as distractors.
 
 ## 2.4 Verification experiments
-Each experiment is a script with a fixed seed that writes raw CSV files, from which all figures and tables are regenerated. Named views were the app's presets: RAO 30, LAO 45, RAO 30/caudal 25, RAO 30/cranial 30, cranial 35, caudal 30, LAO 40/cranial 30, the spider view (LAO 40/caudal 30) and left lateral. The app's classic mode defines the spider view as LAO 45/caudal 30, which was also tested; named-view angles vary in practice.
+Each experiment is a script with a fixed seed that writes raw CSV files, from which all figures and tables are regenerated. Named views were the app's presets: RAO 30, LAO 45, RAO 30/caudal 25, RAO 30/cranial 30, cranial 35, caudal 30, LAO 40/cranial 30, the spider view (LAO 40/caudal 30) and left lateral. The app's classic mode defines the spider view as LAO 45/caudal 30, which was also tested.
 
 **E1 Projection agreement.** We projected all {{e1_points}} atlas centerline samples at {{e1_poses_total}} poses: LAO/RAO −90° to 90° by cranial/caudal −45° to 45° in 5° steps, plus the named views. The app's TypeScript code, run in Chromium, was compared with the Python reference along two paths: the float64 projection used for overlays and the float32 matrix the GPU applies to every vertex. E1 shows that the implementations agree, not that their shared convention is correct.
 
@@ -93,7 +93,7 @@ The correct tile was byte-identical to an independent render in {{e3_tiles_ident
 **E5.** On the integrated GPU the start and angiography scenes loaded cold in {{e5_igpu_load_scene1_ms_s}} s and {{e5_igpu_load_scene4_ms_s}} s (medians), and rotation ran at {{e5_igpu_fps_median_median}} frames/s with {{e5_igpu_js_heap_mb_after_rotation_median}} MB of JavaScript heap. On the discrete GPU the values were {{e5_dgpu_load_scene1_ms_s}} s, {{e5_dgpu_load_scene4_ms_s}} s and {{e5_dgpu_fps_median_median}} frames/s. Software rendering fell to {{e5_sw_fps_median_median}} frames/s, so a GPU is required.
 
 # 4 Discussion
-The image a learner sees is the reference geometry, without rasterisation or precision error at the scale of a pixel, and the shared convention is the intended one: it matches a derivation from the DICOM angle definitions and the usual display convention, and each class of sign or mirror error yields an image the test rejects. Every Predict distractor is the error it names.
+The image a learner sees is the reference geometry, without rasterisation or precision error at the scale of a pixel, and the shared convention is the intended one: it matches a derivation from the DICOM angle definitions and the app's stated display convention, and each class of sign or mirror error yields an image the test rejects. Every Predict distractor is the error it names.
 
 This matters because a training tool's geometric errors are silent: a mirrored or sign-reversed coronary tree still looks like a coronary tree. Specifying conventions, deriving expected images independently and testing deliberately wrong renders turns "looks right" into a check that can fail, and the harness can be rerun after any code change.
 
@@ -109,7 +109,7 @@ AngioLens differs from other tools (Table 1) less in features than in being open
 AngioLens is an open browser-based coronary angiography projection simulator whose conventions are specified and tested against an independent derivation, and whose quiz distractors are verified to be the errors they name. Its educational effect remains to be studied.
 
 # ONLINE RESOURCES
-**Online Resource 1** AngioLens demonstration video: narrated tour of the scenes and Predict mode
+**Online Resource 1** AngioLens demonstration video: narrated tour of the scenes and Predict mode, recorded from the app source of release v1.1-ijcars; titles and captions are a recording overlay. Rendered from Z-Anatomy models (CC BY-SA 4.0), derived from BodyParts3D (DBCLS).
 
 **Online Resource 2** Full verification tables, derivations and outputs of E1, E1b, E2 (both phantoms), E3 (including the structural similarity index) and E5
 
@@ -126,16 +126,16 @@ AngioLens is an open browser-based coronary angiography projection simulator who
 
 **Data availability** All verification outputs and the scripts that produce them are in the code repository. Atlas renders can be regenerated from Z-Anatomy, available from its original source [@zanatomy].
 
-**Code availability** AngioLens is available at https://github.com/Rugved3-droid/angiolens (MIT licence). This paper describes release tag v1.1, commit 198c6d4da1f980cdaa301f5131ccb83ebffb5be1; the verification harness is on the branch paper/ijcars-verification.
+**Code availability** AngioLens is available at https://github.com/Rugved3-droid/angiolens (MIT licence). This paper describes release tag v1.1-ijcars, commit 198c6d4da1f980cdaa301f5131ccb83ebffb5be1; the verification harness is on the branch paper/ijcars-verification.
 
 **Author contributions** Rugved Parmar: conceptualization, software, methodology, formal analysis, visualization, writing – original draft. Md Fahim: software review, validation, writing – review and editing. Shreya P. Trivedi: supervision, writing – review and editing.
 
 # CAPTIONS
 FIG 1: **Fig. 1** Architecture and angle conventions. **a** Data flow from the Z-Anatomy atlas through the C-arm geometry to the rendered angiogram and Predict mode; dashed double arrows mark comparisons E1 (TypeScript versus Python geometry) and E1b (GPU versus exact CPU image). **b** Axial schematic seen from the feet: detector (bar) and beam (arrow) at AP (solid), LAO 40 (dashed) and RAO 30 (dotted). **c** Sagittal schematic seen from the patient's left: AP (solid), cranial 30 (dashed), caudal 25 (dotted). Script: fig1_architecture.py
-FIG 2: **Fig. 2** One atlas anatomy at four named views, each as the 3D scene seen from behind the detector (left) beside the rendered angiogram (right). **a** RAO 30/caudal 25, left coronary injection. **b** LAO 40/caudal 30 (spider), left. **c** RAO 30, right coronary injection. **d** LAO 45, right. Anatomy: Z-Anatomy (CC BY-SA 4.0), derived in part from BodyParts3D. Scripts: fig_capture.mjs, fig2_views.py
+FIG 2: **Fig. 2** One atlas anatomy at four named views, each as the 3D scene seen from behind the detector (left) beside the rendered angiogram (right). **a** RAO 30/caudal 25, left coronary injection. **b** LAO 40/caudal 30 (spider), left. **c** RAO 30, right coronary injection. **d** LAO 45, right. Rendered from Z-Anatomy models (CC BY-SA 4.0), derived from BodyParts3D (DBCLS). Scripts: fig_capture.mjs, fig2_views.py
 FIG 3: **Fig. 3** Agreement over the 5° grid (primary angle horizontal, secondary vertical); circles mark named views. **a** E1: maximum discrepancy between the app's float32 GPU projection and the Python reference over {{e1_points}} centerline points (10^−4^ pixel). **b** E1b: maximum centroid shift between rendered and exact images over both trees (10^−3^ pixel). **c** E1b: correlation of the left-right mirrored app image with the reference (maximum over both trees); low values mean a mirror is detected. Scripts: e1_projection_agreement.py, e1b_render_agreement.py, fig3_agreement.py
 FIG 4: **Fig. 4** E2 orientation phantom: rendered path length (dark) with the outline predicted by the first-principles derivation (dashed). **a** Second phantom, correct render, LAO 40/caudal 30. **b** Same render mirrored left-right. **c** LAO/RAO sign swapped. **d** Cranial/caudal sign swapped. **e** First phantom at LAO 45/caudal 30, where two letters overlap. **f** Second phantom at the same view. Panels b–d are negative controls and were rejected. Scripts: e2_orientation.py, fig4_phantom.py
-FIG 5: **Fig. 5** Predict mode. **a–d** The four options of one item (target LAO 40/caudal 30, left coronary injection, mirror setting on) as rendered by the app: {{fig5_order}}. **e** Pairwise IoU of binary vessel masks over {{e3_items}} items by pair type (grey: pairs with the correct option; hatched: pairs of distractors); dashed line, smallest item-specific near-duplicate threshold ({{e3_tau_min}}). Scripts: e3_distractors.py, fig_capture.mjs, fig5_predict.py
+FIG 5: **Fig. 5** Predict mode. **a–d** The four options of one item (target LAO 40/caudal 30, left coronary injection, mirror setting on) as rendered by the app: {{fig5_order}}. **e** Pairwise IoU of binary vessel masks over {{e3_items}} items by pair type (grey: pairs with the correct option; hatched: pairs of distractors); dashed line, smallest item-specific near-duplicate threshold ({{e3_tau_min}}). **a–d** Rendered from Z-Anatomy models (CC BY-SA 4.0), derived from BodyParts3D (DBCLS). Scripts: e3_distractors.py, fig_capture.mjs, fig5_predict.py
 
 # TABLE 1
 CAPTION: **Table 1** Interactive coronary angiography training tools as documented in their published descriptions

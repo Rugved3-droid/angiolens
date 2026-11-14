@@ -79,7 +79,7 @@ P("Corresponding author: Rugved Parmar, Department of Medicine, SUNY Downstate H
   "Hospital Center, Brooklyn, NY, USA. parmarrugved@gmail.com")
 P("Content: full verification tables, the first-principles derivation used by E2, and the reproduction commands. Every value "
   "below is read from the result files named under each table (repository branch paper/ijcars-verification, folder "
-  "paper/results/). AngioLens v1.1: https://github.com/Rugved3-droid/angiolens, tag v1.1, commit "
+  "paper/results/). AngioLens v1.1: https://github.com/Rugved3-droid/angiolens, tag v1.1-ijcars, commit "
   "198c6d4da1f980cdaa301f5131ccb83ebffb5be1.", size=9)
 
 # ---------------- S1 conventions and derivation ----------------

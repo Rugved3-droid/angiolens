@@ -238,7 +238,7 @@ cd web; node e2e/hero_shots.mjs                                              # r
 
 ## Reproducing the paper (IJCARS, branch `paper/ijcars-verification`)
 
-The paper describes AngioLens **v1.1**: tag `v1.1`, commit `198c6d4da1f980cdaa301f5131ccb83ebffb5be1`
+The paper describes AngioLens **v1.1**: tag `v1.1-ijcars`, commit `198c6d4da1f980cdaa301f5131ccb83ebffb5be1`
 (https://github.com/Rugved3-droid/angiolens). Its verification harness, results and manuscript sources live in `paper/` on the
 branch `paper/ijcars-verification`; the app code there is unchanged from v1.1 (`paper/CHANGELOG_code.md`).
 

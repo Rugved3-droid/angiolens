@@ -37,6 +37,7 @@ steps = [
     ("esm1", [PY, "build_esm1.py"]),
     ("esm2", [PY, "build_esm2.py"]),
     ("audit", [PY, "build_audit.py"]),
+    ("review", [PY, "build_review_pdf.py"]),
 ]
 for name, cmd in steps:
     if name in skip:

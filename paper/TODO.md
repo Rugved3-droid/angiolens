@@ -1,48 +1,36 @@
 # Open items for the author (Rugved)
 
-Status, 2026-11-14: Phases 0-5 are complete and the submission package is in `paper/submission/`. The full trace is in
-`paper/AUDIT.md`.
+Status, 2026-11-14 (finalize pass): the submission package in `paper/submission/` is final. Full trace: `paper/AUDIT.md`.
+No placeholders remain (ORCIDs, date, funding and competing-interest statements are filled; the suggested-reviewer section was
+removed from the cover letter; no [CITE NEEDED] remains).
 
-## Must do by hand before submitting
+## Still worth a look before submitting
 
-1. **ORCID iDs** for all three authors. The title page has placeholders.
-2. **Three suggested reviewers** in `cover_letter.docx`: name, institution, institutional e-mail and expertise. Also fill in the
-   **date**.
-3. **ESM_1.mp4.** It is built from `D:\angiolens-video\AngioLens_tour.mp4` plus a title card. Watch it once. Two items:
-   - The tour shows an older on-screen card: "six standard views · correlation r = 1.000" and "mirrors r ≤ 0.13". These come from
-     the repo's 6-pose e2e test, not from this paper; across the full grid the mirrored r reaches 0.531.
-   - It ends with "From something you have to memorize to something you actually understand", which implies a learning benefit.
+1. **Table 1.** AngioAID 3D and the 3D-printing abstract are described from their titles only (jacc.org returned HTTP 403). If
+   you have the abstracts, upgrade NR cells only where the abstract documents the feature.
+2. **Licence-to-publish.** Fig. 2, Fig. 5a-d and ESM_1 show Z-Anatomy renders (CC BY-SA 4.0). Each carries the credit
+   "Rendered from Z-Anatomy models (CC BY-SA 4.0), derived from BodyParts3D (DBCLS)" and the cover letter tells the editor.
+   Confirm the journal's licence (or its open-access option) is compatible with share-alike.
+3. **AngioView** is positioned neutrally in the paper; make sure that is the framing you want.
+4. **ESM_1** (3:40). Trimmed copy of `D:/angiolens-video/AngioLens_tour.mp4` (original untouched). Source segments cut:
+   178.0-184.0 s ("understanding ... should be measurable"), 213.5-237.0 s (overlay card with the older 6-pose numbers
+   r = 1.000 / mirrors r <= 0.13) and 243.6-254.6 s (closing tagline "from something you have to memorize to something you
+   actually understand" and "Thank you"). Retained narration describes design intent ("this is the part I really wish I had
+   as a trainee"; "instead of just memorizing ... you can actually see the three-dimensional reason") but makes no outcome claim.
 
-   Re-record or trim if you want the video to match the paper's claims exactly. The photosensitivity check passed (max 1 flash/s).
-4. **[CITE NEEDED] display convention.** Methods 2.2 and the Discussion state the angiographic display convention without a
-   reference: the image is seen from the detector, so patient left is on the image right at AP. Supply a citation or accept it as a
-   stated design choice.
-5. **[CITE NEEDED] "named-view angles vary in practice"** (Methods 2.4). Green 2016 likely supports it, but its view tables are
-   images that could not be read. Please confirm.
-6. **Table 1.** AngioAID 3D and the 3D-printing abstract are described from their titles only: jacc.org returned HTTP 403. If you
-   have the abstracts, upgrade NR cells only where the abstract documents the feature.
-7. **Licence-to-publish.** Fig. 2, Fig. 5a-d and ESM_1 show Z-Anatomy renders (CC BY-SA 4.0). Confirm the journal's licence
-   (or its open-access option) is compatible with share-alike for these figures.
-8. **AngioView.** The App Store description (seller Annas Rahman) describes features very close to AngioLens: a 3D simulator,
-   C-arm drag, standard views and segment names. The paper positions it neutrally. Make sure that is the framing you want.
+## Resolved
 
-## Resolved by the author's decisions (2026-11-14)
-
-- **Version:** v1.1 is described. Tag `v1.1` → `198c6d4`.
-- **Study mode:** one sentence, no learner data.
-- **Spider view:** LAO 40/CAUD 30 is primary; classic LAO 45/CAUD 30 is mentioned.
-- **E4:** dropped and listed as future work. No E4 outputs existed, so no `wip/e4` branch was needed.
-- **ASOCA:** removed. The ethics text is "did not involve human participants, human data, or animals".
-- **E2:** the second phantom was run and both phantoms are reported.
-- **SSIM:** in Online Resource 2, with one main-text sentence.
-- **Tile mismatch:** investigated and attributed to GPU nondeterminism.
-- **E5:** rerun with cold loads, including the NVIDIA run.
-- **Code citation:** GitHub URL + tag + commit only, no archive DOI.
-- **References:** every entry was verified (Crossref and publisher pages). Added: DICOM PS3.3, Dumay 1994, Chen & Carroll 2000,
-  Jensen 2016, Voelker 2016 and Wang 2004.
+- Display convention: stated as AngioLens's own convention (Methods 2.2, Discussion); E2 tests that the app follows it.
+- "Named-view angles vary in practice": deleted.
+- Code citation: https://github.com/Rugved3-droid/angiolens, tag `v1.1-ijcars`, commit 198c6d4da1f980cdaa301f5131ccb83ebffb5be1.
+  The old tag `v1.1` was deleted locally and on GitHub (it clashed with the branch `v1.1`, which is unchanged).
+- Authors: Rugved Parmar, MBBS; Md Fahim, MD; Shreya P. Trivedi, MD; ORCIDs on the title page and in CITATION.cff.
+- Earlier decisions (v1.1, study mode, spider view, E4 dropped, ASOCA removed, E2 second phantom, SSIM in ESM_2, tile
+  mismatch, E5 cold rerun, references verified): see git history of this file.
 
 ## Notes
 
-- **Tag/branch name clash.** The tag `v1.1` and the branch `v1.1` have the same name. GitHub resolves both, but locally
-  `git checkout v1.1` is ambiguous; use `git checkout tags/v1.1`.
-- **Machine RAM.** This machine (12 GB RAM) ran out of memory once when experiments overlapped. `make paper` runs them in sequence.
+- `make paper` reruns every experiment; the finalize pass rebuilt figures and documents from the committed results
+  (`--skip=e1,e1b,e2,e2v2,e3,e3m,probe,e5,capture`) because no experiment changed.
+- `paper/submission/AngioLens_coauthor_review.pdf` (title page + manuscript + ESM_2) is for co-authors; do not upload it.
+- Machine RAM: 12 GB; run experiments one at a time (`make paper` does).

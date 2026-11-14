@@ -1,10 +1,38 @@
 {
  "source": "D:\\angiolens-video\\AngioLens_tour.mp4",
+ "kept_source_segments_s": [
+  [
+   0.0,
+   178.0
+  ],
+  [
+   184.0,
+   213.5
+  ],
+  [
+   237.0,
+   243.6
+  ]
+ ],
+ "cut_source_segments_s": [
+  [
+   178.0,
+   184.0
+  ],
+  [
+   213.5,
+   237.0
+  ],
+  [
+   243.6,
+   254.6
+  ]
+ ],
  "output": "paper\\submission\\ESM_1.mp4",
- "size_mb": 26.3,
+ "size_mb": 17.5,
  "streams": [
-  "Duration: 00:04:20.60, start: 0.000000, bitrate: 846 kb/s",
-  "Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuvj420p(pc, bt470bg/unknown/unknown, progressive), 1920x1080 [SAR 1:1 DAR 16:9], 711 kb/s, 30 fps, 30 tbr, 15360 tbn (default)",
+  "Duration: 00:03:40.10, start: 0.000000, bitrate: 665 kb/s",
+  "Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuvj420p(pc, bt470bg/unknown/unknown, progressive), 1920x1080 [SAR 1:1 DAR 16:9], 529 kb/s, 30 fps, 30 tbr, 1000k tbn (default)",
   "Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, mono, fltp, 126 kb/s (default)"
  ],
  "max_flashes_per_s_whole_frame": 1,

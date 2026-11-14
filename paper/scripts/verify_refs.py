@@ -8,6 +8,9 @@ import json
 import time
 import urllib.parse
 import urllib.request
+import sys
+
+sys.stdout.reconfigure(encoding="utf-8")  # titles contain non-cp1252 characters (e.g. U+2010)
 
 from common import RESULTS
 

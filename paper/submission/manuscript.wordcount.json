@@ -1,22 +1,22 @@
 {
  "source": "paper\\manuscript\\manuscript.md",
- "total": 3680,
+ "total": 3745,
  "sections": {
   "title_authors": 54,
   "abstract": 240,
   "keywords": 12,
   "introduction": 273,
-  "methods": 1077,
-  "captions": 359,
+  "methods": 1102,
+  "captions": 372,
   "results": 495,
   "tables": 279,
-  "discussion": 339,
+  "discussion": 340,
   "conclusion": 40,
-  "online_resources": 39,
+  "online_resources": 65,
   "statements": 141,
   "references": 332
  },
- "main_text": 2224,
+ "main_text": 2250,
  "references_cited": 13,
  "bib_entries_not_cited": []
 }

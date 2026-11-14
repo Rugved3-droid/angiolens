@@ -5,17 +5,20 @@ type: software
 authors:
   - family-names: Parmar
     given-names: Rugved
+    orcid: "https://orcid.org/0009-0005-8941-3745"
     affiliation: "Department of Medicine, SUNY Downstate Health Sciences University / Kings County Hospital Center, Brooklyn, NY, USA"
   - family-names: Fahim
     given-names: Md
+    orcid: "https://orcid.org/0009-0000-2095-8134"
     affiliation: "Department of Medicine, SUNY Downstate Health Sciences University / Kings County Hospital Center, Brooklyn, NY, USA"
   - family-names: Trivedi
     given-names: Shreya P.
+    orcid: "https://orcid.org/0000-0001-7183-0624"
     affiliation: "Beth Israel Deaconess Medical Center / Harvard Medical School, Boston, MA, USA"
 repository-code: "https://github.com/Rugved3-droid/angiolens"
 url: "https://github.com/Rugved3-droid/angiolens"
 license: MIT
-version: "v1.1"
+version: "v1.1-ijcars"
 commit: "198c6d4da1f980cdaa301f5131ccb83ebffb5be1"
 keywords:
   - coronary angiography

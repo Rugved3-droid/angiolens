@@ -46,7 +46,7 @@ L += ["", "## 3. Numbers written literally in the text (design constants, not re
       "- E2 decision rule (IoU 0.70, 2 pixels): `paper/scripts/e2_orientation.py` constants IOU_MIN, CENTROID_MAX_PX.",
       "- E1b acceptance rule (r > 0.95, MAE < 0.25 mm, mirrored r < 0.6): `web/e2e/atlas_xray.e2e.mjs:62`, reused in `e1b_render_agreement.py`.",
       "- Table 1 'version 1.0.4' and access date: App Store page fetched 2026-11-14 (see section 4).",
-      "- Version v1.1 and its commit hash: `git rev-parse v1.1` = 198c6d4da1f980cdaa301f5131ccb83ebffb5be1.", "",
+      "- Version v1.1 and its commit hash: `git rev-parse v1.1-ijcars^{commit}` = 198c6d4da1f980cdaa301f5131ccb83ebffb5be1 (tag v1.1-ijcars).", "",
       "Literal numeric tokens found in the source (for a final scan): " + ", ".join(f"`{x}`" for x in literal), "",
       "## 4. References", "",
       f"{len(used['citations'])} references cited; all are in `references_provided.bib`, and every bib entry is cited. Each entry "
@@ -79,18 +79,18 @@ L += ["", "Fetched-page evidence (not in Crossref):",
       "under the detector in Fig. 2 was cropped out). Grayscale: viridis/cividis are monotonic in lightness; boxes use hatching.", "",
       f"ESM_1 photosensitivity check: max {flash['max_flashes_per_s_whole_frame']} flash/s (whole frame), "
       f"{flash['max_flashes_per_s_4x4_tiles']} flash/s (4x4 tiles); limit 3; 16:9 (1920x1080).", "",
-      "## 6. [CITE NEEDED] and open items for the author", "",
-      "- [CITE NEEDED] Angiographic display convention (image displayed as seen from the detector; patient left on the image right at AP). "
-      "Stated in Methods 2.2 and Discussion without a citation. The DICOM text fetched defines angles, not display. Supply a reference or keep as a stated design choice.",
-      "- [CITE NEEDED] \"named-view angles vary in practice\" (Methods 2.4). Green 2016 [1] likely supports it, but its view tables are images that were not readable; please confirm.",
-      "- ESM_1 content (check by hand): the tour shows an older on-screen card \"six standard views · correlation r = 1.000\" and "
-      "\"mirrors r ≤ 0.13\" (from the repo's 6-pose e2e test, not this paper's numbers; across the full grid the mirrored r reaches 0.531), "
-      "and closes with \"From something you have to memorize to something you actually understand\", which implies a learning benefit. "
-      "Re-record or trim if you want the video to match the paper's claims exactly.",
+      "## 6. Citation gaps and open items for the author", "",
+      "- No [CITE NEEDED] remains. The display convention (image seen from the detector; patient left on the image right at AP) is "
+      "stated as AngioLens's own convention in Methods and the Discussion, and E2 tests that the app follows it; it is not claimed "
+      "as a universal standard. The sentence \"named-view angles vary in practice\" was deleted.",
+      f"- ESM_1 is a trimmed copy of D:/angiolens-video/AngioLens_tour.mp4 (original untouched). Cut source segments (s): "
+      f"{flash['cut_source_segments_s']}: the 'measurable understanding' line, the overlay card with the older 6-pose numbers "
+      "(r = 1.000, mirrors r <= 0.13) and the closing learning-benefit tagline. App code at recording equals the tagged commit "
+      "(later commits change only LICENSE and README); titles and captions are a recording overlay (web/e2e/angiolens_tour.mjs, not in the release).",
       "- Table 1 relies on titles for AngioAID 3D and the 3D-printing abstract (full text blocked). If you have the abstracts, upgrade NR cells only where documented.",
-      "- ORCID placeholders (title page); 3 suggested reviewers (cover letter); date on the cover letter.",
-      "- Z-Anatomy is CC BY-SA 4.0: Fig. 2, Fig. 5a-d and ESM_1 show atlas renders. Confirm the journal's licence-to-publish is compatible with share-alike for these figures.",
-      "- Tag `v1.1` has the same name as the branch `v1.1`; on GitHub both resolve, but `git checkout v1.1` locally is ambiguous (use `git checkout tags/v1.1`).",
+      "- Z-Anatomy is CC BY-SA 4.0: Fig. 2, Fig. 5a-d and ESM_1 carry the credit \"Rendered from Z-Anatomy models (CC BY-SA 4.0), derived "
+      "from BodyParts3D (DBCLS)\" and the cover letter tells the editor. Confirm the journal's licence-to-publish is compatible with share-alike.",
+      "- Code is cited as https://github.com/Rugved3-droid/angiolens, tag `v1.1-ijcars`, commit 198c6d4da1f980cdaa301f5131ccb83ebffb5be1 (the old tag `v1.1` was removed; the branch `v1.1` is unchanged).",
       ]
 (P / "AUDIT.md").write_text("\n".join(L) + "\n", encoding="utf-8")
 print("AUDIT.md written:", len(used["numbers"]), "numbers,", len(used["citations"]), "references")
