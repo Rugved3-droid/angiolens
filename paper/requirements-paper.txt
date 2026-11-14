@@ -1,0 +1,7 @@
+# Extra Python packages for paper/scripts (on top of the repository's requirements.txt)
+python-docx
+pymupdf
+scikit-image
+scipy
+matplotlib
+pillow

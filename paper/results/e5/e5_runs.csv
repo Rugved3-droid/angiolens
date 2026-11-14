@@ -1,0 +1,16 @@
+config,rep,gpu,load_scene1_ms,load_scene4_ms,transfer_mb_scene4,rotation_frames,frame_median_ms,frame_p95_ms,frame_max_ms,fps_median,js_heap_mb_after_load,js_heap_mb_after_rotation,chromium_ws_mb_after_rotation
+"headless_gpu_d3d11",0,"ANGLE (Intel, Intel(R) UHD Graphics (0x00009BC4) Direct3D11 vs_5_0 ps_5_0, D3D11)",3488,1162,27.2,511,16.7,33.4,33.5,59.9,12,15.1,822
+"headless_gpu_d3d11",1,"ANGLE (Intel, Intel(R) UHD Graphics (0x00009BC4) Direct3D11 vs_5_0 ps_5_0, D3D11)",1130,1467,27.2,515,16.7,33.4,50.1,59.9,13.9,10.5,827
+"headless_gpu_d3d11",2,"ANGLE (Intel, Intel(R) UHD Graphics (0x00009BC4) Direct3D11 vs_5_0 ps_5_0, D3D11)",1144,1138,27.2,511,16.7,33.4,49.9,59.9,11.2,14.8,830
+"headless_gpu_d3d11",3,"ANGLE (Intel, Intel(R) UHD Graphics (0x00009BC4) Direct3D11 vs_5_0 ps_5_0, D3D11)",1306,994,27.2,534,16.7,33.4,33.4,59.9,10.8,15.7,826
+"headless_gpu_d3d11",4,"ANGLE (Intel, Intel(R) UHD Graphics (0x00009BC4) Direct3D11 vs_5_0 ps_5_0, D3D11)",1220,1170,27.2,537,16.7,33.3,33.4,59.9,12.3,10.9,816
+"headless_swiftshader_cpu",0,"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",4200,4619,27.2,22,600,1350,1399.9,1.7,9.7,14,701
+"headless_swiftshader_cpu",1,"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",4860,4574,27.2,24,666.6,716.7,1350,1.5,10,9,702
+"headless_swiftshader_cpu",2,"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",4715,4496,27.2,22,666.6,1350,1383.3,1.5,12.6,10.6,712
+"headless_swiftshader_cpu",3,"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",4437,4825,27.2,22,666.6,1299.9,1333.2,1.5,12.1,9.4,752
+"headless_swiftshader_cpu",4,"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",4557,4369,27.2,22,650,1333.3,1349.9,1.5,11.9,9.8,730
+"headed_discrete_gpu_d3d11",0,"ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Ti (0x00001F95) Direct3D11 vs_5_0 ps_5_0, D3D11)",3191,1167,27.2,601,16.7,16.8,16.9,59.9,12.3,14.5,868
+"headed_discrete_gpu_d3d11",1,"ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Ti (0x00001F95) Direct3D11 vs_5_0 ps_5_0, D3D11)",985,973,27.2,601,16.7,16.8,16.9,59.9,11.4,14.6,928
+"headed_discrete_gpu_d3d11",2,"ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Ti (0x00001F95) Direct3D11 vs_5_0 ps_5_0, D3D11)",1000,999,27.2,598,16.7,16.8,66.6,59.9,10.8,13.5,930
+"headed_discrete_gpu_d3d11",3,"ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Ti (0x00001F95) Direct3D11 vs_5_0 ps_5_0, D3D11)",989,1011,27.2,601,16.7,16.8,16.9,59.9,10.7,14.5,924
+"headed_discrete_gpu_d3d11",4,"ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Ti (0x00001F95) Direct3D11 vs_5_0 ps_5_0, D3D11)",1007,1183,27.2,601,16.7,16.8,16.9,59.9,12.5,14.4,915

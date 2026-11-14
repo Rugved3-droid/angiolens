@@ -1,0 +1,434 @@
+{
+ "numbers": {
+  "e1_vertex_max_px": {
+   "value": 0.0006359,
+   "text": "6.4 × 10^-4^",
+   "source": "e1/e1_summary.csv :: grid_5deg,vertex,max_px"
+  },
+  "e1b_images": {
+   "value": 1406,
+   "text": "1,406",
+   "source": "e1b/e1b_per_pose.csv :: row count"
+  },
+  "e1b_r_min": {
+   "value": 0.999991,
+   "text": "0.99999",
+   "source": "e1b/e1b_per_pose.csv :: min(r)"
+  },
+  "e2_v2_pass": {
+   "value": 10,
+   "text": "10",
+   "source": "e2_v2/e2_meta.json :: summary.correct.passed"
+  },
+  "e2_v2_views": {
+   "value": 10,
+   "text": "10",
+   "source": "e2_v2/e2_meta.json :: summary.correct.views"
+  },
+  "e3_candidates": {
+   "value": 2448,
+   "text": "2,448",
+   "source": "e3/e3_summary.json :: labels.candidates"
+  },
+  "e3_items": {
+   "value": 612,
+   "text": "612",
+   "source": "e3/e3_summary.json :: rendered_items"
+  },
+  "e3_iou_max": {
+   "value": 0.2087940344561584,
+   "text": "0.209",
+   "source": "e3/e3_summary.json :: iou_all.max"
+  },
+  "e5_igpu_fps_median_median": {
+   "value": 59.9,
+   "text": "59.9",
+   "source": "e5/e5_summary.csv :: headless_gpu_d3d11,fps_median_median"
+  },
+  "pixel_mm": {
+   "value": 0.48828125,
+   "text": "0.488",
+   "source": "e1/e1_meta.json :: pixel_mm"
+  },
+  "e1_points": {
+   "value": 3413,
+   "text": "3,413",
+   "source": "e1/e1_meta.json :: n_points"
+  },
+  "e1_poses_total": {
+   "value": 713,
+   "text": "713",
+   "source": "e1/e1_meta.json :: n_grid_poses + n_named_views"
+  },
+  "e3_flow_rounds": {
+   "value": 600,
+   "text": "600",
+   "source": "e3/e3_summary.json :: items_by_mode.flow"
+  },
+  "hw_cpu": {
+   "value": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+   "text": "Intel Core i5-10300H @ 2.50GHz",
+   "source": "e5/e5_hardware.json :: cpu"
+  },
+  "hw_ram": {
+   "value": 11.9,
+   "text": "12",
+   "source": "e5/e5_hardware.json :: ram_gb"
+  },
+  "hw_os": {
+   "value": "Microsoft Windows 11 Home Single Language 10.0.26200",
+   "text": "Windows 11",
+   "source": "e5/e5_hardware.json :: os"
+  },
+  "e5_reps": {
+   "value": 5,
+   "text": "5",
+   "source": "e5/e5_hardware.json :: reps"
+  },
+  "e5_seconds": {
+   "value": 10,
+   "text": "10",
+   "source": "e5/e5_hardware.json :: rotation_seconds"
+  },
+  "e1_overlay_max_px": {
+   "value": 7.477e-13,
+   "text": "7.5 × 10^-13^",
+   "source": "e1/e1_summary.csv :: grid_5deg,overlay,max_px"
+  },
+  "e1b_mae_max": {
+   "value": 0.000996024,
+   "text": "0.0010",
+   "source": "e1b/e1b_per_pose.csv :: max(mae_mm)"
+  },
+  "e1b_centroid_max": {
+   "value": 0.0150667,
+   "text": "0.015",
+   "source": "e1b/e1b_per_pose.csv :: max(centroid_shift_px)"
+  },
+  "e1b_mirror_lr_max": {
+   "value": 0.53145,
+   "text": "0.531",
+   "source": "e1b/e1b_per_pose.csv :: max(r_mirror_lr)"
+  },
+  "e2_v1_views": {
+   "value": 10,
+   "text": "10",
+   "source": "e2/e2_meta.json :: summary.correct.views"
+  },
+  "e2_v1_pass": {
+   "value": 9,
+   "text": "9",
+   "source": "e2/e2_meta.json :: summary.correct.passed"
+  },
+  "e2_v2_mirror_lr_det": {
+   "value": 10,
+   "text": "10",
+   "source": "e2_v2/e2_meta.json :: summary.mirror_lr.detected"
+  },
+  "e2_v2_mirror_lr_app": {
+   "value": 10,
+   "text": "10",
+   "source": "e2_v2/e2_meta.json :: summary.mirror_lr.applicable"
+  },
+  "e2_v2_swap_lao_rao_det": {
+   "value": 8,
+   "text": "8",
+   "source": "e2_v2/e2_meta.json :: summary.swap_lao_rao.detected"
+  },
+  "e2_v2_swap_lao_rao_app": {
+   "value": 8,
+   "text": "8",
+   "source": "e2_v2/e2_meta.json :: summary.swap_lao_rao.applicable"
+  },
+  "e2_v2_swap_cran_caud_det": {
+   "value": 7,
+   "text": "7",
+   "source": "e2_v2/e2_meta.json :: summary.swap_cran_caud.detected"
+  },
+  "e2_v2_swap_cran_caud_app": {
+   "value": 7,
+   "text": "7",
+   "source": "e2_v2/e2_meta.json :: summary.swap_cran_caud.applicable"
+  },
+  "e2_v2_mirror_ud_det": {
+   "value": 10,
+   "text": "10",
+   "source": "e2_v2/e2_meta.json :: summary.mirror_ud.detected"
+  },
+  "e2_v2_mirror_ud_app": {
+   "value": 10,
+   "text": "10",
+   "source": "e2_v2/e2_meta.json :: summary.mirror_ud.applicable"
+  },
+  "e3_logic_ok": {
+   "value": 32780,
+   "text": "32,780",
+   "source": "e3/e3_summary.json :: logic.ok"
+  },
+  "e3_label_ok": {
+   "value": 2448,
+   "text": "2,448",
+   "source": "e3/e3_summary.json :: labels.label_is_best_match"
+  },
+  "e3_flagged": {
+   "value": 0,
+   "text": "0",
+   "source": "e3/e3_summary.json :: flagged_5deg"
+  },
+  "e3_pairs": {
+   "value": 3672,
+   "text": "3,672",
+   "source": "e3/e3_summary.json :: pairs"
+  },
+  "e5_igpu_load_scene1_ms_s": {
+   "value": 1.22,
+   "text": "1.2",
+   "source": "e5/e5_summary.csv :: headless_gpu_d3d11,load_scene1_ms_median / 1000"
+  },
+  "e5_dgpu_load_scene1_ms_s": {
+   "value": 1.0,
+   "text": "1.0",
+   "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,load_scene1_ms_median / 1000"
+  },
+  "e5_dgpu_fps_median_median": {
+   "value": 59.9,
+   "text": "59.9",
+   "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,fps_median_median"
+  },
+  "e5_sw_fps_median_median": {
+   "value": 1.5,
+   "text": "1.5",
+   "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,fps_median_median"
+  },
+  "tests_pytest": {
+   "value": 393,
+   "text": "393",
+   "source": "paper/inventory.md sec. 4 (npm run verify log, 2026-11-14): pytest 393 passed"
+  },
+  "tests_vitest": {
+   "value": 65,
+   "text": "65",
+   "source": "paper/inventory.md sec. 4: vitest 65 passed"
+  },
+  "tests_e2e": {
+   "value": 11,
+   "text": "11",
+   "source": "paper/inventory.md sec. 4: 11 browser suites"
+  },
+  "e1_grid_poses": {
+   "value": 703,
+   "text": "703",
+   "source": "e1/e1_meta.json :: n_grid_poses"
+  },
+  "e1_vertex_max_um": {
+   "value": 0.310498046875,
+   "text": "0.31",
+   "source": "e1/e1_summary.csv vertex max_px x e1_meta pixel_mm x 1000 (um at the detector)"
+  },
+  "e1b_pass": {
+   "value": 1406,
+   "text": "1,406",
+   "source": "e1b/e1b_per_pose.csv :: count(r > 0.95 and mae_mm < 0.25)"
+  },
+  "e1b_iou_min": {
+   "value": 0.998431,
+   "text": "0.9984",
+   "source": "e1b/e1b_per_pose.csv :: min(mask_iou)"
+  },
+  "e1b_mirror_lr_worst_pose": {
+   "value": "left -35,20",
+   "text": "RAO 35 / CRAN 20",
+   "source": "e1b/e1b_per_pose.csv :: argmax(r_mirror_lr)"
+  },
+  "e1b_mirror_ud_max": {
+   "value": 0.458443,
+   "text": "0.458",
+   "source": "e1b/e1b_per_pose.csv :: max(r_mirror_ud)"
+  },
+  "e2_v1_overlap_components": {
+   "value": 2,
+   "text": "2",
+   "source": "e2/e2_tests.csv :: classic spider, correct, n_components"
+  },
+  "e2_v1_overlap_iou": {
+   "value": 0.9852,
+   "text": "0.985",
+   "source": "e2/e2_tests.csv :: classic spider, correct, iou"
+  },
+  "e2_v2_iou_min": {
+   "value": 0.8911,
+   "text": "0.891",
+   "source": "e2_v2/e2_tests.csv :: min(iou) over passing correct renders"
+  },
+  "e2_v2_err_max_px": {
+   "value": 1.4334,
+   "text": "1.43",
+   "source": "e2_v2/e2_tests.csv :: max(max_centroid_err_px) over passing correct renders"
+  },
+  "e2_v2_err_max_mm": {
+   "value": 0.69990234375,
+   "text": "0.70",
+   "source": "e2_v2/e2_tests.csv max_centroid_err_px x pixel_mm"
+  },
+  "e2_v2_hand_ok": {
+   "value": 27,
+   "text": "27",
+   "source": "e2_v2/e2_views.csv :: count(handedness_ok == True)"
+  },
+  "e2_v2_neg_iou_max": {
+   "value": 0.1683,
+   "text": "0.168",
+   "source": "e2_v2/e2_tests.csv :: max(iou) over applicable negative controls"
+  },
+  "e3_logic_threw": {
+   "value": 162,
+   "text": "162",
+   "source": "e3/e3_summary.json :: logic.threw"
+  },
+  "e3_correct_iou_cpu_min": {
+   "value": 0.9987772925764192,
+   "text": "0.9988",
+   "source": "e3/e3_summary.json :: correct_vs_cpu_iou_min"
+  },
+  "e3_r_label_min": {
+   "value": 0.9999854024747978,
+   "text": "0.99999",
+   "source": "e3/e3_summary.json :: labels.r_label_min"
+  },
+  "e3_margin_min": {
+   "value": 0.4886,
+   "text": "0.49",
+   "source": "e3/e3_margins.csv :: min(margin_min) over all_hypotheses_distinct"
+  },
+  "e3_iou_median": {
+   "value": 0.03500384188508495,
+   "text": "0.035",
+   "source": "e3/e3_summary.json :: iou_all.median"
+  },
+  "e3_tau_min": {
+   "value": 0.20922894892526128,
+   "text": "0.209",
+   "source": "e3/e3_summary.json :: tau_5deg.min"
+  },
+  "e3_tau_max": {
+   "value": 0.5224710656846535,
+   "text": "0.522",
+   "source": "e3/e3_summary.json :: tau_5deg.max"
+  },
+  "e3_tau_gap_min": {
+   "value": 0.055770000000000014,
+   "text": "0.056",
+   "source": "e3/e3_pairs.csv :: min(tau_5deg_iou - iou) over all pairs"
+  },
+  "e3_ssim_min": {
+   "value": 0.8621918637295247,
+   "text": "0.86",
+   "source": "e3/e3_summary.json :: ssim_all.min"
+  },
+  "e3_ssim_max": {
+   "value": 0.9305809261724861,
+   "text": "0.93",
+   "source": "e3/e3_summary.json :: ssim_all.max"
+  },
+  "fig5_order": {
+   "value": [
+    "mirror-lr",
+    "beta-flip",
+    "alpha-flip",
+    "correct"
+   ],
+   "text": "a left-right mirror, b cranial/caudal reversed, c LAO/RAO reversed, d correct",
+   "source": "results/raw/fig5_tiles.json :: cands[].kind (written by fig_capture.mjs)"
+  },
+  "e3_tiles_identical_correct": {
+   "value": 610,
+   "text": "610",
+   "source": "e3/e3_summary.json :: correct_tile_byte_identical"
+  },
+  "e3_tiles_identical_all": {
+   "value": 606,
+   "text": "606",
+   "source": "e3/e3_summary.json :: all_tiles_byte_identical"
+  },
+  "e3_tile_diff_items": {
+   "value": 6,
+   "text": "6",
+   "source": "e3/e3_items.csv :: count(max_tile_bytes_differ_any > 0)"
+  },
+  "e3_tile_diff_min_bytes": {
+   "value": 15,
+   "text": "15",
+   "source": "e3/e3_items.csv :: min(max_tile_bytes_differ_any > 0)"
+  },
+  "e3_tile_diff_max_bytes": {
+   "value": 72,
+   "text": "72",
+   "source": "e3/e3_items.csv :: max(max_tile_bytes_differ_any)"
+  },
+  "probe_repeats_diff": {
+   "value": 7,
+   "text": "7",
+   "source": "e3/e3_tile_probe.json :: repeatRendersDiffering"
+  },
+  "probe_repeats": {
+   "value": 12000,
+   "text": "12,000",
+   "source": "e3/e3_tile_probe.json :: 5 x tilesCompared (5 repeat renders per tile)"
+  },
+  "probe_max_dv": {
+   "value": 14,
+   "text": "14",
+   "source": "e3/e3_tile_probe.json :: max |dv| over findings.pixels"
+  },
+  "e5_igpu_load_scene4_ms_s": {
+   "value": 1.162,
+   "text": "1.2",
+   "source": "e5/e5_summary.csv :: headless_gpu_d3d11,load_scene4_ms_median / 1000"
+  },
+  "e5_igpu_frame_p95_ms_median": {
+   "value": 33.4,
+   "text": "33.4",
+   "source": "e5/e5_summary.csv :: headless_gpu_d3d11,frame_p95_ms_median"
+  },
+  "e5_igpu_js_heap_mb_after_rotation_median": {
+   "value": 14.8,
+   "text": "14.8",
+   "source": "e5/e5_summary.csv :: headless_gpu_d3d11,js_heap_mb_after_rotation_median"
+  },
+  "e5_dgpu_load_scene4_ms_s": {
+   "value": 1.011,
+   "text": "1.0",
+   "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,load_scene4_ms_median / 1000"
+  }
+ },
+ "citations": {
+  "green2016": 1,
+  "dumay1994": 2,
+  "chen2000": 3,
+  "jensen2016": 4,
+  "voelker2016": 5,
+  "samtani2024": 6,
+  "rahman2026angioview": 7,
+  "sabbak2022": 8,
+  "sadler1998": 9,
+  "hestenes1992": 10,
+  "zanatomy": 11,
+  "dicom_ps33": 12,
+  "wang2004": 13
+ },
+ "references": [
+  "Green P, Frobisher P, Ramcharitar S (2016) Optimal angiographic views for invasive coronary angiography: a guide for trainees. Br J Cardiol 23:110–113. https://doi.org/10.5837/bjc.2016.028",
+  "Dumay ACM, Reiber JHC, Gerbrands JJ (1994) Determination of optimal angiographic viewing angles: basic principles and evaluation study. IEEE Trans Med Imaging 13:13–24. https://doi.org/10.1109/42.276141",
+  "Chen SJ, Carroll JD (2000) 3-D reconstruction of coronary arterial tree to optimize angiographic visualization. IEEE Trans Med Imaging 19:318–336. https://doi.org/10.1109/42.848183",
+  "Jensen UJ, Jensen J, Ahlberg G, Tornvall P (2016) Virtual reality training in coronary angiography and its transfer effect to real-life catheterisation lab. EuroIntervention 11:1503–1510. https://doi.org/10.4244/EIJY15M06_05",
+  "Voelker W, Petri N, Tönissen C, Störk S, Birkemeyer R, Kaiser E, Oberhoff M (2016) Does simulation-based training improve procedural skills of beginners in interventional cardiology? A stratified randomized study. J Interv Cardiol 29:75–82. https://doi.org/10.1111/joic.12257",
+  "Samtani R, Vengrenyuk A, Pineda DA, Sharma R, Hooda A, Krishnamoorthy PM, Kini AS (2024) AngioAID 3D: a novel mobile based platform for simulating diagnostic coronary angiograms [abstract]. J Am Coll Cardiol 83:2481. https://doi.org/10.1016/S0735-1097(24)04471-1",
+  "Rahman A (2026) AngioView: coronary angiography simulator [mobile application], version 1.0.4. Apple App Store. https://apps.apple.com/ca/app/angioview/id6819426874. Accessed 14 November 2026",
+  "Sabbak N, Reed GW, Khatri JJ, Krishnaswamy A, Kapadia SR, Menon V, Harb SC (2022) A novel approach to teaching coronary angiography using 3D-printing [abstract]. J Am Coll Cardiol 79:1825. https://doi.org/10.1016/S0735-1097(22)02816-9",
+  "Sadler PM (1998) Psychometric models of student conceptions in science: reconciling qualitative studies and distractor-driven assessment instruments. J Res Sci Teach 35:265–296. https://doi.org/10.1002/(SICI)1098-2736(199803)35:3<265::AID-TEA3>3.0.CO;2-P",
+  "Hestenes D, Wells M, Swackhamer G (1992) Force concept inventory. Phys Teach 30:141–158. https://doi.org/10.1119/1.2343497",
+  "Z-Anatomy (n.d.) Models of human anatomy: Blender template of the Z-Anatomy project. https://github.com/Z-Anatomy/Models-of-human-anatomy. Accessed 14 November 2026",
+  "National Electrical Manufacturers Association (2026) Digital Imaging and Communications in Medicine (DICOM) Standard, PS3.3 Information Object Definitions, Section C.8.7.5 XA Positioner Module. https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.7.5.html. Accessed 14 November 2026",
+  "Wang Z, Bovik AC, Sheikh HR, Simoncelli EP (2004) Image quality assessment: from error visibility to structural similarity. IEEE Trans Image Process 13:600–612. https://doi.org/10.1109/TIP.2003.819861"
+ ]
+}

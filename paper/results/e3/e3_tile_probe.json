@@ -1,0 +1,617 @@
+{
+ "rounds": 300,
+ "seed": 20261114,
+ "findings": [
+  {
+   "round": 115,
+   "mirror": false,
+   "target": {
+    "alpha": -30,
+    "beta": -25,
+    "tree": "left",
+    "source": "RAO caudal"
+   },
+   "injBefore": "left",
+   "injAfter": "left",
+   "fill": [
+    1000000000,
+    -1000000000
+   ],
+   "field": 0,
+   "kind": "correct",
+   "alpha": -30,
+   "beta": -25,
+   "n": 57,
+   "repeat": 0,
+   "pixels": [
+    {
+     "row": 56,
+     "col": 172,
+     "ch": 0,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 56,
+     "col": 172,
+     "ch": 1,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 56,
+     "col": 172,
+     "ch": 2,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 56,
+     "col": 173,
+     "ch": 0,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 56,
+     "col": 173,
+     "ch": 1,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 56,
+     "col": 173,
+     "ch": 2,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 56,
+     "col": 174,
+     "ch": 0,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 56,
+     "col": 174,
+     "ch": 1,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 56,
+     "col": 174,
+     "ch": 2,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 171,
+     "ch": 0,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 171,
+     "ch": 1,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 171,
+     "ch": 2,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 172,
+     "ch": 0,
+     "dv": 4,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 172,
+     "ch": 1,
+     "dv": 4,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 172,
+     "ch": 2,
+     "dv": 4,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 173,
+     "ch": 0,
+     "dv": 5,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 173,
+     "ch": 1,
+     "dv": 5,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 173,
+     "ch": 2,
+     "dv": 5,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 174,
+     "ch": 0,
+     "dv": 2,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 174,
+     "ch": 1,
+     "dv": 2,
+     "vessel": false
+    },
+    {
+     "row": 57,
+     "col": 174,
+     "ch": 2,
+     "dv": 2,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 171,
+     "ch": 0,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 171,
+     "ch": 1,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 171,
+     "ch": 2,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 172,
+     "ch": 0,
+     "dv": 9,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 172,
+     "ch": 1,
+     "dv": 9,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 172,
+     "ch": 2,
+     "dv": 9,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 173,
+     "ch": 0,
+     "dv": 11,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 173,
+     "ch": 1,
+     "dv": 11,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 173,
+     "ch": 2,
+     "dv": 11,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 174,
+     "ch": 0,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 174,
+     "ch": 1,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 58,
+     "col": 174,
+     "ch": 2,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 59,
+     "col": 171,
+     "ch": 0,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 59,
+     "col": 171,
+     "ch": 1,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 59,
+     "col": 171,
+     "ch": 2,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 59,
+     "col": 172,
+     "ch": 0,
+     "dv": 10,
+     "vessel": false
+    },
+    {
+     "row": 59,
+     "col": 172,
+     "ch": 1,
+     "dv": 10,
+     "vessel": false
+    },
+    {
+     "row": 59,
+     "col": 172,
+     "ch": 2,
+     "dv": 10,
+     "vessel": false
+    },
+    {
+     "row": 59,
+     "col": 173,
+     "ch": 0,
+     "dv": 9,
+     "vessel": false
+    }
+   ]
+  },
+  {
+   "round": 288,
+   "mirror": false,
+   "target": {
+    "alpha": -20,
+    "beta": 27,
+    "tree": "right",
+    "source": "random"
+   },
+   "injBefore": "left",
+   "injAfter": "right",
+   "fill": [
+    1000000000,
+    -1000000000
+   ],
+   "field": 0,
+   "kind": "beta-flip",
+   "alpha": -20,
+   "beta": -27,
+   "n": 48,
+   "repeat": 0,
+   "pixels": [
+    {
+     "row": 64,
+     "col": 202,
+     "ch": 0,
+     "dv": -1,
+     "vessel": false
+    },
+    {
+     "row": 64,
+     "col": 202,
+     "ch": 1,
+     "dv": -1,
+     "vessel": false
+    },
+    {
+     "row": 64,
+     "col": 202,
+     "ch": 2,
+     "dv": -1,
+     "vessel": false
+    },
+    {
+     "row": 65,
+     "col": 202,
+     "ch": 0,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 65,
+     "col": 202,
+     "ch": 1,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 65,
+     "col": 202,
+     "ch": 2,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 65,
+     "col": 203,
+     "ch": 0,
+     "dv": 2,
+     "vessel": false
+    },
+    {
+     "row": 65,
+     "col": 203,
+     "ch": 1,
+     "dv": 2,
+     "vessel": false
+    },
+    {
+     "row": 65,
+     "col": 203,
+     "ch": 2,
+     "dv": 2,
+     "vessel": false
+    },
+    {
+     "row": 65,
+     "col": 204,
+     "ch": 0,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 65,
+     "col": 204,
+     "ch": 1,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 65,
+     "col": 204,
+     "ch": 2,
+     "dv": 1,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 201,
+     "ch": 0,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 201,
+     "ch": 1,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 201,
+     "ch": 2,
+     "dv": 3,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 202,
+     "ch": 0,
+     "dv": 11,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 202,
+     "ch": 1,
+     "dv": 11,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 202,
+     "ch": 2,
+     "dv": 11,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 203,
+     "ch": 0,
+     "dv": 11,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 203,
+     "ch": 1,
+     "dv": 11,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 203,
+     "ch": 2,
+     "dv": 11,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 204,
+     "ch": 0,
+     "dv": 4,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 204,
+     "ch": 1,
+     "dv": 4,
+     "vessel": false
+    },
+    {
+     "row": 66,
+     "col": 204,
+     "ch": 2,
+     "dv": 4,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 201,
+     "ch": 0,
+     "dv": 5,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 201,
+     "ch": 1,
+     "dv": 5,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 201,
+     "ch": 2,
+     "dv": 5,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 202,
+     "ch": 0,
+     "dv": 14,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 202,
+     "ch": 1,
+     "dv": 14,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 202,
+     "ch": 2,
+     "dv": 14,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 203,
+     "ch": 0,
+     "dv": 13,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 203,
+     "ch": 1,
+     "dv": 13,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 203,
+     "ch": 2,
+     "dv": 13,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 204,
+     "ch": 0,
+     "dv": 5,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 204,
+     "ch": 1,
+     "dv": 5,
+     "vessel": false
+    },
+    {
+     "row": 67,
+     "col": 204,
+     "ch": 2,
+     "dv": 5,
+     "vessel": false
+    },
+    {
+     "row": 68,
+     "col": 201,
+     "ch": 0,
+     "dv": 2,
+     "vessel": false
+    },
+    {
+     "row": 68,
+     "col": 201,
+     "ch": 1,
+     "dv": 2,
+     "vessel": false
+    },
+    {
+     "row": 68,
+     "col": 201,
+     "ch": 2,
+     "dv": 2,
+     "vessel": false
+    },
+    {
+     "row": 68,
+     "col": 202,
+     "ch": 0,
+     "dv": 5,
+     "vessel": false
+    }
+   ]
+  }
+ ],
+ "tilesCompared": 2400,
+ "tilesDiffering": 2,
+ "repeatRendersDiffering": 7
+}

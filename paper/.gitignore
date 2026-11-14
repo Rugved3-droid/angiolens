@@ -1,0 +1,5 @@
+# atlas-derived renders and masks (Z-Anatomy CC BY-SA 4.0 adaptations) and large intermediates: regenerate with the scripts
+results/raw/
+__pycache__/
+manuscript/build/*.docx
+manuscript/build/*.pdf

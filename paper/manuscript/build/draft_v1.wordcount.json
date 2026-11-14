@@ -1,0 +1,22 @@
+{
+ "source": "paper\\manuscript\\draft_v1.md",
+ "total": 4122,
+ "sections": {
+  "title_authors": 54,
+  "abstract": 244,
+  "keywords": 12,
+  "introduction": 311,
+  "methods": 1214,
+  "captions": 417,
+  "results": 608,
+  "tables": 279,
+  "discussion": 419,
+  "conclusion": 40,
+  "online_resources": 40,
+  "statements": 152,
+  "references": 332
+ },
+ "main_text": 2592,
+ "references_cited": 13,
+ "bib_entries_not_cited": []
+}

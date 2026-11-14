@@ -1,0 +1,19 @@
+{
+ "n_grid_poses": 703,
+ "n_named_views": 10,
+ "n_points": 3413,
+ "isocenter_LPS": [
+  25.233,
+  -45.512,
+  1291.3
+ ],
+ "detector_mm": 250.0,
+ "detector_px": 512,
+ "pixel_mm": 0.48828125,
+ "runtime_s": 39.8,
+ "python": "3.12.10",
+ "numpy": "2.5.3",
+ "platform": "Windows-11-10.0.26200-SP0",
+ "chromium": "153.0.8010.12",
+ "node": "v24.12.0"
+}

@@ -1,0 +1,22 @@
+AngioLens - IJCARS Original Article: word count
+IJCARS counts everything (title, authors, abstract, main text, captions, tables, references). Limit 3,000-5,000; target ~4,000.
+Counted by paper/scripts/build_manuscript.py (whitespace-delimited tokens of the built .docx text).
+
+Title, authors, affiliations                                  54
+Abstract (incl. heading)                                     240
+Keywords                                                      12
+1 Introduction                                               273
+2 Methods                                                   1077
+3 Results                                                    495
+4 Discussion (incl. Limitations)                             339
+5 Conclusion                                                  40
+Figure captions (5)                                          359
+Tables (2, incl. captions and footnotes)                     279
+Supplementary Information (Online Resource captions)          39
+Statements and Declarations                                  141
+References (13)                                              332
+----------------------------------------------------------------
+TOTAL                                                       3680
+Main text (Introduction to Conclusion)                      2224
+
+Cutting pass: draft v1 4122 -> final 3680 words (-442, -10.7%).

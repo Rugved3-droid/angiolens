@@ -1,0 +1,16 @@
+{
+ "cores": 4,
+ "threads": 8,
+ "ram_gb": 11.9,
+ "os": "Microsoft Windows 11 Home Single Language 10.0.26200",
+ "gpus": [
+  "NVIDIA GeForce GTX 1650 Ti (driver 30.0.15.1123)",
+  "Intel(R) UHD Graphics (driver 27.20.100.9664)"
+ ],
+ "cpu": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+ "node": "v24.12.0",
+ "chromium": "153.0.8010.12",
+ "reps": 5,
+ "rotation_seconds": 10,
+ "served": "vite preview of web/dist (production build)"
+}

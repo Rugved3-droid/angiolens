@@ -1,0 +1,10 @@
+{
+ "gl_backend": "d3d11",
+ "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009BC4) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "chromium": "153.0.8010.12",
+ "n_images": 1406,
+ "runtime_s": 2728.1,
+ "python": "3.12.10",
+ "numpy": "2.5.3",
+ "platform": "Windows-11-10.0.26200-SP0"
+}

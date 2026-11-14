@@ -1,0 +1,888 @@
+{
+ "e1_grid_poses": {
+  "value": 703,
+  "text": "703",
+  "source": "e1/e1_meta.json :: n_grid_poses"
+ },
+ "e1_named": {
+  "value": 10,
+  "text": "10",
+  "source": "e1/e1_meta.json :: n_named_views"
+ },
+ "e1_poses_total": {
+  "value": 713,
+  "text": "713",
+  "source": "e1/e1_meta.json :: n_grid_poses + n_named_views"
+ },
+ "e1_points": {
+  "value": 3413,
+  "text": "3,413",
+  "source": "e1/e1_meta.json :: n_points"
+ },
+ "pixel_mm": {
+  "value": 0.48828125,
+  "text": "0.488",
+  "source": "e1/e1_meta.json :: pixel_mm"
+ },
+ "e1_overlay_max_px": {
+  "value": 7.477e-13,
+  "text": "7.5 × 10^-13^",
+  "source": "e1/e1_summary.csv :: grid_5deg,overlay,max_px"
+ },
+ "e1_overlay_median_px": {
+  "value": 2.842e-14,
+  "text": "2.8 × 10^-14^",
+  "source": "e1/e1_summary.csv :: grid_5deg,overlay,median_px"
+ },
+ "e1_overlay_p95_px": {
+  "value": 2.842e-13,
+  "text": "2.8 × 10^-13^",
+  "source": "e1/e1_summary.csv :: grid_5deg,overlay,p95_px"
+ },
+ "e1_overlay_max_pct": {
+  "value": 1.46e-13,
+  "text": "1.5 × 10^-13^",
+  "source": "e1/e1_summary.csv :: grid_5deg,overlay,max_pct_detector_width"
+ },
+ "e1_vertex_max_px": {
+  "value": 0.0006359,
+  "text": "6.4 × 10^-4^",
+  "source": "e1/e1_summary.csv :: grid_5deg,vertex,max_px"
+ },
+ "e1_vertex_median_px": {
+  "value": 0.0001125,
+  "text": "1.1 × 10^-4^",
+  "source": "e1/e1_summary.csv :: grid_5deg,vertex,median_px"
+ },
+ "e1_vertex_p95_px": {
+  "value": 0.0003242,
+  "text": "3.2 × 10^-4^",
+  "source": "e1/e1_summary.csv :: grid_5deg,vertex,p95_px"
+ },
+ "e1_vertex_max_pct": {
+  "value": 0.0001242,
+  "text": "1.2 × 10^-4^",
+  "source": "e1/e1_summary.csv :: grid_5deg,vertex,max_pct_detector_width"
+ },
+ "e1_vertex_max_um": {
+  "value": 0.310498046875,
+  "text": "0.31",
+  "source": "e1/e1_summary.csv vertex max_px x e1_meta pixel_mm x 1000 (um at the detector)"
+ },
+ "e1b_images": {
+  "value": 1406,
+  "text": "1,406",
+  "source": "e1b/e1b_per_pose.csv :: row count"
+ },
+ "e1b_r_min": {
+  "value": 0.999991,
+  "text": "0.99999",
+  "source": "e1b/e1b_per_pose.csv :: min(r)"
+ },
+ "e1b_mae_max": {
+  "value": 0.000996024,
+  "text": "0.0010",
+  "source": "e1b/e1b_per_pose.csv :: max(mae_mm)"
+ },
+ "e1b_centroid_max": {
+  "value": 0.0150667,
+  "text": "0.015",
+  "source": "e1b/e1b_per_pose.csv :: max(centroid_shift_px)"
+ },
+ "e1b_iou_min": {
+  "value": 0.998431,
+  "text": "0.9984",
+  "source": "e1b/e1b_per_pose.csv :: min(mask_iou)"
+ },
+ "e1b_mirror_lr_max": {
+  "value": 0.53145,
+  "text": "0.531",
+  "source": "e1b/e1b_per_pose.csv :: max(r_mirror_lr)"
+ },
+ "e1b_mirror_ud_max": {
+  "value": 0.458443,
+  "text": "0.458",
+  "source": "e1b/e1b_per_pose.csv :: max(r_mirror_ud)"
+ },
+ "e1b_pass": {
+  "value": 1406,
+  "text": "1,406",
+  "source": "e1b/e1b_per_pose.csv :: count(r > 0.95 and mae_mm < 0.25)"
+ },
+ "e1b_mirror_rejected": {
+  "value": 1406,
+  "text": "1,406",
+  "source": "e1b/e1b_per_pose.csv :: count(r_mirror_lr < 0.6 and r_mirror_ud < 0.6)"
+ },
+ "e1b_mirror_lr_worst_pose": {
+  "value": "left -35,20",
+  "text": "RAO 35 / CRAN 20",
+  "source": "e1b/e1b_per_pose.csv :: argmax(r_mirror_lr)"
+ },
+ "e1b_gpu": {
+  "value": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009BC4) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "text": "Intel UHD Graphics",
+  "source": "e1b/e1b_meta.json :: gpu"
+ },
+ "chromium": {
+  "value": "153.0.8010.12",
+  "text": "153.0.8010.12",
+  "source": "e1b/e1b_meta.json :: chromium"
+ },
+ "e2_v1_pass": {
+  "value": 9,
+  "text": "9",
+  "source": "e2/e2_meta.json :: summary.correct.passed"
+ },
+ "e2_v1_views": {
+  "value": 10,
+  "text": "10",
+  "source": "e2/e2_meta.json :: summary.correct.views"
+ },
+ "e2_v1_mirror_lr_det": {
+  "value": 10,
+  "text": "10",
+  "source": "e2/e2_meta.json :: summary.mirror_lr.detected"
+ },
+ "e2_v1_mirror_lr_app": {
+  "value": 10,
+  "text": "10",
+  "source": "e2/e2_meta.json :: summary.mirror_lr.applicable"
+ },
+ "e2_v1_swap_lao_rao_det": {
+  "value": 8,
+  "text": "8",
+  "source": "e2/e2_meta.json :: summary.swap_lao_rao.detected"
+ },
+ "e2_v1_swap_lao_rao_app": {
+  "value": 8,
+  "text": "8",
+  "source": "e2/e2_meta.json :: summary.swap_lao_rao.applicable"
+ },
+ "e2_v1_swap_cran_caud_det": {
+  "value": 7,
+  "text": "7",
+  "source": "e2/e2_meta.json :: summary.swap_cran_caud.detected"
+ },
+ "e2_v1_swap_cran_caud_app": {
+  "value": 7,
+  "text": "7",
+  "source": "e2/e2_meta.json :: summary.swap_cran_caud.applicable"
+ },
+ "e2_v1_mirror_ud_det": {
+  "value": 10,
+  "text": "10",
+  "source": "e2/e2_meta.json :: summary.mirror_ud.detected"
+ },
+ "e2_v1_mirror_ud_app": {
+  "value": 10,
+  "text": "10",
+  "source": "e2/e2_meta.json :: summary.mirror_ud.applicable"
+ },
+ "e2_v1_iou_min": {
+  "value": 0.9212,
+  "text": "0.921",
+  "source": "e2/e2_tests.csv :: min(iou) over passing correct renders"
+ },
+ "e2_v1_err_max_px": {
+  "value": 1.4334,
+  "text": "1.43",
+  "source": "e2/e2_tests.csv :: max(max_centroid_err_px) over passing correct renders"
+ },
+ "e2_v1_err_max_mm": {
+  "value": 0.69990234375,
+  "text": "0.70",
+  "source": "e2/e2_tests.csv max_centroid_err_px x pixel_mm"
+ },
+ "e2_v1_neg_iou_max": {
+  "value": 0.162,
+  "text": "0.162",
+  "source": "e2/e2_tests.csv :: max(iou) over applicable negative controls (v1: excluding the classic spider view)"
+ },
+ "e2_v1_overlap_iou": {
+  "value": 0.9852,
+  "text": "0.985",
+  "source": "e2/e2_tests.csv :: classic spider, correct, iou"
+ },
+ "e2_v1_overlap_components": {
+  "value": 2,
+  "text": "2",
+  "source": "e2/e2_tests.csv :: classic spider, correct, n_components"
+ },
+ "e2_v2_pass": {
+  "value": 10,
+  "text": "10",
+  "source": "e2_v2/e2_meta.json :: summary.correct.passed"
+ },
+ "e2_v2_views": {
+  "value": 10,
+  "text": "10",
+  "source": "e2_v2/e2_meta.json :: summary.correct.views"
+ },
+ "e2_v2_mirror_lr_det": {
+  "value": 10,
+  "text": "10",
+  "source": "e2_v2/e2_meta.json :: summary.mirror_lr.detected"
+ },
+ "e2_v2_mirror_lr_app": {
+  "value": 10,
+  "text": "10",
+  "source": "e2_v2/e2_meta.json :: summary.mirror_lr.applicable"
+ },
+ "e2_v2_swap_lao_rao_det": {
+  "value": 8,
+  "text": "8",
+  "source": "e2_v2/e2_meta.json :: summary.swap_lao_rao.detected"
+ },
+ "e2_v2_swap_lao_rao_app": {
+  "value": 8,
+  "text": "8",
+  "source": "e2_v2/e2_meta.json :: summary.swap_lao_rao.applicable"
+ },
+ "e2_v2_swap_cran_caud_det": {
+  "value": 7,
+  "text": "7",
+  "source": "e2_v2/e2_meta.json :: summary.swap_cran_caud.detected"
+ },
+ "e2_v2_swap_cran_caud_app": {
+  "value": 7,
+  "text": "7",
+  "source": "e2_v2/e2_meta.json :: summary.swap_cran_caud.applicable"
+ },
+ "e2_v2_mirror_ud_det": {
+  "value": 10,
+  "text": "10",
+  "source": "e2_v2/e2_meta.json :: summary.mirror_ud.detected"
+ },
+ "e2_v2_mirror_ud_app": {
+  "value": 10,
+  "text": "10",
+  "source": "e2_v2/e2_meta.json :: summary.mirror_ud.applicable"
+ },
+ "e2_v2_iou_min": {
+  "value": 0.8911,
+  "text": "0.891",
+  "source": "e2_v2/e2_tests.csv :: min(iou) over passing correct renders"
+ },
+ "e2_v2_err_max_px": {
+  "value": 1.4334,
+  "text": "1.43",
+  "source": "e2_v2/e2_tests.csv :: max(max_centroid_err_px) over passing correct renders"
+ },
+ "e2_v2_err_max_mm": {
+  "value": 0.69990234375,
+  "text": "0.70",
+  "source": "e2_v2/e2_tests.csv max_centroid_err_px x pixel_mm"
+ },
+ "e2_v2_neg_iou_max": {
+  "value": 0.1683,
+  "text": "0.168",
+  "source": "e2_v2/e2_tests.csv :: max(iou) over applicable negative controls"
+ },
+ "e2_v2_hand_ok": {
+  "value": 27,
+  "text": "27",
+  "source": "e2_v2/e2_views.csv :: count(handedness_ok == True)"
+ },
+ "e2_v2_hand_n": {
+  "value": 27,
+  "text": "27",
+  "source": "e2_v2/e2_views.csv :: count(handedness_ok in True/False)"
+ },
+ "e3_logic_sets": {
+  "value": 32780,
+  "text": "32,780",
+  "source": "e3/e3_summary.json :: logic.sets"
+ },
+ "e3_logic_ok": {
+  "value": 32780,
+  "text": "32,780",
+  "source": "e3/e3_summary.json :: logic.ok"
+ },
+ "e3_logic_targets": {
+  "value": 16471,
+  "text": "16,471",
+  "source": "e3/e3_summary.json :: logic.targets"
+ },
+ "e3_logic_threw": {
+  "value": 162,
+  "text": "162",
+  "source": "e3/e3_summary.json :: logic.threw"
+ },
+ "e3_draws_degenerate": {
+  "value": 0,
+  "text": "0",
+  "source": "e3/e3_summary.json :: logic.drawPoseDegenerate"
+ },
+ "e3_items": {
+  "value": 612,
+  "text": "612",
+  "source": "e3/e3_summary.json :: rendered_items"
+ },
+ "e3_flow_rounds": {
+  "value": 600,
+  "text": "600",
+  "source": "e3/e3_summary.json :: items_by_mode.flow"
+ },
+ "e3_preset_items": {
+  "value": 12,
+  "text": "12",
+  "source": "e3/e3_summary.json :: items_by_mode.preset"
+ },
+ "e3_candidates": {
+  "value": 2448,
+  "text": "2,448",
+  "source": "e3/e3_summary.json :: labels.candidates"
+ },
+ "e3_label_ok": {
+  "value": 2448,
+  "text": "2,448",
+  "source": "e3/e3_summary.json :: labels.label_is_best_match"
+ },
+ "e3_r_label_min": {
+  "value": 0.9999854024747978,
+  "text": "0.99999",
+  "source": "e3/e3_summary.json :: labels.r_label_min"
+ },
+ "e3_margin_min": {
+  "value": 0.4886,
+  "text": "0.49",
+  "source": "e3/e3_margins.csv :: min(margin_min) over all_hypotheses_distinct"
+ },
+ "e3_pairs": {
+  "value": 3672,
+  "text": "3,672",
+  "source": "e3/e3_summary.json :: pairs"
+ },
+ "e3_iou_median": {
+  "value": 0.03500384188508495,
+  "text": "0.035",
+  "source": "e3/e3_summary.json :: iou_all.median"
+ },
+ "e3_iou_p95": {
+  "value": 0.10576011057909201,
+  "text": "0.106",
+  "source": "e3/e3_summary.json :: iou_all.p95"
+ },
+ "e3_iou_max": {
+  "value": 0.2087940344561584,
+  "text": "0.209",
+  "source": "e3/e3_summary.json :: iou_all.max"
+ },
+ "e3_ssim_min": {
+  "value": 0.8621918637295247,
+  "text": "0.86",
+  "source": "e3/e3_summary.json :: ssim_all.min"
+ },
+ "e3_ssim_max": {
+  "value": 0.9305809261724861,
+  "text": "0.93",
+  "source": "e3/e3_summary.json :: ssim_all.max"
+ },
+ "e3_tau_min": {
+  "value": 0.20922894892526128,
+  "text": "0.209",
+  "source": "e3/e3_summary.json :: tau_5deg.min"
+ },
+ "e3_tau_max": {
+  "value": 0.5224710656846535,
+  "text": "0.522",
+  "source": "e3/e3_summary.json :: tau_5deg.max"
+ },
+ "e3_tau_median": {
+  "value": 0.3099068362505771,
+  "text": "0.310",
+  "source": "e3/e3_summary.json :: tau_5deg.median"
+ },
+ "e3_flagged": {
+  "value": 0,
+  "text": "0",
+  "source": "e3/e3_summary.json :: flagged_5deg"
+ },
+ "e3_flagged_09": {
+  "value": 0,
+  "text": "0",
+  "source": "e3/e3_summary.json :: flagged_iou_0.9"
+ },
+ "e3_tau_gap_min": {
+  "value": 0.055770000000000014,
+  "text": "0.056",
+  "source": "e3/e3_pairs.csv :: min(tau_5deg_iou - iou) over all pairs"
+ },
+ "e3_tiles_identical_correct": {
+  "value": 610,
+  "text": "610",
+  "source": "e3/e3_summary.json :: correct_tile_byte_identical"
+ },
+ "e3_tiles_identical_all": {
+  "value": 606,
+  "text": "606",
+  "source": "e3/e3_summary.json :: all_tiles_byte_identical"
+ },
+ "e3_tile_diff_items": {
+  "value": 6,
+  "text": "6",
+  "source": "e3/e3_items.csv :: count(max_tile_bytes_differ_any > 0)"
+ },
+ "e3_tile_diff_min_bytes": {
+  "value": 15,
+  "text": "15",
+  "source": "e3/e3_items.csv :: min(max_tile_bytes_differ_any > 0)"
+ },
+ "e3_tile_diff_max_bytes": {
+  "value": 72,
+  "text": "72",
+  "source": "e3/e3_items.csv :: max(max_tile_bytes_differ_any)"
+ },
+ "e3_correct_iou_cpu_min": {
+  "value": 0.9987772925764192,
+  "text": "0.9988",
+  "source": "e3/e3_summary.json :: correct_vs_cpu_iou_min"
+ },
+ "probe_tiles": {
+  "value": 2400,
+  "text": "2,400",
+  "source": "e3/e3_tile_probe.json :: tilesCompared"
+ },
+ "probe_tiles_diff": {
+  "value": 2,
+  "text": "2",
+  "source": "e3/e3_tile_probe.json :: tilesDiffering"
+ },
+ "probe_repeats": {
+  "value": 12000,
+  "text": "12,000",
+  "source": "e3/e3_tile_probe.json :: 5 x tilesCompared (5 repeat renders per tile)"
+ },
+ "probe_repeats_diff": {
+  "value": 7,
+  "text": "7",
+  "source": "e3/e3_tile_probe.json :: repeatRendersDiffering"
+ },
+ "probe_max_dv": {
+  "value": 14,
+  "text": "14",
+  "source": "e3/e3_tile_probe.json :: max |dv| over findings.pixels"
+ },
+ "probe_vessel_px": {
+  "value": 0,
+  "text": "0",
+  "source": "e3/e3_tile_probe.json :: count(pixels.vessel) over findings"
+ },
+ "e5_igpu_load_scene1_ms_median": {
+  "value": 1220.0,
+  "text": "1,220",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,load_scene1_ms_median"
+ },
+ "e5_igpu_load_scene1_ms_min": {
+  "value": 1130.0,
+  "text": "1,130",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,load_scene1_ms_min"
+ },
+ "e5_igpu_load_scene1_ms_max": {
+  "value": 3488.0,
+  "text": "3,488",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,load_scene1_ms_max"
+ },
+ "e5_igpu_load_scene4_ms_median": {
+  "value": 1162.0,
+  "text": "1,162",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,load_scene4_ms_median"
+ },
+ "e5_igpu_load_scene4_ms_min": {
+  "value": 994.0,
+  "text": "994",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,load_scene4_ms_min"
+ },
+ "e5_igpu_load_scene4_ms_max": {
+  "value": 1467.0,
+  "text": "1,467",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,load_scene4_ms_max"
+ },
+ "e5_igpu_fps_median_median": {
+  "value": 59.9,
+  "text": "59.9",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,fps_median_median"
+ },
+ "e5_igpu_fps_median_min": {
+  "value": 59.9,
+  "text": "59.9",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,fps_median_min"
+ },
+ "e5_igpu_fps_median_max": {
+  "value": 59.9,
+  "text": "59.9",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,fps_median_max"
+ },
+ "e5_igpu_frame_p95_ms_median": {
+  "value": 33.4,
+  "text": "33.4",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,frame_p95_ms_median"
+ },
+ "e5_igpu_frame_p95_ms_min": {
+  "value": 33.3,
+  "text": "33.3",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,frame_p95_ms_min"
+ },
+ "e5_igpu_frame_p95_ms_max": {
+  "value": 33.4,
+  "text": "33.4",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,frame_p95_ms_max"
+ },
+ "e5_igpu_js_heap_mb_after_rotation_median": {
+  "value": 14.8,
+  "text": "14.8",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,js_heap_mb_after_rotation_median"
+ },
+ "e5_igpu_js_heap_mb_after_rotation_min": {
+  "value": 10.5,
+  "text": "10.5",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,js_heap_mb_after_rotation_min"
+ },
+ "e5_igpu_js_heap_mb_after_rotation_max": {
+  "value": 15.7,
+  "text": "15.7",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,js_heap_mb_after_rotation_max"
+ },
+ "e5_igpu_chromium_ws_mb_after_rotation_median": {
+  "value": 826.0,
+  "text": "826",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,chromium_ws_mb_after_rotation_median"
+ },
+ "e5_igpu_chromium_ws_mb_after_rotation_min": {
+  "value": 816.0,
+  "text": "816",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,chromium_ws_mb_after_rotation_min"
+ },
+ "e5_igpu_chromium_ws_mb_after_rotation_max": {
+  "value": 830.0,
+  "text": "830",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,chromium_ws_mb_after_rotation_max"
+ },
+ "e5_igpu_transfer_mb_scene4_median": {
+  "value": 27.2,
+  "text": "27",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,transfer_mb_scene4_median"
+ },
+ "e5_igpu_transfer_mb_scene4_min": {
+  "value": 27.2,
+  "text": "27",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,transfer_mb_scene4_min"
+ },
+ "e5_igpu_transfer_mb_scene4_max": {
+  "value": 27.2,
+  "text": "27",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,transfer_mb_scene4_max"
+ },
+ "e5_igpu_load_scene1_ms_s": {
+  "value": 1.22,
+  "text": "1.2",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,load_scene1_ms_median / 1000"
+ },
+ "e5_igpu_load_scene4_ms_s": {
+  "value": 1.162,
+  "text": "1.2",
+  "source": "e5/e5_summary.csv :: headless_gpu_d3d11,load_scene4_ms_median / 1000"
+ },
+ "e5_igpu_gpu": {
+  "value": [
+   "ANGLE (Intel, Intel(R) UHD Graphics (0x00009BC4) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  ],
+  "text": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009BC4) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "source": "e5/e5_runs.csv :: gpu for headless_gpu_d3d11"
+ },
+ "e5_sw_load_scene1_ms_median": {
+  "value": 4557.0,
+  "text": "4,557",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,load_scene1_ms_median"
+ },
+ "e5_sw_load_scene1_ms_min": {
+  "value": 4200.0,
+  "text": "4,200",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,load_scene1_ms_min"
+ },
+ "e5_sw_load_scene1_ms_max": {
+  "value": 4860.0,
+  "text": "4,860",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,load_scene1_ms_max"
+ },
+ "e5_sw_load_scene4_ms_median": {
+  "value": 4574.0,
+  "text": "4,574",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,load_scene4_ms_median"
+ },
+ "e5_sw_load_scene4_ms_min": {
+  "value": 4369.0,
+  "text": "4,369",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,load_scene4_ms_min"
+ },
+ "e5_sw_load_scene4_ms_max": {
+  "value": 4825.0,
+  "text": "4,825",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,load_scene4_ms_max"
+ },
+ "e5_sw_fps_median_median": {
+  "value": 1.5,
+  "text": "1.5",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,fps_median_median"
+ },
+ "e5_sw_fps_median_min": {
+  "value": 1.5,
+  "text": "1.5",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,fps_median_min"
+ },
+ "e5_sw_fps_median_max": {
+  "value": 1.7,
+  "text": "1.7",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,fps_median_max"
+ },
+ "e5_sw_frame_p95_ms_median": {
+  "value": 1333.3,
+  "text": "1333.3",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,frame_p95_ms_median"
+ },
+ "e5_sw_frame_p95_ms_min": {
+  "value": 716.7,
+  "text": "716.7",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,frame_p95_ms_min"
+ },
+ "e5_sw_frame_p95_ms_max": {
+  "value": 1350.0,
+  "text": "1350.0",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,frame_p95_ms_max"
+ },
+ "e5_sw_js_heap_mb_after_rotation_median": {
+  "value": 9.8,
+  "text": "9.8",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,js_heap_mb_after_rotation_median"
+ },
+ "e5_sw_js_heap_mb_after_rotation_min": {
+  "value": 9.0,
+  "text": "9.0",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,js_heap_mb_after_rotation_min"
+ },
+ "e5_sw_js_heap_mb_after_rotation_max": {
+  "value": 14.0,
+  "text": "14.0",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,js_heap_mb_after_rotation_max"
+ },
+ "e5_sw_chromium_ws_mb_after_rotation_median": {
+  "value": 712.0,
+  "text": "712",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,chromium_ws_mb_after_rotation_median"
+ },
+ "e5_sw_chromium_ws_mb_after_rotation_min": {
+  "value": 701.0,
+  "text": "701",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,chromium_ws_mb_after_rotation_min"
+ },
+ "e5_sw_chromium_ws_mb_after_rotation_max": {
+  "value": 752.0,
+  "text": "752",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,chromium_ws_mb_after_rotation_max"
+ },
+ "e5_sw_transfer_mb_scene4_median": {
+  "value": 27.2,
+  "text": "27",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,transfer_mb_scene4_median"
+ },
+ "e5_sw_transfer_mb_scene4_min": {
+  "value": 27.2,
+  "text": "27",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,transfer_mb_scene4_min"
+ },
+ "e5_sw_transfer_mb_scene4_max": {
+  "value": 27.2,
+  "text": "27",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,transfer_mb_scene4_max"
+ },
+ "e5_sw_load_scene1_ms_s": {
+  "value": 4.557,
+  "text": "4.6",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,load_scene1_ms_median / 1000"
+ },
+ "e5_sw_load_scene4_ms_s": {
+  "value": 4.574,
+  "text": "4.6",
+  "source": "e5/e5_summary.csv :: headless_swiftshader_cpu,load_scene4_ms_median / 1000"
+ },
+ "e5_sw_gpu": {
+  "value": [
+   "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  ],
+  "text": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "source": "e5/e5_runs.csv :: gpu for headless_swiftshader_cpu"
+ },
+ "e5_dgpu_load_scene1_ms_median": {
+  "value": 1000.0,
+  "text": "1,000",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,load_scene1_ms_median"
+ },
+ "e5_dgpu_load_scene1_ms_min": {
+  "value": 985.0,
+  "text": "985",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,load_scene1_ms_min"
+ },
+ "e5_dgpu_load_scene1_ms_max": {
+  "value": 3191.0,
+  "text": "3,191",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,load_scene1_ms_max"
+ },
+ "e5_dgpu_load_scene4_ms_median": {
+  "value": 1011.0,
+  "text": "1,011",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,load_scene4_ms_median"
+ },
+ "e5_dgpu_load_scene4_ms_min": {
+  "value": 973.0,
+  "text": "973",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,load_scene4_ms_min"
+ },
+ "e5_dgpu_load_scene4_ms_max": {
+  "value": 1183.0,
+  "text": "1,183",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,load_scene4_ms_max"
+ },
+ "e5_dgpu_fps_median_median": {
+  "value": 59.9,
+  "text": "59.9",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,fps_median_median"
+ },
+ "e5_dgpu_fps_median_min": {
+  "value": 59.9,
+  "text": "59.9",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,fps_median_min"
+ },
+ "e5_dgpu_fps_median_max": {
+  "value": 59.9,
+  "text": "59.9",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,fps_median_max"
+ },
+ "e5_dgpu_frame_p95_ms_median": {
+  "value": 16.8,
+  "text": "16.8",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,frame_p95_ms_median"
+ },
+ "e5_dgpu_frame_p95_ms_min": {
+  "value": 16.8,
+  "text": "16.8",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,frame_p95_ms_min"
+ },
+ "e5_dgpu_frame_p95_ms_max": {
+  "value": 16.8,
+  "text": "16.8",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,frame_p95_ms_max"
+ },
+ "e5_dgpu_js_heap_mb_after_rotation_median": {
+  "value": 14.5,
+  "text": "14.5",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,js_heap_mb_after_rotation_median"
+ },
+ "e5_dgpu_js_heap_mb_after_rotation_min": {
+  "value": 13.5,
+  "text": "13.5",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,js_heap_mb_after_rotation_min"
+ },
+ "e5_dgpu_js_heap_mb_after_rotation_max": {
+  "value": 14.6,
+  "text": "14.6",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,js_heap_mb_after_rotation_max"
+ },
+ "e5_dgpu_chromium_ws_mb_after_rotation_median": {
+  "value": 924.0,
+  "text": "924",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,chromium_ws_mb_after_rotation_median"
+ },
+ "e5_dgpu_chromium_ws_mb_after_rotation_min": {
+  "value": 868.0,
+  "text": "868",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,chromium_ws_mb_after_rotation_min"
+ },
+ "e5_dgpu_chromium_ws_mb_after_rotation_max": {
+  "value": 930.0,
+  "text": "930",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,chromium_ws_mb_after_rotation_max"
+ },
+ "e5_dgpu_transfer_mb_scene4_median": {
+  "value": 27.2,
+  "text": "27",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,transfer_mb_scene4_median"
+ },
+ "e5_dgpu_transfer_mb_scene4_min": {
+  "value": 27.2,
+  "text": "27",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,transfer_mb_scene4_min"
+ },
+ "e5_dgpu_transfer_mb_scene4_max": {
+  "value": 27.2,
+  "text": "27",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,transfer_mb_scene4_max"
+ },
+ "e5_dgpu_load_scene1_ms_s": {
+  "value": 1.0,
+  "text": "1.0",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,load_scene1_ms_median / 1000"
+ },
+ "e5_dgpu_load_scene4_ms_s": {
+  "value": 1.011,
+  "text": "1.0",
+  "source": "e5/e5_summary.csv :: headed_discrete_gpu_d3d11,load_scene4_ms_median / 1000"
+ },
+ "e5_dgpu_gpu": {
+  "value": [
+   "ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Ti (0x00001F95) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  ],
+  "text": "ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Ti (0x00001F95) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "source": "e5/e5_runs.csv :: gpu for headed_discrete_gpu_d3d11"
+ },
+ "hw_cpu": {
+  "value": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+  "text": "Intel Core i5-10300H @ 2.50GHz",
+  "source": "e5/e5_hardware.json :: cpu"
+ },
+ "hw_ram": {
+  "value": 11.9,
+  "text": "12",
+  "source": "e5/e5_hardware.json :: ram_gb"
+ },
+ "hw_os": {
+  "value": "Microsoft Windows 11 Home Single Language 10.0.26200",
+  "text": "Windows 11",
+  "source": "e5/e5_hardware.json :: os"
+ },
+ "e5_reps": {
+  "value": 5,
+  "text": "5",
+  "source": "e5/e5_hardware.json :: reps"
+ },
+ "e5_seconds": {
+  "value": 10,
+  "text": "10",
+  "source": "e5/e5_hardware.json :: rotation_seconds"
+ },
+ "fig5_order": {
+  "value": [
+   "mirror-lr",
+   "beta-flip",
+   "alpha-flip",
+   "correct"
+  ],
+  "text": "a left-right mirror, b cranial/caudal reversed, c LAO/RAO reversed, d correct",
+  "source": "results/raw/fig5_tiles.json :: cands[].kind (written by fig_capture.mjs)"
+ },
+ "tests_pytest": {
+  "value": 393,
+  "text": "393",
+  "source": "paper/inventory.md sec. 4 (npm run verify log, 2026-11-14): pytest 393 passed"
+ },
+ "tests_vitest": {
+  "value": 65,
+  "text": "65",
+  "source": "paper/inventory.md sec. 4: vitest 65 passed"
+ },
+ "tests_e2e": {
+  "value": 11,
+  "text": "11",
+  "source": "paper/inventory.md sec. 4: 11 browser suites"
+ }
+}

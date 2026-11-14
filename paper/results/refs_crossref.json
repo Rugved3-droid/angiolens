@@ -1,0 +1,372 @@
+{
+ "green2016": {
+  "query": "10.5837/bjc.2016.028",
+  "match": {
+   "DOI": "10.5837/bjc.2016.028",
+   "title": "Optimal angiographic views for invasive coronary angiography: a guide for trainees",
+   "authors": [],
+   "journal": "British Journal of Cardiology",
+   "short_journal": "Br J Cardiol",
+   "volume": null,
+   "issue": null,
+   "page": null,
+   "year": 2016,
+   "type": "journal-article"
+  }
+ },
+ "sabbak2022": {
+  "query": "10.1016/S0735-1097(22)02816-9",
+  "match": {
+   "DOI": "10.1016/s0735-1097(22)02816-9",
+   "title": "A NOVEL APPROACH TO TEACHING CORONARY ANGIOGRAPHY USING 3D-PRINTING",
+   "authors": [
+    "Sabbak Nabil",
+    "Reed Grant W.",
+    "Khatri Jaikirshan J.",
+    "Krishnaswamy Amar",
+    "Kapadia Samir R.",
+    "Menon Venu",
+    "Harb Serge C."
+   ],
+   "journal": "Journal of the American College of Cardiology",
+   "short_journal": "Journal of the American College of Cardiology",
+   "volume": "79",
+   "issue": "9",
+   "page": "1825",
+   "year": 2022,
+   "type": "journal-article"
+  }
+ },
+ "samtani2024": {
+  "query": "10.1016/S0735-1097(24)04471-1",
+  "match": {
+   "DOI": "10.1016/s0735-1097(24)04471-1",
+   "title": "ANGIOAID 3D : A NOVEL MOBILE BASED PLATFORM FOR SIMULATING DIAGNOSTIC CORONARY ANGIOGRAMS",
+   "authors": [
+    "Samtani Rajeev",
+    "Vengrenyuk Andriy",
+    "Pineda Derek A.",
+    "Sharma Raman",
+    "Hooda Amit",
+    "Krishnamoorthy Parasuram Melarcode",
+    "Kini Annapoorna Subhash"
+   ],
+   "journal": "Journal of the American College of Cardiology",
+   "short_journal": "Journal of the American College of Cardiology",
+   "volume": "83",
+   "issue": "13",
+   "page": "2481",
+   "year": 2024,
+   "type": "journal-article"
+  }
+ },
+ "sadler1998": {
+  "query": "10.1002/(SICI)1098-2736(199803)35:3<265::AID-TEA3>3.0.CO;2-P",
+  "match": {
+   "DOI": "10.1002/(sici)1098-2736(199803)35:3<265::aid-tea3>3.0.co;2-p",
+   "title": "Psychometric models of student conceptions in science: Reconciling qualitative studies and distractor-driven assessment instruments",
+   "authors": [
+    "Sadler Philip M."
+   ],
+   "journal": "Journal of Research in Science Teaching",
+   "short_journal": "J. Res. Sci. Teach.",
+   "volume": "35",
+   "issue": "3",
+   "page": "265-296",
+   "year": 1998,
+   "type": "journal-article"
+  }
+ },
+ "dumay1994": {
+  "query": "10.1109/42.276141",
+  "match": {
+   "DOI": "10.1109/42.276141",
+   "title": "Determination of optimal angiographic viewing angles: basic principles and evaluation study",
+   "authors": [
+    "Dumay A.C.M.",
+    "Reiber J.H.C.",
+    "Gerbrands J.J."
+   ],
+   "journal": "IEEE Transactions on Medical Imaging",
+   "short_journal": "IEEE Trans. Med. Imaging",
+   "volume": "13",
+   "issue": "1",
+   "page": "13-24",
+   "year": 1994,
+   "type": "journal-article"
+  }
+ },
+ "hestenes1992": {
+  "query": "Hestenes Wells Swackhamer Force Concept Inventory The Physics Teacher 1992",
+  "candidates": [
+   {
+    "DOI": "10.1119/1.2343497",
+    "title": "Force concept inventory",
+    "authors": [
+     "Hestenes David",
+     "Wells Malcolm",
+     "Swackhamer Gregg"
+    ],
+    "journal": "The Physics Teacher",
+    "short_journal": "",
+    "volume": "30",
+    "issue": "3",
+    "page": "141-158",
+    "year": 1992,
+    "type": "journal-article"
+   },
+   {
+    "DOI": "10.1119/1.2344279",
+    "title": "Interpreting the force concept inventory: A reply to Hestenes and Halloun",
+    "authors": [
+     "Heller Patricia",
+     "Huffman Douglas"
+    ],
+    "journal": "The Physics Teacher",
+    "short_journal": "",
+    "volume": "33",
+    "issue": "8",
+    "page": "503-503",
+    "year": 1995,
+    "type": "journal-article"
+   },
+   {
+    "DOI": "10.1119/1.2344278",
+    "title": "Interpreting the force concept inventory: A response to March 1995 critique by Huffman and Heller",
+    "authors": [
+     "Hestenes David",
+     "Halloun Ibrahim"
+    ],
+    "journal": "The Physics Teacher",
+    "short_journal": "",
+    "volume": "33",
+    "issue": "8",
+    "page": "502-502",
+    "year": 1995,
+    "type": "journal-article"
+   }
+  ]
+ },
+ "chen2000": {
+  "query": "Chen Carroll 3-D reconstruction of coronary arterial tree to optimize angiographic visualization",
+  "candidates": [
+   {
+    "DOI": "10.1109/42.848183",
+    "title": "3-D reconstruction of coronary arterial tree to optimize angiographic visualization",
+    "authors": [
+     "Chen S.J.",
+     "Carroll J.D."
+    ],
+    "journal": "IEEE Transactions on Medical Imaging",
+    "short_journal": "IEEE Trans. Med. Imaging",
+    "volume": "19",
+    "issue": "4",
+    "page": "318-336",
+    "year": 2000,
+    "type": "journal-article"
+   },
+   {
+    "DOI": "10.1109/cic.1994.470101",
+    "title": "Improved determination of biplane imaging geometry and 3D coronary arterial tree from two views",
+    "authors": [
+     "Chen S.-Y.",
+     "Metz C.E.",
+     "Hoffmann K.R.",
+     "Carroll J.D."
+    ],
+    "journal": "Computers in Cardiology 1994",
+    "short_journal": "",
+    "volume": null,
+    "issue": null,
+    "page": "653-656",
+    "year": null,
+    "type": "proceedings-article"
+   },
+   {
+    "DOI": "10.1109/iccme.2007.4381851",
+    "title": "Novel Algorithm for Centerline Extraction of Coronary Arterial Tree in Coronary Angiographic Projections",
+    "authors": [
+     "Li Yingchao",
+     "Liu Yue",
+     "Wang Yongtian"
+    ],
+    "journal": "2007 IEEE/ICME International Conference on Complex Medical Engineering",
+    "short_journal": "",
+    "volume": null,
+    "issue": null,
+    "page": "802-807",
+    "year": 2007,
+    "type": "proceedings-article"
+   }
+  ]
+ },
+ "jensen2016": {
+  "query": "Jensen virtual reality training in coronary angiography transfer effect real-life catheterisation lab",
+  "candidates": [
+   {
+    "DOI": "10.4244/eijy15m06_05",
+    "title": "Virtual reality training in coronary angiography and its transfer effect to real-life catheterisation lab",
+    "authors": [
+     "Jensen Ulf J.",
+     "Jensen Jens",
+     "Ahlberg Gunnar",
+     "Tornvall Per"
+    ],
+    "journal": "EuroIntervention",
+    "short_journal": "EuroIntervention",
+    "volume": "11",
+    "issue": "13",
+    "page": "1503-1510",
+    "year": 2016,
+    "type": "journal-article"
+   },
+   {
+    "DOI": "10.1186/1472-6920-14-49",
+    "title": "The role of a simulator-based course in coronary angiography on performance in real life cath lab",
+    "authors": [
+     "Jensen Ulf J",
+     "Jensen Jens",
+     "Olivecrona Göran",
+     "Ahlberg Gunnar",
+     "Lagerquist Bo",
+     "Tornvall Per"
+    ],
+    "journal": "BMC Medical Education",
+    "short_journal": "BMC Med Educ",
+    "volume": "14",
+    "issue": "1",
+    "page": null,
+    "year": 2014,
+    "type": "journal-article"
+   },
+   {
+    "DOI": "10.1007/s10055-024-01058-0",
+    "title": "Training transfer validity of virtual reality simulator assessment",
+    "authors": [
+     "Hjellvik Simen",
+     "Mallam Steven"
+    ],
+    "journal": "Virtual Reality",
+    "short_journal": "Virtual Reality",
+    "volume": "28",
+    "issue": "4",
+    "page": null,
+    "year": 2024,
+    "type": "journal-article"
+   }
+  ]
+ },
+ "voelker2016": {
+  "query": "Voelker simulation-based training improve procedural skills beginners interventional cardiology",
+  "candidates": [
+   {
+    "DOI": "10.1111/joic.12257",
+    "title": "Does Simulation‐Based Training Improve Procedural Skills of Beginners in Interventional Cardiology?—A Stratified Randomized Study",
+    "authors": [
+     "Voelker Wolfram",
+     "Petri Nils",
+     "Tönissen Christoph",
+     "Störk Stefan",
+     "Birkemeyer Ralf",
+     "Kaiser Erhard",
+     "Oberhoff Martin"
+    ],
+    "journal": "Journal of Interventional Cardiology",
+    "short_journal": "J Interven Cardiology",
+    "volume": "29",
+    "issue": "1",
+    "page": "75-82",
+    "year": 2015,
+    "type": "journal-article"
+   },
+   {
+    "DOI": "10.1016/s0735-1097(13)62039-2",
+    "title": "DOES SIMULATION–BASED TRAINING IMPROVE THE PROFICIENCY OF BEGINNERS IN INTERVENTIONAL CARDIOLOGY? A STRATIFIED RANDOMIZED STUDY",
+    "authors": [
+     "Petri Nils",
+     "Toenissen Christoph",
+     "Jens Petersen",
+     "Petri Henning",
+     "Stoerk Stefan",
+     "Voelker Wolfram"
+    ],
+    "journal": "Journal of the American College of Cardiology",
+    "short_journal": "Journal of the American College of Cardiology",
+    "volume": "61",
+    "issue": "10",
+    "page": "E2039",
+    "year": 2013,
+    "type": "journal-article"
+   },
+   {
+    "DOI": "10.7759/cureus.173",
+    "title": "Simulation-based Procedural Skills Maintenance Training for Neonatal-Perinatal Medicine Faculty",
+    "authors": [
+     "Sawyer Taylor",
+     "Strandjord Thomas"
+    ],
+    "journal": "Cureus",
+    "short_journal": "",
+    "volume": null,
+    "issue": null,
+    "page": null,
+    "year": 2014,
+    "type": "journal-article"
+   }
+  ]
+ },
+ "wang2004": {
+  "query": "Wang Bovik Sheikh Simoncelli image quality assessment error visibility structural similarity",
+  "candidates": [
+   {
+    "DOI": "10.1109/tip.2003.819861",
+    "title": "Image quality assessment: from error visibility to structural similarity",
+    "authors": [
+     "Zhou Wang",
+     "Bovik A.C.",
+     "Sheikh H.R.",
+     "Simoncelli E.P."
+    ],
+    "journal": "IEEE Transactions on Image Processing",
+    "short_journal": "IEEE Trans. on Image Process.",
+    "volume": "13",
+    "issue": "4",
+    "page": "600-612",
+    "year": 2004,
+    "type": "journal-article"
+   },
+   {
+    "DOI": "10.1109/acssc.2003.1292216",
+    "title": "Multiscale structural similarity for image quality assessment",
+    "authors": [
+     "Wang Z.",
+     "Simoncelli E.P.",
+     "Bovik A.C."
+    ],
+    "journal": "The Thrity-Seventh Asilomar Conference on Signals, Systems &amp; Computers, 2003",
+    "short_journal": "",
+    "volume": null,
+    "issue": null,
+    "page": "1398-1402",
+    "year": null,
+    "type": "proceedings-article"
+   },
+   {
+    "DOI": "10.1201/9781420027822-7",
+    "title": "Structural Similarity Based Image Quality Assessment",
+    "authors": [
+     "Wang Zhou",
+     "Bovik Alan C.",
+     "Sheikh Hamid R."
+    ],
+    "journal": "Digital Video Image Quality and Perceptual Coding",
+    "short_journal": "",
+    "volume": null,
+    "issue": null,
+    "page": "225-242",
+    "year": 2017,
+    "type": "book-chapter"
+   }
+  ]
+ }
+}

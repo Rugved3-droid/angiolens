@@ -1,0 +1,5 @@
+scope,path,n_poses,n_points_per_pose,mean_px,median_px,p95_px,max_px,max_pct_detector_width
+grid_5deg,overlay,703,3413,6.731e-14,2.842e-14,2.842e-13,7.477e-13,1.460e-13
+grid_5deg,vertex,703,3413,1.292e-04,1.125e-04,3.242e-04,6.359e-04,1.242e-04
+named_views,overlay,10,3413,6.259e-14,0.000e+00,2.412e-13,7.477e-13,1.460e-13
+named_views,vertex,10,3413,1.383e-04,1.305e-04,3.041e-04,5.542e-04,1.083e-04

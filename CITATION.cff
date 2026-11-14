@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use AngioLens, please cite it as below."
+title: "AngioLens: an open-source, geometry-verified coronary angiography projection simulator for training"
+type: software
+authors:
+  - family-names: Parmar
+    given-names: Rugved
+    affiliation: "Department of Medicine, SUNY Downstate Health Sciences University / Kings County Hospital Center, Brooklyn, NY, USA"
+  - family-names: Fahim
+    given-names: Md
+    affiliation: "Department of Medicine, SUNY Downstate Health Sciences University / Kings County Hospital Center, Brooklyn, NY, USA"
+  - family-names: Trivedi
+    given-names: Shreya P.
+    affiliation: "Beth Israel Deaconess Medical Center / Harvard Medical School, Boston, MA, USA"
+repository-code: "https://github.com/Rugved3-droid/angiolens"
+url: "https://github.com/Rugved3-droid/angiolens"
+license: MIT
+version: "v1.1"
+commit: "198c6d4da1f980cdaa301f5131ccb83ebffb5be1"
+keywords:
+  - coronary angiography
+  - C-arm projection
+  - simulation
+  - medical education
+  - software verification

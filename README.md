@@ -236,6 +236,24 @@ $env:TOTALSEG_HOME_DIR = "$PWD\.totalseg"   # with config.json {"send_usage_stat
 cd web; node e2e/hero_shots.mjs                                              # review screenshots + swing recording
 ```
 
+## Reproducing the paper (IJCARS, branch `paper/ijcars-verification`)
+
+The paper describes AngioLens **v1.1**: tag `v1.1`, commit `198c6d4da1f980cdaa301f5131ccb83ebffb5be1`
+(https://github.com/Rugved3-droid/angiolens). Its verification harness, results and manuscript sources live in `paper/` on the
+branch `paper/ijcars-verification`; the app code there is unchanged from v1.1 (`paper/CHANGELOG_code.md`).
+
+1. Build the git-ignored atlas assets with the pipeline in "Atlas scenes" above (Z-Anatomy is CC BY-SA 4.0 and is not committed):
+   `web/public/anatomy/` and the centerline probe `assets/anatomy/inspect/great_vessels_probe.json`.
+2. `pip install -r requirements.txt -r paper/requirements-paper.txt`; `cd web && npm ci && npm run build`.
+3. `make paper` (or `.venv\Scripts\python paper\scripts\make_paper.py`). It runs, one GPU job at a time: E1 projection agreement,
+   E1b image agreement, E2 orientation phantom (both phantoms), E3 Predict distractors (+ margins and the tile probe), E5
+   performance (needs a visible desktop for the discrete-GPU run; `--no-headed` skips it), the figures, the numbers registry,
+   the manuscript, title page, cover letter, ESM_1 (needs the tour video) and ESM_2 (needs Microsoft Word), and `paper/AUDIT.md`.
+
+Every number in the manuscript comes from `paper/results/numbers.json`, built only from result files; the build fails on an
+unknown number key or a citation that is not in `paper/references_provided.bib`. The full Phase 1 report is
+`paper/verification_report.md`.
+
 ## License
 
 The source code is MIT-licensed (see LICENSE). Third-party anatomy assets are not in this repository and keep their own licenses: the Z-Anatomy atlas is CC BY-SA 4.0, and ASOCA data is licence-gated and must not be redistributed.

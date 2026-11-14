@@ -1,0 +1,57 @@
+{
+ "phantom": "v2",
+ "centres_mm_from_iso": {
+  "L": [
+   60.0,
+   -15.0,
+   25.0
+  ],
+  "R": [
+   -60.0,
+   20.0,
+   5.0
+  ],
+  "F": [
+   40.0,
+   -25.0,
+   -65.0
+  ]
+ },
+ "gl": "d3d11",
+ "decision_rule": {
+  "iou_min": 0.7,
+  "centroid_max_px": 2.0
+ },
+ "summary": {
+  "correct": {
+   "views": 10,
+   "applicable": 10,
+   "passed": 10
+  },
+  "mirror_lr": {
+   "views": 10,
+   "applicable": 10,
+   "detected": 10
+  },
+  "swap_lao_rao": {
+   "views": 10,
+   "applicable": 8,
+   "detected": 8
+  },
+  "swap_cran_caud": {
+   "views": 10,
+   "applicable": 7,
+   "detected": 7
+  },
+  "mirror_ud": {
+   "views": 10,
+   "applicable": 10,
+   "detected": 10
+  }
+ },
+ "runtime_s": 43.6,
+ "chromium": "153.0.8010.12",
+ "python": "3.12.10",
+ "numpy": "2.5.3",
+ "platform": "Windows-11-10.0.26200-SP0"
+}
