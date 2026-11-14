@@ -46,6 +46,6 @@ for name, cmd in steps:
     print(f"== {name}", flush=True)
     subprocess.run(cmd, check=True, cwd=HERE if not cmd[1].startswith("--") else ROOT)
 sub = ROOT / "paper" / "submission"
-for src, dst in (("Fig1.eps", "Fig1.eps"), ("Fig2.tif", "Fig2.tif"), ("Fig3.tif", "Fig3.tif"), ("Fig4.tif", "Fig4.tif"), ("Fig5.tif", "Fig5.tif")):
+for src, dst in (("Fig1.eps", "Fig1.eps"), ("Fig1.tif", "Fig1.tif"), ("Fig2.tif", "Fig2.tif"), ("Fig3.tif", "Fig3.tif"), ("Fig4.tif", "Fig4.tif"), ("Fig5.tif", "Fig5.tif")):
     shutil.copy2(ROOT / "paper" / "figures" / src, sub / dst)
 print("paper/submission/ rebuilt")

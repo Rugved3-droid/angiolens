@@ -34,5 +34,7 @@ def save_raster(fig, name, dpi):
 
 
 def save_vector(fig, name):
+    """EPS (vector, preferred by Springer for line art) + a 1200 dpi TIFF fallback (Springer's line-art resolution) + PNG preview."""
     fig.savefig(FIG / f"{name}.eps")
+    save_raster(fig, name, 1200)
     fig.savefig(FIG / f"{name}.png", dpi=600)
