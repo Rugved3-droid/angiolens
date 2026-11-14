@@ -2,7 +2,7 @@
  "numbers": {
   "e1_vertex_max_px": {
    "value": 0.0006359,
-   "text": "6.4 × 10^-4^",
+   "text": "6.4 × 10^−4^",
    "source": "e1/e1_summary.csv :: grid_5deg,vertex,max_px"
   },
   "e1b_images": {
@@ -92,7 +92,7 @@
   },
   "e1_overlay_max_px": {
    "value": 7.477e-13,
-   "text": "7.5 × 10^-13^",
+   "text": "7.5 × 10^−13^",
    "source": "e1/e1_summary.csv :: grid_5deg,overlay,max_px"
   },
   "e1b_mae_max": {

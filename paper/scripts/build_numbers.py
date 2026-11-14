@@ -32,7 +32,7 @@ def js(path):
 
 def sci(x, d=1):
     m, e = f"{x:.{d}e}".split("e")
-    return f"{m} × 10^{int(e)}^"           # ^...^ = superscript marker for the docx builder
+    return f"{m} × 10^{str(int(e)).replace('-', '−')}^"   # ^...^ = superscript; true minus sign
 
 
 # ---------------- E1 ----------------

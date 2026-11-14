@@ -80,7 +80,7 @@ Table 2 summarises the results; full tables, derivations and per-pose outputs ar
 
 @@FIG 3@@
 
-**E2.** With the first phantom the correct render passed at {{e2_v1_pass}} of {{e2_v1_views}} views. At the classic spider view (LAO 45/caudal 30) the R and F letters overlapped and formed {{e2_v1_overlap_components}} regions instead of three, so the rule failed although the render agreed with the derivation (IoU {{e2_v1_overlap_iou}}; Fig. 4e), a flaw of the phantom. With the second phantom it passed at {{e2_v2_pass}} of {{e2_v2_views}} views (Fig. 4a, f), with every letter within {{e2_v2_err_max_px}} pixel ({{e2_v2_err_max_mm}} mm) of its predicted position and all {{e2_v2_hand_ok}} non-lateral letters of the predicted handedness. All applicable negative controls were rejected (Table 2; Fig. 4b–d), with IoU against the expected image of at most {{e2_v2_neg_iou_max}}.
+**E2.** With the first phantom the correct render passed at {{e2_v1_pass}} of {{e2_v1_views}} views. At the classic spider view (LAO 45/caudal 30) the R and F letters overlapped and formed {{e2_v1_overlap_components}} regions instead of three, so the rule failed although the render agreed with the derivation (IoU {{e2_v1_overlap_iou}}; Fig. 4e), a flaw of the phantom. With the second phantom it passed at {{e2_v2_pass}} of {{e2_v2_views}} views (Fig. 4a, f), with every letter within {{e2_v2_err_max_px}} pixels ({{e2_v2_err_max_mm}} mm) of its predicted position and all {{e2_v2_hand_ok}} non-lateral letters of the predicted handedness. All applicable negative controls were rejected (Table 2; Fig. 4b–d), with IoU against the expected image of at most {{e2_v2_neg_iou_max}}.
 
 @@FIG 4@@
 

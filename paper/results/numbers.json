@@ -26,42 +26,42 @@
  },
  "e1_overlay_max_px": {
   "value": 7.477e-13,
-  "text": "7.5 × 10^-13^",
+  "text": "7.5 × 10^−13^",
   "source": "e1/e1_summary.csv :: grid_5deg,overlay,max_px"
  },
  "e1_overlay_median_px": {
   "value": 2.842e-14,
-  "text": "2.8 × 10^-14^",
+  "text": "2.8 × 10^−14^",
   "source": "e1/e1_summary.csv :: grid_5deg,overlay,median_px"
  },
  "e1_overlay_p95_px": {
   "value": 2.842e-13,
-  "text": "2.8 × 10^-13^",
+  "text": "2.8 × 10^−13^",
   "source": "e1/e1_summary.csv :: grid_5deg,overlay,p95_px"
  },
  "e1_overlay_max_pct": {
   "value": 1.46e-13,
-  "text": "1.5 × 10^-13^",
+  "text": "1.5 × 10^−13^",
   "source": "e1/e1_summary.csv :: grid_5deg,overlay,max_pct_detector_width"
  },
  "e1_vertex_max_px": {
   "value": 0.0006359,
-  "text": "6.4 × 10^-4^",
+  "text": "6.4 × 10^−4^",
   "source": "e1/e1_summary.csv :: grid_5deg,vertex,max_px"
  },
  "e1_vertex_median_px": {
   "value": 0.0001125,
-  "text": "1.1 × 10^-4^",
+  "text": "1.1 × 10^−4^",
   "source": "e1/e1_summary.csv :: grid_5deg,vertex,median_px"
  },
  "e1_vertex_p95_px": {
   "value": 0.0003242,
-  "text": "3.2 × 10^-4^",
+  "text": "3.2 × 10^−4^",
   "source": "e1/e1_summary.csv :: grid_5deg,vertex,p95_px"
  },
  "e1_vertex_max_pct": {
   "value": 0.0001242,
-  "text": "1.2 × 10^-4^",
+  "text": "1.2 × 10^−4^",
   "source": "e1/e1_summary.csv :: grid_5deg,vertex,max_pct_detector_width"
  },
  "e1_vertex_max_um": {
