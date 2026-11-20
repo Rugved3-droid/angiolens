@@ -1,0 +1,22 @@
+AngioLens - Medical Science Educator, Innovation: word count
+
+Main text (body paragraphs of the five Innovation sections; excludes headings, abstract, captions, table, declarations, references; [VERIFY]/[AUTHOR INPUT] placeholder text excluded):
+  The Problem                       269
+  What Was Created                  498
+  How It Was Implemented            244
+  What We Learned                   298
+  Why It Is Useful to Others        117
+  TOTAL main text                  1426
+
+Section headings                     18
+Abstract                            187   (target 150-200)
+Short abstract (abstract_short)      47   (max 50)
+Keywords                             11
+Figure captions (2)                 159
+Table 1 (caption, cells, footnote)  180
+Online Resources                     37
+Statements and Declarations         267
+References (13)                     305
+
+Figures and tables: 3 in total (Fig. 1, Fig. 2, Table 1).
+Note: author-input placeholders will add roughly 60-100 words to the main text once filled in.

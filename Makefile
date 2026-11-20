@@ -13,3 +13,9 @@ paper-results:
 
 verify:
 	cd web && npm run verify
+
+# Medical Science Educator (Innovation) package: manuscript, title page, cover letter, figures, ESM, AUDIT
+# Windows without make: paper/mse/source/make_package.cmd (runs .venv python on build_package.py)
+.PHONY: make_package
+make_package:
+	$(PY) paper/mse/source/build_package.py

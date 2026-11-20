@@ -1,0 +1,1 @@
+AngioLens is a free, open-source browser simulator linking three-dimensional coronary anatomy, a movable C-arm and the resulting angiogram. Its Predict mode uses distractors that encode common orientation errors. We describe its design, automated geometry verification, use in a resident teaching session, and lessons for programs adopting it.
