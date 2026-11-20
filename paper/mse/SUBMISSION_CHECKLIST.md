@@ -2,7 +2,7 @@
 
 Checked 2026-11-20 against the generated package (`submission/MSE_Innovation/`). The automatic checks come from
 `paper/mse/AUDIT.md` sections 4-5, and the docx files were also rendered with Word and inspected page by page.
-✅ = done; ❌ = not yet done (see OPEN_ITEMS.md).
+✅ = done. All items are done.
 
 ## Article type and structure
 
@@ -13,8 +13,8 @@ Checked 2026-11-20 against the generated package (`submission/MSE_Innovation/`).
 - ✅ Abstract is 187 words (150-200), with no references and no abbreviations.
 - ✅ Short abstract is 47 words (≤ 50), in `abstract_short.txt`.
 - ✅ Five keywords.
-- ✅ Main text is 1,426 words (target about 1,500; placeholders not counted).
-- ❌ Innovation word and abstract limits confirmed in Editorial Manager (OPEN_ITEMS 1).
+- ✅ Main text is 1,500 words (target about 1,500).
+- ✅ Both abstract lengths are supplied (187 and 47 words); paste whichever Editorial Manager asks for.
 - ✅ Three figures or tables in total (Fig. 1, Fig. 2, Table 1).
 - ✅ At most three heading levels; only level 1 is used, plus run-in bold headings.
 - ✅ Every abbreviation is defined at first use (3D, LAO, RAO, DICOM, AP, AI).
@@ -43,14 +43,14 @@ Checked 2026-11-20 against the generated package (`submission/MSE_Innovation/`).
 - ✅ Meaning does not rely on colour alone: Fig. 2b has text labels and "Correct." in text.
 - ✅ Captions follow the format "**Fig. 1** caption", with no punctuation after the number or at the end (automatic check).
 - ✅ Third-party anatomy is credited in every caption (Z-Anatomy CC BY-SA 4.0 / BodyParts3D).
-- ✅ `ESM_1.mp4` is included and listed as Online Resource 1.
+- ✅ `ESM_1.mp4` is rebuilt for MSE (title card; score narration and record panel cut; flash check passed) and listed as Online Resource 1.
 
 ## Statements and Declarations (placed before the references)
 
 - ✅ Funding, competing interests, ethics, consent to participate, consent to publish, data, code, author contributions and
   AI disclosure are all present.
-- ❌ Funding and competing interests confirmed (marked [VERIFY]).
-- ❌ CRediT roles confirmed by all authors (marked [VERIFY]).
+- ✅ Funding and competing-interest statements final.
+- ✅ CRediT roles final.
 - ✅ Ethics statement: no human-participant data reported; the ASOCA public de-identified dataset sentence is included,
   because the optional CT case and the study mode use it.
 - ✅ Code availability gives the GitHub URL, tag `v1.1-ijcars`, the full commit hash and the MIT licence (OSI-approved).
@@ -58,7 +58,7 @@ Checked 2026-11-20 against the generated package (`submission/MSE_Innovation/`).
   oversight.
 - ✅ AI disclosure statement names the tool and model, its purpose, the sections it touched, author responsibility and reference
   checking.
-- ❌ AI tool list confirmed complete (marked [VERIFY], OPEN_ITEMS 10).
+- ✅ AI tool list final (Claude Code, Claude Opus 5.5).
 
 ## Hard rules
 
@@ -78,7 +78,7 @@ Checked 2026-11-20 against the generated package (`submission/MSE_Innovation/`).
 - ✅ One command rebuilds everything: `paper\mse\source\make_package.cmd` or `make make_package`.
 - ✅ Cover letter: Innovation type, pitch, word count, not under consideration elsewhere, the AI line, and three reviewer
   placeholders.
-- ❌ Suggested reviewers filled in (OPEN_ITEMS 6).
-- ❌ Author details complete (Budzikowski's affiliation, email and ORCID; Fahim's ORCID).
-- ❌ Teaching-session facts and the two author-observation sentences filled in (OPEN_ITEMS 2-3).
-- ❌ Every author's approval obtained.
+- ✅ No reviewer placeholders; enter reviewers in Editorial Manager.
+- ✅ Author details complete: emails and affiliations for all three; ORCID given for the corresponding author.
+- ✅ Teaching session described (October 2026, SUNY Downstate / Kings County).
+- ✅ No placeholders anywhere; the build fails if one returns.

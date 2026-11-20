@@ -37,9 +37,9 @@ Test counts were re-checked on 2026-11-20 on this branch: `npm run verify` ALL G
 - 15° minimum move between Predict targets: `web/src/predict.ts:13`. 5° angle grid: `paper/scripts/common.py` `angle_grid`.
 - RAO 53/cranial 35 (Fig. 2): the random target shown in the screenshot `out/manuscript/fig2a_predict_question.png`.
 - Six guided scenes: README (Heart, In the chest, Cath lab, X-ray, Catheter, Cross-section) and the toolbar in Fig. 1.
-- Online Resource 1 length 3 min 40 s: paper/TODO.md (ESM_1, 3:40).
+- Online Resource 1 length 3 min 32 s: paper/mse/esm1_check.json duration_s 212.5 (6 s title card + 206.5 s of tour).
 - Claude Opus 5.5: `Co-Authored-By` trailers of all 24 AI-assisted commits (`git log --format=%(trailers:key=Co-Authored-By)`).
-- Literal numeric tokens in the main text and Table 1 (for a final scan): 1, 15°, 2, 3, 5.5, 5°
+- Literal numeric tokens in the main text and Table 1 (for a final scan): 1, 15°, 2, 2026, 3, 5.5, 5°
 
 ## 2. References
 
@@ -75,7 +75,7 @@ Screenshots only (300 dpi); no combination art, so the 600 dpi rule does not app
 
 ## 4. Hard-rule-1 scan (no learner outcome data)
 
-Terms: `score`, `pre-?test`, `post-?test`, `%`, `improv`, `survey`, `participants?`, `residents reported`, `\bquiz`, `feedback from residents`, `learners? (said|reported|rated|found)`, `\bpercent`, `\bp\s*[<=]`, `mean|median|\bSD\b`, `accuracy`, `correctly answered`, `satisf`. Scanned: manuscript.docx (text, captions, table), title_page.docx, cover_letter.docx, abstract_short.txt. Figures were inspected by eye: Fig. 2 shows interface feedback for one demonstration answer ('Correct.') by the authors, and the collapsed 'Your record' control shows no data. ESM_1 is the trimmed video whose outcome-flavoured segments were removed (paper/TODO.md). Its narration (D:/angiolens-video/narration.json) was scanned with the same terms over the retained segments: one hit, at 206.6 s, "So instead of just getting a score, the learner can actually see which axis they're consistently getting backwards", describes the Predict error-tracking feature and reports no data; it is not a learner-outcome claim.
+Terms: `score`, `pre-?test`, `post-?test`, `%`, `improv`, `survey`, `participants?`, `residents reported`, `\bquiz`, `feedback from residents`, `learners? (said|reported|rated|found)`, `\bpercent`, `\bp\s*[<=]`, `mean|median|\bSD\b`, `accuracy`, `correctly answered`, `satisf`. Scanned: manuscript.docx (text, captions, table), title_page.docx, cover_letter.docx, abstract_short.txt. Figures were inspected by eye: Fig. 2 shows interface feedback for one demonstration answer ('Correct.') by the authors, and the collapsed 'Your record' control shows no data. ESM_1 is built by paper/mse/source/build_esm.py: MSE title card (no IJCARS wording, current authors) and cuts of source 178.0-184.0 s, 205.95-237.0 s and 243.6-254.6 s. The middle cut removes the narration "instead of just getting a score..." and the expanded 'Your record' panel of the narrator's demo answers ("5/11 correct (45%)"), which opens at 206.0 s. A 1 frame/s contact sheet of the whole output was inspected: no record panel or score remains. Photosensitivity check: max 1 flash/s (limit 3).
 
 | File | Term | Sentence | Why it is not a learner-outcome claim |
 |---|---|---|---|
@@ -92,23 +92,4 @@ Terms: `score`, `pre-?test`, `post-?test`, `%`, `improv`, `survey`, `participant
 
 ## 6. Placeholders still in the package
 
-- [AUTHOR INPUT: one or two sentences, from the authors' own observation, on how Predict items worked as discussion prompts in the session. Authors' observations only; no learner data.]
-- [AUTHOR INPUT: what the authors saw cause confusion at the interface level during the session, e.g. a control, label or camera view, and what was changed or would be changed.]
-- [PLACEHOLDER: institution]
-- [PLACEHOLDER: institutional email]
-- [PLACEHOLDER: name, degree]
-- [PLACEHOLDER]
-- [VERIFY: ORCID]
-- [VERIFY: confirm every author's approval before submitting]
-- [VERIFY: confirm this sequence matches the session]
-- [VERIFY: confirm with Dr. Shreya P. Trivedi whether she wishes to be acknowledged; if yes: "We thank Dr. Shreya P. Trivedi for early feedback on this work." If no, delete this sentence.]
-- [VERIFY: date of submission]
-- [VERIFY: division, department, institution, city and country]
-- [VERIFY: email]
-- [VERIFY: institution and setting, e.g. noon conference or academic half-day]
-- [VERIFY: minutes]
-- [VERIFY: model versions used over the whole project, and any other AI tool]
-- [VERIFY: month and year]
-- [VERIFY: no other AI tool was used for the software]
-- [VERIFY: which author]
-- [VERIFY]
+0 (the build fails if any remain).

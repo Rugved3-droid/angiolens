@@ -411,13 +411,13 @@ wc += [f"  {'TOTAL main text':<32}{main_total:>5}", "",
 # ------------------------------------------------------------------ title page
 AUTHORS = [
     ("Rugved Parmar, MD", "1", "0009-0005-8941-3745", "parmarrugved@gmail.com"),
-    ("Md Fahim, MD", "2", "[VERIFY: ORCID]", "md.fahim@downstate.edu"),
-    ("Adam Budzikowski, MD, PhD", "3", "[VERIFY: ORCID]", "[VERIFY: email]"),
+    ("Md Fahim, MD", "2", None, "md.fahim@downstate.edu"),
+    ("Adam Budzikowski, MD, PhD", "3", None, "adam.budzikowski@downstate.edu"),
 ]
 AFFIL = {
     "1": "Internal Medicine, SUNY Downstate Health Sciences University / Kings County Hospital, Brooklyn, NY, USA",
     "2": "Internal Medicine, SUNY Downstate Health Sciences University, Brooklyn, NY, USA",
-    "3": "[VERIFY: division, department, institution, city and country]",
+    "3": "SUNY Downstate Health Sciences University, Brooklyn, NY, USA",
 }
 t = Document()
 setup(t)
@@ -425,7 +425,7 @@ para(t, f"**{title}**", None, WD_ALIGN_PARAGRAPH.CENTER)
 para(t, "Article type: Innovation", None, WD_ALIGN_PARAGRAPH.CENTER)
 heading(t, "Authors", 1)
 for name, aff, orcid, email in AUTHORS:
-    para(t, f"{name}^{aff}^ · ORCID: {orcid} · {email}")
+    para(t, f"{name}^{aff}^" + (f" · ORCID: {orcid}" if orcid else "") + f" · {email}")
 heading(t, "Affiliations", 1)
 for k, v in AFFIL.items():
     para(t, f"^{k}^ {v}")
@@ -433,12 +433,10 @@ heading(t, "Corresponding author", 1)
 para(t, "Rugved Parmar, MD, Internal Medicine, SUNY Downstate Health Sciences University / Kings County Hospital, "
         "Brooklyn, NY, USA. Email: parmarrugved@gmail.com. ORCID: 0009-0005-8941-3745")
 heading(t, "Acknowledgments", 1)
-para(t, "[VERIFY: confirm with Dr. Shreya P. Trivedi whether she wishes to be acknowledged; if yes: \"We thank Dr. Shreya P. "
-        "Trivedi for early feedback on this work.\" If no, delete this sentence.] Anatomy in the figures and video is rendered "
+para(t, "Anatomy in the figures and video is rendered "
         "from Z-Anatomy models (CC BY-SA 4.0), derived from BodyParts3D (The Database Center for Life Science).")
 heading(t, "Manuscript information", 1)
-para(t, f"Main text: {main_total:,} words (excluding abstract, captions, table, declarations and references; author-input "
-        f"placeholders not counted). Abstract: {abs_n} words; short abstract: {short_n} words. Figures: 2. Tables: 1. "
+para(t, f"Main text: {main_total:,} words (excluding abstract, captions, table, declarations and references). Abstract: {abs_n} words; short abstract: {short_n} words. Figures: 2. Tables: 1. "
         f"References: {len(REFS)}. Online Resources: 1 (video).")
 para(t, f"Code: {CODE_URL}, release tag {TAG}, commit {COMMIT} (MIT licence).")
 t.save(OUT / "title_page.docx")
@@ -446,7 +444,7 @@ t.save(OUT / "title_page.docx")
 # ------------------------------------------------------------------ cover letter
 c = Document()
 setup(c)
-para(c, "[VERIFY: date of submission]")
+para(c, "20 November 2026")
 para(c, "The Editor-in-Chief\n*Medical Science Educator*")
 para(c, "Dear Editor-in-Chief,")
 para(c, f"We submit the manuscript \"{title}\" for consideration as an **Innovation** in *Medical Science Educator*.")
@@ -459,14 +457,10 @@ para(c, "Learning coronary angiographic projections usually happens opportunisti
 para(c, f"The main text has {main_total:,} words, with 2 figures, 1 table and 1 video Online Resource. The manuscript reports "
         "no learner outcome data.")
 para(c, "This manuscript has not been published and is not under consideration elsewhere. All authors have approved the "
-        "submission. [VERIFY: confirm every author's approval before submitting]")
+        "submission.")
 para(c, "AI disclosure: Claude Code (Anthropic; Claude Opus 5.5) assisted software development and the drafting and editing "
         "of the manuscript under the authors' direction; the authors reviewed all content, checked every reference and take "
         "full responsibility for it.")
-para(c, "**Suggested reviewers** (independent experts with an institutional email and no connection to this work):")
-for i in (1, 2, 3):
-    para(c, f"{i}. [PLACEHOLDER: name, degree], [PLACEHOLDER: institution], [PLACEHOLDER: institutional email]; expertise: "
-            f"[PLACEHOLDER]")
 para(c, "Sincerely,")
 para(c, "Rugved Parmar, MD (corresponding author), on behalf of Md Fahim, MD, and Adam Budzikowski, MD, PhD\n"
         "Internal Medicine, SUNY Downstate Health Sciences University / Kings County Hospital, Brooklyn, NY, USA\n"
@@ -474,9 +468,11 @@ para(c, "Rugved Parmar, MD (corresponding author), on behalf of Md Fahim, MD, an
 c.save(OUT / "cover_letter.docx")
 
 # ------------------------------------------------------------------ ESM
-esm_src = ROOT / "paper/submission/ESM_1.mp4"
-if esm_src.exists():
-    shutil.copyfile(esm_src, OUT / "ESM_1.mp4")
+sys.path.insert(0, str(SRC))
+import build_esm  # noqa: E402  (MSE title card + trims; keeps the committed ESM_1.mp4 if the source video is absent)
+ESM = build_esm.build()
+if ESM and not ESM["pass_le_3_per_s"]:
+    fail("ESM_1 photosensitivity check failed")
 
 # ------------------------------------------------------------------ self-audit
 def docx_text(path):
@@ -570,7 +566,7 @@ A += ["", "Test counts were re-checked on 2026-11-20 on this branch: `npm run ve
       "- 15° minimum move between Predict targets: `web/src/predict.ts:13`. 5° angle grid: `paper/scripts/common.py` `angle_grid`.",
       "- RAO 53/cranial 35 (Fig. 2): the random target shown in the screenshot `out/manuscript/fig2a_predict_question.png`.",
       "- Six guided scenes: README (Heart, In the chest, Cath lab, X-ray, Catheter, Cross-section) and the toolbar in Fig. 1.",
-      "- Online Resource 1 length 3 min 40 s: paper/TODO.md (ESM_1, 3:40).",
+      "- Online Resource 1 length 3 min 32 s: paper/mse/esm1_check.json duration_s 212.5 (6 s title card + 206.5 s of tour).",
       "- Claude Opus 5.5: `Co-Authored-By` trailers of all 24 AI-assisted commits (`git log --format=%(trailers:key=Co-Authored-By)`).",
       f"- Literal numeric tokens in the main text and Table 1 (for a final scan): {', '.join(lit)}", "",
       "## 2. References", "",
@@ -595,10 +591,11 @@ A += ["| Table 1 | Word table in manuscript | | numbers.json (section 1) |", "",
       f"Terms: {', '.join('`' + t + '`' for t in SCAN_TERMS)}. Scanned: manuscript.docx (text, captions, table), "
       "title_page.docx, cover_letter.docx, abstract_short.txt. Figures were inspected by eye: Fig. 2 shows interface "
       "feedback for one demonstration answer ('Correct.') by the authors, and the collapsed 'Your record' control shows "
-      "no data. ESM_1 is the trimmed video whose outcome-flavoured segments were removed (paper/TODO.md). Its narration "
-      "(D:/angiolens-video/narration.json) was scanned with the same terms over the retained segments: one hit, at 206.6 s, "
-      "\"So instead of just getting a score, the learner can actually see which axis they're consistently getting backwards\", "
-      "describes the Predict error-tracking feature and reports no data; it is not a learner-outcome claim.", ""]
+      "no data. ESM_1 is built by paper/mse/source/build_esm.py: MSE title card (no IJCARS wording, current authors) and cuts "
+      "of source 178.0-184.0 s, 205.95-237.0 s and 243.6-254.6 s. The middle cut removes the narration \"instead of just "
+      "getting a score...\" and the expanded 'Your record' panel of the narrator's demo answers (\"5/11 correct (45%)\"), "
+      "which opens at 206.0 s. A 1 frame/s contact sheet of the whole output was inspected: no record panel or score remains. "
+      "Photosensitivity check: max 1 flash/s (limit 3).", ""]
 if HITS:
     A += ["| File | Term | Sentence | Why it is not a learner-outcome claim |", "|---|---|---|---|"]
     A += [f"| {h[0]} | `{h[1]}` | {h[2]} | {h[3]} |" for h in HITS]
@@ -606,7 +603,9 @@ A += ["", f"**Result: PASS** ({len(HITS)} hit(s), all explained above; 0 learner
       "## 5. .docx self-check", ""]
 for n, r in CHECK.items():
     A.append(f"- **{n}**: " + "; ".join(f"{k}: {'yes' if v else 'NO'}" for k, v in r.items() if k != "_issues"))
-A += ["", "## 6. Placeholders still in the package", ""] + [f"- {p}" for p in placeholders]
+A += ["", "## 6. Placeholders still in the package", "", f"{len(placeholders)} (the build fails if any remain)."]
+if placeholders:
+    fail(f"placeholders remain: {placeholders}")
 AUDIT.write_text("\n".join(A) + "\n", encoding="utf-8")
 
 print(f"OK  main text {main_total} words; abstract {abs_n}; short abstract {short_n}; refs {len(ORDER)}; "

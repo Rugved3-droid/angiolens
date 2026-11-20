@@ -1,0 +1,36 @@
+{
+ "source": "D:\\angiolens-video\\AngioLens_tour.mp4",
+ "kept_source_segments_s": [
+  [
+   0.0,
+   178.0
+  ],
+  [
+   184.0,
+   205.95
+  ],
+  [
+   237.0,
+   243.6
+  ]
+ ],
+ "cut_source_segments_s": [
+  [
+   178.0,
+   184.0
+  ],
+  [
+   205.95,
+   237.0
+  ],
+  [
+   243.6,
+   254.6
+  ]
+ ],
+ "duration_s": 212.5,
+ "size_mb": 17.1,
+ "max_flashes_per_s_whole_frame": 1,
+ "max_flashes_per_s_4x4_tiles": 1,
+ "pass_le_3_per_s": true
+}
