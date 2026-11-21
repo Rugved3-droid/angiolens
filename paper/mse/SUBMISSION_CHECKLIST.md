@@ -67,7 +67,7 @@ Checked 2026-11-20 against the generated package (`submission/MSE_Innovation/`).
 - ✅ Rule 2, no fabricated numbers. Every result number comes through `numbers.json` and is traced in AUDIT section 1.
   Literal design constants are listed with their sources.
 - ✅ Rule 3, no invented references. All 13 were verified (Crossref, PubMed or the cited page), and no [CITE NEEDED] remains.
-- ✅ Rule 4, no invented people. Reviewers, Budzikowski's details and Fahim's ORCID are placeholders.
+- ✅ Rule 4, no invented people. Only author-supplied names and emails are used; reviewers and the missing ORCIDs are omitted.
 - ✅ Rule 5, software unchanged. There is no diff in `web/`, `preprocess/` or `tests/` against `v1.1-ijcars`.
 - ✅ Rule 6, branch `paper/mse-innovation`, not merged to main.
 
@@ -76,8 +76,7 @@ Checked 2026-11-20 against the generated package (`submission/MSE_Innovation/`).
 - ✅ `manuscript.docx`, `title_page.docx`, `cover_letter.docx`, `Fig1.tif`, `Fig2.tif`, `ESM_1.mp4`, `abstract_short.txt`
   and `word_count.txt`.
 - ✅ One command rebuilds everything: `paper\mse\source\make_package.cmd` or `make make_package`.
-- ✅ Cover letter: Innovation type, pitch, word count, not under consideration elsewhere, the AI line, and three reviewer
-  placeholders.
+- ✅ Cover letter: Innovation type, pitch, word count, not under consideration elsewhere, and the AI line.
 - ✅ No reviewer placeholders; enter reviewers in Editorial Manager.
 - ✅ Author details complete: emails and affiliations for all three; ORCID given for the corresponding author.
 - ✅ Teaching session described (October 2026, SUNY Downstate / Kings County).
